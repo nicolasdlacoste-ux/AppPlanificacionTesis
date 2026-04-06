@@ -1,0 +1,4070 @@
+[
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7846 (KEMEX) - CAL - LR + JP",
+    "Inicio": "2026-02-20T07:00:00-03:00",
+    "Fin": "2026-02-20T10:00:00-03:00",
+    "Ubicación": "Nazarre 3446/54 C1417DXH C.A.B.A BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8086 / 8227 (BIOFACTOR) - RET / IQ + CAL - LR + JP (LLEVAR ESCALERA)",
+    "Inicio": "2026-02-20T10:00:00-03:00",
+    "Fin": "2026-02-20T12:30:00-03:00",
+    "Ubicación": "Roseti 1651, C1427BWG Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7757 (ENDARCO) - BUSCAR SENSORES",
+    "Inicio": "2026-02-20T12:30:00-03:00",
+    "Fin": "2026-02-20T13:30:00-03:00",
+    "Ubicación": " Brasil 2831, Valentín Alsina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8124 / 8125 / 8128 / 8226 / 8131/ 8132 / 8134 / 8135 / 8234 (CDV P2) - CAL - LR + EA ",
+    "Inicio": "2026-02-21",
+    "Fin": "2026-02-22",
+    "Ubicación": "",
+    "Descripción": "OT 8124 y 8125 - CCE  -  SA: LR 6205 y 6204  EA   6215 y 6216 \nOT   8128 y 8226 - MDP - SA: LR 6147 6206   EA 6149 y 6218\nOT   8131 - EVS, FRM , GEN. LVE - SA: LR 6207 EA 6219\nOT   8132 - CEL - SA: LR 6209 EA 6220\nOT   8134 - MDC - SA: LR 6208 EA 6221\nOT   8135 - MAN - SA: LR 6211 EA 6222\nOT   8234 - REC P1 - SA: LR 6226 EA 6227"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Datos CDV",
+    "Inicio": "2026-02-23T07:00:00-03:00",
+    "Fin": "2026-02-23T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8131 (CDV) - CAL - LR+JP",
+    "Inicio": "2026-02-24",
+    "Fin": "2026-02-25",
+    "Ubicación": "CDV - Planta 2 (Aftosa), C. 9 2011, B1629 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8135 / 8226 (CDV) - CAL - LR+JP",
+    "Inicio": "2026-02-25",
+    "Fin": "2026-02-26",
+    "Ubicación": "CDV - Planta 2 (Aftosa), C. 9 2011, B1629 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Reserva (CDV P1) - CAL - LR+JP",
+    "Inicio": "2026-02-26",
+    "Fin": "2026-02-27",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8126 (DOM TIN) - CAL - LR",
+    "Inicio": "2026-02-27T07:00:00-03:00",
+    "Fin": "2026-02-27T12:00:00-03:00",
+    "Ubicación": "1046 Florentino Ameghino B1604 Florida Oeste BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Datos / Cert CDV",
+    "Inicio": "2026-02-28",
+    "Fin": "2026-03-01",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8280 (RICHMOND) - CAL - LR",
+    "Inicio": "2026-03-02",
+    "Fin": "2026-03-03",
+    "Ubicación": "Nueva Planta Vacunas, C. 5, B1609 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8291 (CDV P2) CAL - LR",
+    "Inicio": "2026-03-03",
+    "Fin": "2026-03-04",
+    "Ubicación": "cdv planta 2",
+    "Descripción": "Manómetros de CUA"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8359 (SERVAIND) - Buscar caudalimetros",
+    "Inicio": "2026-03-04T07:00:00-03:00",
+    "Fin": "2026-03-04T08:00:00-03:00",
+    "Ubicación": "Av. Caseros 1735, C1152 Cdad. Autónoma de Buenos Aires",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "CARGAR DATOS",
+    "Inicio": "2026-03-04T08:00:00-03:00",
+    "Fin": "2026-03-04T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8164 (VEINFAR P2) - MAP - LR",
+    "Inicio": "2026-03-05T07:00:00-03:00",
+    "Fin": "2026-03-05T13:00:00-03:00",
+    "Ubicación": "5685 José Enrique Rodó C1440 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7951 (TECNONUCLEAR FLENI) - RET - LR",
+    "Inicio": "2026-03-06T07:00:00-03:00",
+    "Fin": "2026-03-06T11:00:00-03:00",
+    "Ubicación": "Fleni Escobar, RN9 Km 53, B1625 Loma Verde, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8133 (DAXLEY) - RET - LR",
+    "Inicio": "2026-03-06T11:00:00-03:00",
+    "Fin": "2026-03-06T15:00:00-03:00",
+    "Ubicación": "2489 José Ingenieros B1636 Olivos BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8295(Mitutoyo) - Llevar equipos - LR",
+    "Inicio": "2026-03-06T15:00:00-03:00",
+    "Fin": "2026-03-06T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Cargar datos CDV",
+    "Inicio": "2026-03-07",
+    "Fin": "2026-03-08",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8302 (CDV P2) CAL - LR (LLEVAR PAQUETE)",
+    "Inicio": "2026-03-09",
+    "Fin": "2026-03-10",
+    "Ubicación": "cdv planta 2",
+    "Descripción": "Manómetros de CUA"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Día de vacaciones",
+    "Inicio": "2026-03-10",
+    "Fin": "2026-03-14",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Vacaciones LR",
+    "Inicio": "2026-03-16",
+    "Fin": "2026-03-17",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Ver descripción (CDV P1) - CAL - JC + LR",
+    "Inicio": "2026-03-17",
+    "Fin": "2026-03-19",
+    "Ubicación": "",
+    "Descripción": "8490 - VIR\n8166 - DES (HACER COT/DES/005)\n8167 - FOR3\n8169 - BAN\n8170 - ENV3\n8172 y 8516 - BIT\n8173 - BAE\n8174 - CAR\n8112 - COC\n8564 - PVI (planta 2)"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "LLEVAR DOS CAJAS A CDV ",
+    "Inicio": "2026-03-18T06:00:00-03:00",
+    "Fin": "2026-03-18T07:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "EXAMEN MEDICO A LAS 7:00 con 4hs de ayuno y DNI - LR",
+    "Inicio": "2026-03-19T07:00:00-03:00",
+    "Fin": "2026-03-19T10:00:00-03:00",
+    "Ubicación": "Marcelo T. de Alvear 2089,  CABA",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "CARGAR DATOS - LR (SI ERIC NO LLEGA HACER RETIRO EN ELGIS)",
+    "Inicio": "2026-03-19T10:00:00-03:00",
+    "Fin": "2026-03-19T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Ver descripción (CDV P1) - CAL - LR",
+    "Inicio": "2026-03-20",
+    "Fin": "2026-03-21",
+    "Ubicación": "",
+    "Descripción": "8490 - VIR\n8166 - DES (HACER COT/DES/005)\n8167 - FOR3\n8169 - BAN\n8170 - ENV3\n8172 y 8516 - BIT\n8173 - BAE\n8174 - CAR\n8112 - COC"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8302 / 8226 (CDV P2) - CAL - LR",
+    "Inicio": "2026-03-23",
+    "Fin": "2026-03-24",
+    "Ubicación": "CDV - Planta 2 (Aftosa), C. 9 2011, B1629 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8261 (QUICKFOOD) - CAL - LR+JP (VIAJE)",
+    "Inicio": "2026-03-25",
+    "Fin": "2026-03-29",
+    "Ubicación": "QuickFood Baradero, Colombres, B2942 Buenos Aires, Provincia de Buenos Aires, Argentina",
+    "Descripción": "Hosteria Edelweiss - Baradero: <a href=\"https://maps.app.goo.gl/T6UcQ81QeAuxeiDB9\">https://maps.app.goo.gl/T6UcQ81QeAuxeiDB9</a>"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8360 (Y-TEC) - CAL - LR+NM",
+    "Inicio": "2026-03-30",
+    "Fin": "2026-04-02",
+    "Ubicación": "YPF TECNOLOGÍA (Y-TEC), Av. del Petroleo Argentino 900-1198, B1923 Berisso, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8467 (Y-TEC) - CAL - LR (ver si lo de temperatura es con bloque)",
+    "Inicio": "2026-04-06",
+    "Fin": "2026-04-08",
+    "Ubicación": "YPF TECNOLOGÍA (Y-TEC), Av. del Petroleo Argentino 900-1198, B1923 Berisso, Provincia de Buenos Aires, Argentina",
+    "Descripción": "Dinamómetro YT.EQP.01319.25 se coordina Lunes 06/04"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8511 (AYUDIN) - CAL - LR (hacer espectrofometría primero)",
+    "Inicio": "2026-04-08",
+    "Fin": "2026-04-11",
+    "Ubicación": "Castro Barros 2050 B1785CDB Aldo Bonzi BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Reunion CAMPO",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T07:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Datos"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8321 (CA-PHARM) - MAP - LR + EA",
+    "Inicio": "2026-04-13T07:00:00-03:00",
+    "Fin": "2026-04-13T09:00:00-03:00",
+    "Ubicación": "3230 Galicia C1416 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7549 (BERNABO) - CAL - LR + EA ",
+    "Inicio": "2026-04-13T09:00:00-03:00",
+    "Fin": "2026-04-13T16:00:00-03:00",
+    "Ubicación": "Terrada 2346, C1416ARZ Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8511 (AYUDIN) - CAL - LR",
+    "Inicio": "2026-04-14T07:00:00-03:00",
+    "Fin": "2026-04-14T16:00:00-03:00",
+    "Ubicación": "Castro Barros 2050 B1785CDB Aldo Bonzi BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7967 (FISHER) - CAL - LR + EA",
+    "Inicio": "2026-04-15T07:00:00-03:00",
+    "Fin": "2026-04-15T12:00:00-03:00",
+    "Ubicación": "AV. Del Campo 1550/60 C1427APP Ciudad Autónoma de Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8597 (BARBELLA) - MAP - LR",
+    "Inicio": "2026-04-16T07:00:00-03:00",
+    "Fin": "2026-04-16T10:00:00-03:00",
+    "Ubicación": "Presidente Frondizi 2651 1629 Parque Industrial Pilar BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "REserva (RICHMOND) - MAP - LR",
+    "Inicio": "2026-04-16T10:45:00-03:00",
+    "Fin": "2026-04-16T14:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7947 (SYNTEX) -CAL - LR + EA",
+    "Inicio": "2026-04-17T07:00:00-03:00",
+    "Fin": "2026-04-17T16:00:00-03:00",
+    "Ubicación": "501 Luis de Sarro B1838 Luis Guillon BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8522 (DODERO) - CAL - LR",
+    "Inicio": "2026-04-21T07:00:00-03:00",
+    "Fin": "2026-04-21T16:00:00-03:00",
+    "Ubicación": "2222 José Ingenieros B1610 Ricardo Rojas BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8249 (MARFRIG) - CAL - LR (VIAJE)",
+    "Inicio": "2026-04-22",
+    "Fin": "2026-04-25",
+    "Ubicación": "Marfrig Argentina san jorge santa fe, Gral. Artigas, S2452 San Jorge, Santa Fe, Argentina",
+    "Descripción": "Caudalímetros x 4"
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "CAPACITACIÓN EN ACTUALIZACIÓN DE SOFTWARE",
+    "Inicio": "2026-04-27T07:00:00-03:00",
+    "Fin": "2026-04-27T08:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8514 (TUTEUR) - ENSAYOS - LR",
+    "Inicio": "2026-04-27T07:00:00-03:00",
+    "Fin": "2026-04-27T15:00:00-03:00",
+    "Ubicación": "Av. Gral. Tomás de Iriarte 3070, C1291ACR Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8605 (TECNONUCLEAR) - CAL - EA + LR",
+    "Inicio": "2026-04-29T07:00:00-03:00",
+    "Fin": "2026-04-29T16:00:00-03:00",
+    "Ubicación": "Fleni Escobar, RN9 Km 53, B1625 Loma Verde, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8433 (FRAMINGHAM) - CAL - LR + EA",
+    "Inicio": "2026-04-30T07:00:00-03:00",
+    "Fin": "2026-04-30T16:00:00-03:00",
+    "Ubicación": "Agüero 363, C1171ABC Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Ver dinamómetro con cris",
+    "Inicio": "2026-05-04T07:00:00-03:00",
+    "Fin": "2026-05-04T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8634 (CUMMINS) - CAL - LR",
+    "Inicio": "2026-05-04T09:00:00-03:00",
+    "Fin": "2026-05-04T13:00:00-03:00",
+    "Ubicación": "Ruta Panamericana km 32,5 1618 El Talar BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8401 (MERCK) - CAL HIELO SECO - LR",
+    "Inicio": "2026-05-05T07:00:00-03:00",
+    "Fin": "2026-05-05T16:00:00-03:00",
+    "Ubicación": "La Paz 1234 B1640CXI Martínez BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7715 (PHOENIX) - CAL - LR (VIAJE)",
+    "Inicio": "2026-05-06",
+    "Fin": "2026-05-08",
+    "Ubicación": "Mata Mora Phoenix, Unnamed Road, Neuquén, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8633 (SCC POWER) - CAL - LR (VIAJE)",
+    "Inicio": "2026-05-11T07:00:00-03:00",
+    "Fin": "2026-05-11T16:00:00-03:00",
+    "Ubicación": "Ruta Provincial 191, Km 15 B2930KZA San Pedro BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7979 (FISHER) - CAL (VAISALA) - JC + LR",
+    "Inicio": "2026-05-13",
+    "Fin": "2026-05-15",
+    "Ubicación": "Avenida del Campo, Av. del Campo, C1427 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "8452 (MERCK) - CAL (VAISALA Y HIELO SECO)  - LR + JP",
+    "Inicio": "2026-05-18",
+    "Fin": "2026-05-22",
+    "Ubicación": "G. Marconi 877, B1812 Carlos Spegazzini, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "Reserva (Y-TEC)",
+    "Inicio": "2026-05-26",
+    "Fin": "2026-05-30",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7980 (FISHER) - CAL - LR + JP",
+    "Inicio": "2026-06-02T07:00:00-03:00",
+    "Fin": "2026-06-02T16:00:00-03:00",
+    "Ubicación": "AV. Del Campo 1550/60 C1427APP Ciudad Autónoma de Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Luis Rivera",
+    "Correo": "lrivera@akrimet.com",
+    "Evento": "7952 (TECNONUCLEAR) - MAP - LR",
+    "Inicio": "2026-07-01T07:00:00-03:00",
+    "Fin": "2026-07-01T14:00:00-03:00",
+    "Ubicación": "Fleni Escobar, RN9 Km 53, B1625 Loma Verde, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "CAPACITACIÓN DE EMISIÓN",
+    "Inicio": "2026-02-20T07:00:00-03:00",
+    "Fin": "2026-02-20T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "7656 / 7628 (CASSARA) - CAL - JC + JP (soluciones de alta conductividad)",
+    "Inicio": "2026-02-23",
+    "Fin": "2026-02-24",
+    "Ubicación": "Saladillo 2452, C1440FFX Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "7647 (DODERO) - CAL - JC + EA",
+    "Inicio": "2026-02-24",
+    "Fin": "2026-02-26",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Taller de la norma 17025",
+    "Inicio": "2026-02-27T07:00:00-03:00",
+    "Fin": "2026-02-27T08:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8138 (SUCESION DE RUBEN) - CAL - JC",
+    "Inicio": "2026-02-27T08:00:00-03:00",
+    "Fin": "2026-02-27T11:00:00-03:00",
+    "Ubicación": "Av. Int. Francisco Rabanal 2950, C1437 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Reserva (CDV) - CAL - JP+JC",
+    "Inicio": "2026-02-28",
+    "Fin": "2026-03-01",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "OFICINA - Certificado",
+    "Inicio": "2026-03-02",
+    "Fin": "2026-03-07",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "7807 (DÍA) - CAL - JC (DE 14 A 22 HRS)",
+    "Inicio": "2026-03-09",
+    "Fin": "2026-03-14",
+    "Ubicación": "Jorge Stephenson 3060 B1667 Grand Bourg BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Ver descripción (CDV P1) - CAL - JC + LR",
+    "Inicio": "2026-03-16",
+    "Fin": "2026-03-21",
+    "Ubicación": "",
+    "Descripción": "8490 - VIR\n8166 - DES (HACER COT/DES/005)\n8167 - FOR3\n8169 - BAN\n8170 - ENV3\n8172 y 8516 - BIT\n8173 - BAE\n8174 - CAR\n8112 - COC\n8564 - PVI (planta 2)"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "LLEVAR DOS CAJAS A CDV ",
+    "Inicio": "2026-03-18T06:00:00-03:00",
+    "Fin": "2026-03-18T07:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "(CDV P1) - CAL - JC",
+    "Inicio": "2026-03-20T07:00:00-03:00",
+    "Fin": "2026-03-20T12:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": "8490 - VIR \n8166 - DES (HACER COT/DES/005) \n8167 - FOR3 \n8169 - BAN \n8170 - ENV3 \n8172 y 8516 - BIT \n8173 - BAE \n8174 - CAR \n8112 - COC"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "BUSCAR EQUIPOS EN MERCEDEZ BENZ CAMIONES Y BUSES - JC",
+    "Inicio": "2026-03-20T12:00:00-03:00",
+    "Fin": "2026-03-20T13:00:00-03:00",
+    "Ubicación": "Mercedes-Benz Camiones y Buses, VVJX+6R, Zárate, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "DEJAR EQUIPOS EN JETSERVICE - JC",
+    "Inicio": "2026-03-20T13:00:00-03:00",
+    "Fin": "2026-03-20T14:00:00-03:00",
+    "Ubicación": "Jet Service Instrument SRL, Pedriel, Matheu 4009, B1646 San Fernando, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "CARGAR DATOS - JC",
+    "Inicio": "2026-03-23T07:00:00-03:00",
+    "Fin": "2026-03-23T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8059 / 8590 (TECNONUCLEAR) - CAL + MAP - GM + JC",
+    "Inicio": "2026-03-25",
+    "Fin": "2026-03-27",
+    "Ubicación": "Arias 4149 C1430CRO C.A.B.A. BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Datos (CDV)",
+    "Inicio": "2026-03-27T07:00:00-03:00",
+    "Fin": "2026-03-27T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8590 / 8484 (TECNONUCLEAR) - RET - JC",
+    "Inicio": "2026-03-27T09:00:00-03:00",
+    "Fin": "2026-03-27T12:00:00-03:00",
+    "Ubicación": "C1430CRP, Arias 4176, C1430CRP Cdad. Autónoma de Buenos Aires",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8279 (TECNOMEDICAL) - MAP - JC",
+    "Inicio": "2026-03-27T12:00:00-03:00",
+    "Fin": "2026-03-27T16:00:00-03:00",
+    "Ubicación": "AYE, Dr. Ceraso 741, B1674 Sáenz Peña, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8607 (RICHMOIND) - CAL - JC",
+    "Inicio": "2026-03-30T07:00:00-03:00",
+    "Fin": "2026-03-30T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Cargar Datos",
+    "Inicio": "2026-03-30T09:00:00-03:00",
+    "Fin": "2026-03-30T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8188 (IBERO AMERICANO) - CAL - JC (VIAJE)",
+    "Inicio": "2026-03-31",
+    "Fin": "2026-04-02",
+    "Ubicación": "PQ8R+HPJ Tandil, Provincia de Buenos Aires, Argentina . Tandil BA AR",
+    "Descripción": "<p>Hotel Ro Che Hil: <a href=\"https://maps.app.goo.gl/fEtaqsVZHajHK7sFA\">https://maps.app.goo.gl/fEtaqsVZHajHK7sFA</a><b></b></p><p><b>Brenda Alevatto</b></p><p>Control de Calidad</p><p>Cel: +54 9 2241 414787</p>"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8167 / 8642 (CDV) - CAL - JC",
+    "Inicio": "2026-04-01T14:00:00-03:00",
+    "Fin": "2026-04-01T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Cambiar etiquetas faltantes\n\nCalibrar COT/FOR3/001"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Ver comentarios (CDV Abril P1) - CAL - JC + JP",
+    "Inicio": "2026-04-06",
+    "Fin": "2026-04-11",
+    "Ubicación": "",
+    "Descripción": "PARA LA PROXIMA SEMANA: \n8112 - COC\n8552 - FOR2\n8554 - PMC + SAP + BAE + LAV2 + BRU + BIP\n\nPARA ESTA SEMANA:\n8558 - BAX + ACO3 + VIR + BIT + BAN + ENV2\n8560 - PPD"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Reunion CAMPO",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T07:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Datos"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Ver comentarios (CDV Abril P1) - CAL - JC + JP",
+    "Inicio": "2026-04-13",
+    "Fin": "2026-04-18",
+    "Ubicación": "",
+    "Descripción": "\n PARA ESTA SEMANA: \n8558 - BAX + ACO3 + VIR + BIT + BAN + ENV2\n8560 - PPD\n\n\nLA SEMANA PASADA: \n8112 - COC \n8552 - FOR2 \n8554 - PMC + SAP + BAE + LAV2 + BRU + BIP"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8619 / 8622 / 8626 (CDV Abril P2) - CAL - JC + JP",
+    "Inicio": "2026-04-20",
+    "Fin": "2026-04-24",
+    "Ubicación": "CDV - Planta 2 (Aftosa), C. 9 2011, B1629 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": "8619 - PVI\n8622 - CCI + SER + CEL\n8626 - DPT"
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "8597 (BARBELLA) - RET - JC",
+    "Inicio": "2026-04-24T07:00:00-03:00",
+    "Fin": "2026-04-24T10:00:00-03:00",
+    "Ubicación": "Presidente Frondizi 2651 1629 Parque Industrial Pilar BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Reserva (RICHMOND) - RET - JC",
+    "Inicio": "2026-04-24T10:45:00-03:00",
+    "Fin": "2026-04-24T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "CAPACITACIÓN EN ACTUALIZACIÓN DE SOFTWARE",
+    "Inicio": "2026-04-27T07:00:00-03:00",
+    "Fin": "2026-04-27T08:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Reserva (CDV P1)",
+    "Inicio": "2026-05-04",
+    "Fin": "2026-05-09",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "Reserva (CDV P1)",
+    "Inicio": "2026-05-11",
+    "Fin": "2026-05-13",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "VER ACTUALIZACIÓN DE FIRMWARE",
+    "Inicio": "2026-05-12T12:00:00-03:00",
+    "Fin": "2026-05-12T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "7979 (FISHER) - CAL (VAISALA) - JC + LR",
+    "Inicio": "2026-05-13",
+    "Fin": "2026-05-15",
+    "Ubicación": "Avenida del Campo, Av. del Campo, C1427 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "7948 (SYNTEX) - CAL - JC",
+    "Inicio": "2026-06-01T07:00:00-03:00",
+    "Fin": "2026-06-01T16:00:00-03:00",
+    "Ubicación": "Luis de Sarro 501, B1838 Luis Guillon, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "7321 (SAINT-GOBAIN) - CAL - JC (viaje)",
+    "Inicio": "2026-06-29",
+    "Fin": "2026-07-02",
+    "Ubicación": "Av. Tuyango 1 3129 Piedras Blancas ENTRIO AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Castillo",
+    "Correo": "jcastillo@akrimet.com",
+    "Evento": "7949 (SYNTEX) - CAL - JC + JP ",
+    "Inicio": "2026-07-02",
+    "Fin": "2026-07-04",
+    "Ubicación": "501 Luis de Sarro B1838 Luis Guillon BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7759 / 8232 (FARMESA) - CAL - GM + CC",
+    "Inicio": "2026-02-20T07:00:00-03:00",
+    "Fin": "2026-02-20T16:00:00-03:00",
+    "Ubicación": "Farmesa, Colectora Sur Acceso Oeste, B1748 Gral. Rodríguez, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7800 (LOG IN) - MAP - GM",
+    "Inicio": "2026-02-23T07:00:00-03:00",
+    "Fin": "2026-02-23T13:00:00-03:00",
+    "Ubicación": "Ing. Eifel 4180 B1667GYF Área de Promoción el Triángulo BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "6417 (POMPEYA) - MAP - GM",
+    "Inicio": "2026-02-23T13:00:00-03:00",
+    "Fin": "2026-02-23T16:00:00-03:00",
+    "Ubicación": "1767 Abraham J. Luppi C1437 Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7867 (EXSA) - RET - GM + GA",
+    "Inicio": "2026-02-24T07:00:00-03:00",
+    "Fin": "2026-02-24T10:00:00-03:00",
+    "Ubicación": "Av. Bernardo Ader 3620, B1605 Munro, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7951 (TECNONUCLEAR) - MAP - GM + GA",
+    "Inicio": "2026-02-24T10:00:00-03:00",
+    "Fin": "2026-02-24T16:00:00-03:00",
+    "Ubicación": "Fleni Escobar, RN9 Km 53, B1625 Loma Verde, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8142 (TUTEUR) - MAP + CAL - GM",
+    "Inicio": "2026-02-25T07:00:00-03:00",
+    "Fin": "2026-02-25T12:00:00-03:00",
+    "Ubicación": "5919 Doctor José Ignacio de la Rosa C1439 Villa Lugano CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8133 (DAXLEY) - MAP - GM",
+    "Inicio": "2026-02-25T12:00:00-03:00",
+    "Fin": "2026-02-25T15:00:00-03:00",
+    "Ubicación": "2489 José Ingenieros B1636 Olivos BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7873 (LOG IN) - CAL - GM",
+    "Inicio": "2026-02-26T07:00:00-03:00",
+    "Fin": "2026-02-26T16:00:00-03:00",
+    "Ubicación": "Ing. Eifel 4180 B1667GYF Área de Promoción el Triángulo BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7879 (MACPHARMA) - RET - GM",
+    "Inicio": "2026-02-27T07:00:00-03:00",
+    "Fin": "2026-02-27T10:00:00-03:00",
+    "Ubicación": "1151 La Paz B1640 Martínez BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "Taller de la norma 17025",
+    "Inicio": "2026-02-27T07:00:00-03:00",
+    "Fin": "2026-02-27T08:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8142 (TUTEUR) - ENSAYOS PQ - GM",
+    "Inicio": "2026-02-27T10:00:00-03:00",
+    "Fin": "2026-02-27T16:00:00-03:00",
+    "Ubicación": "5919 Doctor José Ignacio de la Rosa C1439 Villa Lugano CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "Llevar paquete MALBRAN",
+    "Inicio": "2026-02-27T11:00:00-03:00",
+    "Fin": "2026-02-27T12:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7567 / 7803 (DÍA PARANA) - CAL - GM + JP (VIAJE)",
+    "Inicio": "2026-03-02",
+    "Fin": "2026-03-07",
+    "Ubicación": "Carlos Patat 1350, Col. Avellaneda, Entre Ríos",
+    "Descripción": "Hotel Coé Verá: <a href=\"https://maps.app.goo.gl/GqHn4p5aVw2TFSun8\">https://maps.app.goo.gl/GqHn4p5aVw2TFSun8</a>"
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7243 (AZUL DIAGNOSTICO) - CAL - GM (VIAJE)",
+    "Inicio": "2026-03-09T07:00:00-03:00",
+    "Fin": "2026-03-10T16:00:00-03:00",
+    "Ubicación": "25 de mayo 479 Azul Buenos Aires Argentina",
+    "Descripción": "Paseo Bolívar Hotel:<br><a href=\"https://maps.app.goo.gl/cvaTBNPtdymS4ZN18\" target=\"_blank\"><u>https://maps.app.goo.gl/cvaTBNPtdymS4ZN18</u></a>"
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "CARGAR DATOS",
+    "Inicio": "2026-03-11T07:00:00-03:00",
+    "Fin": "2026-03-11T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8138 - (SUCESION DE RUBEN MARTIN) - CORREGIR ETIQUETA - GM",
+    "Inicio": "2026-03-12T07:00:00-03:00",
+    "Fin": "2026-03-12T09:00:00-03:00",
+    "Ubicación": "Av. Int. Francisco Rabanal 2950, C1437 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": "<dl><dt>LA BALANZA  Identificación (ID): BPSRMM02 Serie: 616018026 tiene mal la etiqueta. Tiene que tener vencimiento a 24 meses.</dt></dl>"
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8442 (MERCEDES BENZ) - LLEVAR EQUIPOS A MERCEDES - GM",
+    "Inicio": "2026-03-12T09:00:00-03:00",
+    "Fin": "2026-03-12T16:00:00-03:00",
+    "Ubicación": "Mercedes-Benz Camiones y Buses, VVJX+6R, Zárate, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7515 (RICHMOND) - CAL - GM+JP",
+    "Inicio": "2026-03-13",
+    "Fin": "2026-03-14",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8164 / 8164 (VEINFAR) - RET & MAP - GM",
+    "Inicio": "2026-03-16T07:00:00-03:00",
+    "Fin": "2026-03-16T10:00:00-03:00",
+    "Ubicación": "5685 José Enrique Rodó C1440 Buenos Aires CABA AR",
+    "Descripción": "Agregar R028"
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8414 (MASSONE) - CAL - GM",
+    "Inicio": "2026-03-16T11:00:00-03:00",
+    "Fin": "2026-03-16T14:00:00-03:00",
+    "Ubicación": "Arias 4431, C1430CSE Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8184 (SPEC CHEM) - CAL - GM",
+    "Inicio": "2026-03-17T07:00:00-03:00",
+    "Fin": "2026-03-17T15:15:00-03:00",
+    "Ubicación": "1566 Mermoz B1618 El Talar BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8504 (Mitutoyo) - BUSCAR EQUIPOS - GM presupuesto 39031",
+    "Inicio": "2026-03-17T15:15:00-03:00",
+    "Fin": "2026-03-17T16:00:00-03:00",
+    "Ubicación": "Av. Bartolomé Mitre 1249, B1604 Florida Oeste, Provincia de Buenos Aires B1604 CABA Buenos Aires Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7942 (SYNTEX) - CAL - GM + EA",
+    "Inicio": "2026-03-18T07:00:00-03:00",
+    "Fin": "2026-03-18T16:00:00-03:00",
+    "Ubicación": "Luis de Sarro 501, B1838 Luis Guillon, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8361 / 6508 / 8370 (CDV P3) - CAL - JP + GM",
+    "Inicio": "2026-03-19",
+    "Fin": "2026-03-21",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8515 (TUTEUR) - CAL + MAP - GM",
+    "Inicio": "2026-03-23T07:00:00-03:00",
+    "Fin": "2026-03-23T13:00:00-03:00",
+    "Ubicación": "5919 Doctor José Ignacio de la Rosa C1439 Villa Lugano CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8215 (CAMILO FERRON) - CAL - GM",
+    "Inicio": "2026-03-23T13:00:00-03:00",
+    "Fin": "2026-03-23T15:00:00-03:00",
+    "Ubicación": "418 Camino de la Ribera Sur B1828 Villa Fiorito BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8059 / 8590 (TECNONUCLEAR) - CAL + MAP - GM + JC",
+    "Inicio": "2026-03-25",
+    "Fin": "2026-03-27",
+    "Ubicación": "Arias 4149 C1430CRO C.A.B.A. BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "LLEVAR CAJA DEL LABORATORIO A MERCEDES - BENZ y otra A UNIVERSIDAD DE LANUS",
+    "Inicio": "2026-03-27T07:00:00-03:00",
+    "Fin": "2026-03-27T08:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "BUSCAR EQUIPOS EN JETSERVICE - GM",
+    "Inicio": "2026-03-27T08:00:00-03:00",
+    "Fin": "2026-03-27T10:00:00-03:00",
+    "Ubicación": "Jet Service Instrument SRL, Pedriel, Matheu 4009, B1646 San Fernando, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "DEJAR EQUIPOS EN MERCEDEZ BENZ CAMIONES Y BUSES - GM",
+    "Inicio": "2026-03-27T10:00:00-03:00",
+    "Fin": "2026-03-27T12:00:00-03:00",
+    "Ubicación": "Mercedes-Benz Camiones y Buses, VVJX+6R, Zárate, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8535 (ANVAC) - ENTREGAR EQUIPOS - GM",
+    "Inicio": "2026-03-27T12:00:00-03:00",
+    "Fin": "2026-03-27T13:00:00-03:00",
+    "Ubicación": "Lamadrid 1263 B1653 Villa Ballester BUENOS AIRES Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8594 DEJAR CAJA EN MITUTOYO - GM",
+    "Inicio": "2026-03-27T13:00:00-03:00",
+    "Fin": "2026-03-27T14:00:00-03:00",
+    "Ubicación": "Mitutoyo, Av. Bartolomé Mitre 1249, B1604 Florida Oeste, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8436 (UNIVERSIDAD DE LANUS) - LLEVAR PIPETAS - GM",
+    "Inicio": "2026-03-27T14:00:00-03:00",
+    "Fin": "2026-03-27T16:00:00-03:00",
+    "Ubicación": "Av. 29 De Septiembre 3901, Remedios Escalada, Buenos Aires, Argentina C1010ABO lanus Buenos Aires Argentina",
+    "Descripción": "Gastón 1168194545"
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8189 / 7824 (LOG IN) - CAL - GM",
+    "Inicio": "2026-03-30T07:00:00-03:00",
+    "Fin": "2026-03-30T16:00:00-03:00",
+    "Ubicación": "Log-In Farma, Ing. Eifel 4180, B1667 Area de Promoción El Triángulo, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8230 (KEMEX) - CAL - GM",
+    "Inicio": "2026-03-31T06:00:00-03:00",
+    "Fin": "2026-03-31T12:00:00-03:00",
+    "Ubicación": "90 Calle 7 B1629 Fatima BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8277 (BAGO) - CAL - GM (Preguntar por los id y remplazar el equipo atras de los caños)",
+    "Inicio": "2026-04-01T07:00:00-03:00",
+    "Fin": "2026-04-01T16:00:00-03:00",
+    "Ubicación": "C. 4 1400, B1904CID La Plata, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7806 (DÍA) - CAL - GM",
+    "Inicio": "2026-04-06",
+    "Fin": "2026-04-11",
+    "Ubicación": "Guatambú 1700, B1852LAR Burzaco, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "Reunion CAMPO",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T07:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Datos"
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7810 (DÍA) - CAL - GM (Horario de 14 A 22 hs)",
+    "Inicio": "2026-04-13",
+    "Fin": "2026-04-18",
+    "Ubicación": "Acceso Sudeste 2768 Km. 8.5. Au Dr. Ricardo Balbín 1872 Dock Sud BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7805 (DÍA) - CAL - GM (DE 14 A 22 HRS)",
+    "Inicio": "2026-04-20",
+    "Fin": "2026-04-25",
+    "Ubicación": "1000 General Pedro Díaz B1688 Villa Tesei BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8207 (MASSONE) - CAL (TIEMPO) - GM",
+    "Inicio": "2026-04-27",
+    "Fin": "2026-05-01",
+    "Ubicación": "Arias 4431, C1430CSE Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "CAPACITACIÓN EN ACTUALIZACIÓN DE SOFTWARE",
+    "Inicio": "2026-04-27T07:00:00-03:00",
+    "Fin": "2026-04-27T08:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "MEDICO - GM",
+    "Inicio": "2026-05-05T07:00:00-03:00",
+    "Fin": "2026-05-05T12:15:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "8207 (MASSONE) - CAL (TIEMPO) - GM",
+    "Inicio": "2026-05-06",
+    "Fin": "2026-05-08",
+    "Ubicación": "Arias 4431, C1430CSE Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Gabriel Mansoreitch",
+    "Correo": "gmansoreitch@akrimet.com",
+    "Evento": "7880 (MACPHARMA) - MAP - GM",
+    "Inicio": "2026-07-01T07:00:00-03:00",
+    "Fin": "2026-07-01T12:00:00-03:00",
+    "Ubicación": "1151 La Paz B1640 Martínez BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7708 (20 de Junio) - MAP - EA (VIAJE)",
+    "Inicio": "2026-02-18",
+    "Fin": "2026-02-20",
+    "Ubicación": "Pres. Roca 1553, S2000CYE Rosario, Santa Fe, Argentina",
+    "Descripción": "Hotel Emilia: <a href=\"https://maps.app.goo.gl/2Z59aEPCqsPAk7a56\">https://maps.app.goo.gl/2Z59aEPCqsPAk7a56</a>"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7999 (SLANGER) - RET - EA",
+    "Inicio": "2026-02-20T07:00:00-03:00",
+    "Fin": "2026-02-20T11:00:00-03:00",
+    "Ubicación": "3781 Hipolito Yrigoyen B1208 Villa Chacabuco BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8220 Retiro de Equipos (Mercedes Benz BC)",
+    "Inicio": "2026-02-20T11:00:00-03:00",
+    "Fin": "2026-02-20T16:00:00-03:00",
+    "Ubicación": "Mercedes-Benz Camiones y Buses, VVJX+6R, Zárate, Provincia de Buenos Aires, Argentina",
+    "Descripción": "Contacto Fernando Dominguez\n\n+54 9 11 6846-7569"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8124 / 8125 / 8128 / 8226 / 8131/ 8132 / 8134 / 8135 / 8234 (CDV P2) - CAL - LR + EA ",
+    "Inicio": "2026-02-21",
+    "Fin": "2026-02-22",
+    "Ubicación": "",
+    "Descripción": "OT 8124 y 8125 - CCE  -  SA: LR 6205 y 6204  EA   6215 y 6216 \nOT   8128 y 8226 - MDP - SA: LR 6147 6206   EA 6149 y 6218\nOT   8131 - EVS, FRM , GEN. LVE - SA: LR 6207 EA 6219\nOT   8132 - CEL - SA: LR 6209 EA 6220\nOT   8134 - MDC - SA: LR 6208 EA 6221\nOT   8135 - MAN - SA: LR 6211 EA 6222\nOT   8234 - REC P1 - SA: LR 6226 EA 6227"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7919 (MABXIENCE) - MAP - EA",
+    "Inicio": "2026-02-23T07:00:00-03:00",
+    "Fin": "2026-02-23T11:00:00-03:00",
+    "Ubicación": "Carlos Villate 5148 1605 Munro BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7647 (DODERO) - CAL - JC + EA",
+    "Inicio": "2026-02-24",
+    "Fin": "2026-02-26",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8201 (BAYER) - MAP - EA+AS",
+    "Inicio": "2026-02-26T07:00:00-03:00",
+    "Fin": "2026-02-26T16:00:00-03:00",
+    "Ubicación": "Bayer Edificio 1, C. 8 714, Pilar, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7708 (20 de Junio) - RET - EA",
+    "Inicio": "2026-02-27",
+    "Fin": "2026-03-01",
+    "Ubicación": "Pres. Roca 1553, S2000CYE Rosario, Santa Fe, Argentina",
+    "Descripción": "Hotel Emilia: <a href=\"https://maps.app.goo.gl/2Z59aEPCqsPAk7a56\" target=\"_blank\"><u>https://maps.app.goo.gl/2Z59aEPCqsPAk7a56</u></a>"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "Taller de la norma 17025",
+    "Inicio": "2026-02-27T07:00:00-03:00",
+    "Fin": "2026-02-27T08:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7800 (LOG IN) - MAP - EA",
+    "Inicio": "2026-03-02T07:00:00-03:00",
+    "Fin": "2026-03-02T16:00:00-03:00",
+    "Ubicación": "Ing. Eifel 4180 B1667GYF Área de Promoción el Triángulo BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7919 (MABXIENCE) - RET- EA",
+    "Inicio": "2026-03-03T07:00:00-03:00",
+    "Fin": "2026-03-03T10:00:00-03:00",
+    "Ubicación": "Carlos Villate 5148 1605 Munro BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8213 (NIELTEC) - MAP - EA",
+    "Inicio": "2026-03-03T10:00:00-03:00",
+    "Fin": "2026-03-03T12:00:00-03:00",
+    "Ubicación": "Almafuerte 3790, B1754 San Justo, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "6417 (POMPEYA) - RET - EA",
+    "Inicio": "2026-03-03T12:00:00-03:00",
+    "Fin": "2026-03-03T15:00:00-03:00",
+    "Ubicación": "1767 Abraham J. Luppi C1437 Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8146 (LUMARLE) - MAP - EA",
+    "Inicio": "2026-03-04T07:00:00-03:00",
+    "Fin": "2026-03-04T13:00:00-03:00",
+    "Ubicación": "La Rioja 647, B1879 Quilmes, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8142 (TUTEUR) - CAL - EA",
+    "Inicio": "2026-03-04T13:00:00-03:00",
+    "Fin": "2026-03-04T14:00:00-03:00",
+    "Ubicación": "5824 Avenida Eva Perón C1439 Villa Lugano BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8320 (LMD) - DEJAR EQUIPO - EA",
+    "Inicio": "2026-03-04T14:00:00-03:00",
+    "Fin": "2026-03-04T15:00:00-03:00",
+    "Ubicación": "Av. Gral. Eugenio Garzón 5181, C1440AYE Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": "Presupuesto N° 244"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8307 (Nanotech) Traslado de equipos",
+    "Inicio": "2026-03-04T15:00:00-03:00",
+    "Fin": "2026-03-04T16:00:00-03:00",
+    "Ubicación": "Berón de Astrada 5851, B1766FAC La Tablada, Provincia de Buenos Aires, Argentina",
+    "Descripción": "Presupuesto SLF-100833"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8101 / 8102 Llevar equioos (TP BIOPHARMA) - CAL + MAP - EA",
+    "Inicio": "2026-03-05T07:00:00-03:00",
+    "Fin": "2026-03-05T11:15:00-03:00",
+    "Ubicación": "Calle 43 1368, La Plata Noroeste 1900 La plata BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "Llevar equipo de validaciones a la universidad",
+    "Inicio": "2026-03-05T11:15:00-03:00",
+    "Fin": "2026-03-05T13:00:00-03:00",
+    "Ubicación": "Departamento de Aeronáutica UNLP, La Plata, Provincia de Buenos Aires",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8201 / 8205 (BAYER) - Llevar arnés RET / MAP - EA+AS",
+    "Inicio": "2026-03-06T07:00:00-03:00",
+    "Fin": "2026-03-06T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7800/8269  (LOG IN) - MAP/CAL - EA + PERSONAL DE SLFARMA",
+    "Inicio": "2026-03-09T07:00:00-03:00",
+    "Fin": "2026-03-09T14:00:00-03:00",
+    "Ubicación": "Ing. Eifel 4180 B1667GYF Área de Promoción el Triángulo BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8242 (TASA) - CAL - EA",
+    "Inicio": "2026-03-09T14:00:00-03:00",
+    "Fin": "2026-03-09T16:00:00-03:00",
+    "Ubicación": "Descartes 3532, B1667AYA Tortuguitas, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8108 (BeOne) - MAP - EA",
+    "Inicio": "2026-03-10T07:00:00-03:00",
+    "Fin": "2026-03-10T09:00:00-03:00",
+    "Ubicación": "2441 Arismendi C1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "6088 (WASSERBERG) - IQ + OQ - EA",
+    "Inicio": "2026-03-10T09:00:00-03:00",
+    "Fin": "2026-03-10T16:00:00-03:00",
+    "Ubicación": "Bermúdez 1004, C1407 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8150 (MERCK) - MAP - EA",
+    "Inicio": "2026-03-11T07:00:00-03:00",
+    "Fin": "2026-03-11T12:00:00-03:00",
+    "Ubicación": "877 G. Marconi 1812 Carlos Spegazzini BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "BUSCAR EQUIPOS EN CASSARA",
+    "Inicio": "2026-03-11T12:00:00-03:00",
+    "Fin": "2026-03-11T13:00:00-03:00",
+    "Ubicación": "P. Cassará, Carhue 1096, C1408 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8028 (EGLIS) - MAP - EA",
+    "Inicio": "2026-03-11T13:00:00-03:00",
+    "Fin": "2026-03-11T16:00:00-03:00",
+    "Ubicación": "Manuela Pedraza 5926, C1431 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8146 (LUMARLE) - RET - EA + GM (llevar para reconfigurar sensores)",
+    "Inicio": "2026-03-12T07:00:00-03:00",
+    "Fin": "2026-03-12T11:00:00-03:00",
+    "Ubicación": "La Rioja 647, B1879 Quilmes, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8257 (GLOBAL MED) - MAP -EA + GM",
+    "Inicio": "2026-03-12T11:00:00-03:00",
+    "Fin": "2026-03-12T16:00:00-03:00",
+    "Ubicación": "Av. Dardo Rocha 1207, B1876 Bernal Oeste, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "6088 (WASSERBERG) - ENSAYOS OQ + PQ - EA",
+    "Inicio": "2026-03-13T07:00:00-03:00",
+    "Fin": "2026-03-13T16:00:00-03:00",
+    "Ubicación": "Zabala 3837, C3839 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8205 (BAYER) - RET - EA",
+    "Inicio": "2026-03-16T07:00:00-03:00",
+    "Fin": "2026-03-16T16:00:00-03:00",
+    "Ubicación": "Bayer Edificio 2, C. 3 80, Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "6088 (WASSERBERG) - ENSAYOS PQ - EA",
+    "Inicio": "2026-03-17T07:00:00-03:00",
+    "Fin": "2026-03-17T13:00:00-03:00",
+    "Ubicación": "Zabala 3837, C3839 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8484 (TECNONUCLEAR) - MAP - EA",
+    "Inicio": "2026-03-17T13:00:00-03:00",
+    "Fin": "2026-03-17T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7942 (SYNTEX) - CAL - GM + EA",
+    "Inicio": "2026-03-18T07:00:00-03:00",
+    "Fin": "2026-03-18T16:00:00-03:00",
+    "Ubicación": "Luis de Sarro 501, B1838 Luis Guillon, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "EXAMEN MEDICO con 4hs de ayuno y DNI - EA",
+    "Inicio": "2026-03-19T09:00:00-03:00",
+    "Fin": "2026-03-19T14:15:00-03:00",
+    "Ubicación": "Marcelo Torcuato de Alvear 2089, C1113 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8257 (GLOBAL MED) - RET - EA + GA",
+    "Inicio": "2026-03-20T07:00:00-03:00",
+    "Fin": "2026-03-20T10:00:00-03:00",
+    "Ubicación": "Av. Dardo Rocha 1207, B1876 Bernal Oeste, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": " 8258 (GLOBAL MED) - MAP - EA + GA",
+    "Inicio": "2026-03-20T10:00:00-03:00",
+    "Fin": "2026-03-20T13:00:00-03:00",
+    "Ubicación": "Av. Dardo Rocha 1207, B1876 Bernal Oeste, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8213 (NIELTEC) - RET - EA",
+    "Inicio": "2026-03-20T13:00:00-03:00",
+    "Fin": "2026-03-20T15:00:00-03:00",
+    "Ubicación": "Almafuerte 3790, B1754 San Justo, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8028 (EGLIS) - RET - EA",
+    "Inicio": "2026-03-20T15:00:00-03:00",
+    "Fin": "2026-03-20T16:00:00-03:00",
+    "Ubicación": "Manuela Pedraza 5926, C1431 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8459 (ECZANE) - CAL - EA",
+    "Inicio": "2026-03-23T07:00:00-03:00",
+    "Fin": "2026-03-23T16:00:00-03:00",
+    "Ubicación": "Laprida 43 B1870CNA Avellaneda BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8092 (Dr GRAY) - CAL + AUTOCLAVE - EA",
+    "Inicio": "2026-03-25T07:00:00-03:00",
+    "Fin": "2026-03-25T16:00:00-03:00",
+    "Ubicación": "C. Perito Moreno 1390, B1746 Francisco Alvarez, Provincia de Buenos Aires",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7823 (ECZANE) - RET - EA",
+    "Inicio": "2026-03-26T07:00:00-03:00",
+    "Fin": "2026-03-26T13:00:00-03:00",
+    "Ubicación": "353 Deán Funes B1870AHG Avellaneda BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8206 (BAYER) - MAP- EA",
+    "Inicio": "2026-03-27T07:00:00-03:00",
+    "Fin": "2026-03-27T16:00:00-03:00",
+    "Ubicación": "Bayer Edificio 2, C. 3 80, Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8599 (CDV) - CAL - EA",
+    "Inicio": "2026-03-30T07:00:00-03:00",
+    "Fin": "2026-03-30T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Pegar etiqueta HEL/BAN/002"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8167 / 8166 / 8173 (CDV) - CAL - EA",
+    "Inicio": "2026-03-31T07:00:00-03:00",
+    "Fin": "2026-03-31T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": "8173 - BAE\n8166 - REC\n8167 - FOR3"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8243 (DROG. DS) - MAP - EA",
+    "Inicio": "2026-04-01T07:00:00-03:00",
+    "Fin": "2026-04-01T12:00:00-03:00",
+    "Ubicación": "Mario Bravo 356, B1868BMH Piñeyro, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8244 (RC CASTELAR) - BUSCAR SENSORES - EA",
+    "Inicio": "2026-04-01T12:00:00-03:00",
+    "Fin": "2026-04-01T14:00:00-03:00",
+    "Ubicación": "av presidente Perón 7685, ituzaingo",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8535 (ANVAC) - DEJAR UNA CAJA - EA",
+    "Inicio": "2026-04-01T13:45:00-03:00",
+    "Fin": "2026-04-01T16:00:00-03:00",
+    "Ubicación": "Lamadrid 1263 B1653 Villa Ballester BUENOS AIRES Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8206 (BAYER) - MAP - EA+AS",
+    "Inicio": "2026-04-06T07:00:00-03:00",
+    "Fin": "2026-04-06T16:00:00-03:00",
+    "Ubicación": "Bayer Edificio 2, C. 3 80, Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8467 (Y-TEC) - CAL - LR + EA",
+    "Inicio": "2026-04-07",
+    "Fin": "2026-04-08",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "Reunion CAMPO",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T07:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Datos"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8526 (ANLIS) - BUSCAR EQUIPOS - EA (PARA CARLOS SATZOR)I",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8453 (ANLIS) - MAP - EA",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T16:00:00-03:00",
+    "Ubicación": "563 Avenida Vélez Sarsfield C1282 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8243 (DROG. DS) - RET - EA",
+    "Inicio": "2026-04-09T07:00:00-03:00",
+    "Fin": "2026-04-09T11:00:00-03:00",
+    "Ubicación": "Mario Bravo 356, B1868BMH Piñeyro, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8455 ( MURITA) - MAP - EA",
+    "Inicio": "2026-04-09T11:00:00-03:00",
+    "Fin": "2026-04-09T16:00:00-03:00",
+    "Ubicación": "1767 Abraham J. Luppi C1437 Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8318 / 8354 / 8355 (CASSARA) - CAL - EA (LLEVAR BOTELLA DE SOLUCIÓN DE ALTA)",
+    "Inicio": "2026-04-10T07:00:00-03:00",
+    "Fin": "2026-04-10T16:00:00-03:00",
+    "Ubicación": "Saladillo 2452 C1440 Mataderos BA AR",
+    "Descripción": "8318 y 8355 - Sede Saladillo\n8354 -  Sede carhue"
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8321 (CA-PHARM) - MAP - LR + EA",
+    "Inicio": "2026-04-13T07:00:00-03:00",
+    "Fin": "2026-04-13T09:00:00-03:00",
+    "Ubicación": "3230 Galicia C1416 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7549 (BERNABO) - CAL - LR + EA ",
+    "Inicio": "2026-04-13T09:00:00-03:00",
+    "Fin": "2026-04-13T16:00:00-03:00",
+    "Ubicación": "Terrada 2346, C1416ARZ Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8206 (BAYER) - MAP - EA+GA+AS",
+    "Inicio": "2026-04-14T07:00:00-03:00",
+    "Fin": "2026-04-14T16:00:00-03:00",
+    "Ubicación": "Bayer Edificio 2, C. 3 80, Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7967 (FISHER) - CAL - LR + EA",
+    "Inicio": "2026-04-15T07:00:00-03:00",
+    "Fin": "2026-04-15T12:00:00-03:00",
+    "Ubicación": "AV. Del Campo 1550/60 C1427APP Ciudad Autónoma de Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8615 (ARSEMA) - CAL - EA",
+    "Inicio": "2026-04-15T12:00:00-03:00",
+    "Fin": "2026-04-15T16:00:00-03:00",
+    "Ubicación": "1131 Avenida Álvarez Thomas C1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8372 (TECNONUCLEAR) - CAL - EA",
+    "Inicio": "2026-04-16T07:00:00-03:00",
+    "Fin": "2026-04-16T16:00:00-03:00",
+    "Ubicación": "Tecnonuclear, C1430CRP, Arias 4176, C1430CRP Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7947 (SYNTEX) -CAL - LR + EA",
+    "Inicio": "2026-04-17T07:00:00-03:00",
+    "Fin": "2026-04-17T16:00:00-03:00",
+    "Ubicación": "501 Luis de Sarro B1838 Luis Guillon BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8514 (TUTEUR) - CAL Y MAP - EA",
+    "Inicio": "2026-04-20T07:00:00-03:00",
+    "Fin": "2026-04-20T12:00:00-03:00",
+    "Ubicación": "Av. Gral. Tomás de Iriarte 3070, C1291ACR Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8431 (BALIARDA) - RET -  EA",
+    "Inicio": "2026-04-20T12:00:00-03:00",
+    "Fin": "2026-04-20T16:00:00-03:00",
+    "Ubicación": "Coronel Pagola 3841 C1437 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8321 (CA-PHARM) - RET -  EA",
+    "Inicio": "2026-04-21T07:00:00-03:00",
+    "Fin": "2026-04-21T10:00:00-03:00",
+    "Ubicación": "3230 Galicia C1416 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8409 (ASSERCA) - CAL + MAP - EA",
+    "Inicio": "2026-04-21T10:00:00-03:00",
+    "Fin": "2026-04-21T16:00:00-03:00",
+    "Ubicación": "Yeruá 4975 C1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8206 (BAYER) - RET - EA+GA",
+    "Inicio": "2026-04-22T07:00:00-03:00",
+    "Fin": "2026-04-22T16:00:00-03:00",
+    "Ubicación": "Bayer Edificio 2, C. 3 80, Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8604 (TUTEUR) - CAL + MAP - EA",
+    "Inicio": "2026-04-23T07:00:00-03:00",
+    "Fin": "2026-04-23T11:00:00-03:00",
+    "Ubicación": "5824 Avenida Eva Perón C1439 Villa Lugano CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8455 ( MURITA) - RET - EA",
+    "Inicio": "2026-04-23T11:00:00-03:00",
+    "Fin": "2026-04-23T16:00:00-03:00",
+    "Ubicación": "1767 Abraham J. Luppi C1437 Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8409 (ASSERCA) - RET - EA",
+    "Inicio": "2026-04-24T07:00:00-03:00",
+    "Fin": "2026-04-24T14:00:00-03:00",
+    "Ubicación": "Yeruá 4975 C1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "CAPACITACIÓN EN ACTUALIZACIÓN DE SOFTWARE",
+    "Inicio": "2026-04-27T07:00:00-03:00",
+    "Fin": "2026-04-27T08:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8604 (TUTEUR) - RET - EA",
+    "Inicio": "2026-04-27T07:00:00-03:00",
+    "Fin": "2026-04-27T12:00:00-03:00",
+    "Ubicación": "5824 Avenida Eva Perón C1439 Villa Lugano CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8076 (ASSERCA) - CAL - EA",
+    "Inicio": "2026-04-27T12:00:00-03:00",
+    "Fin": "2026-04-27T16:00:00-03:00",
+    "Ubicación": "14 de Julio 642 1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8623 (SIKA) - CAL VAISALA - EA",
+    "Inicio": "2026-04-28T07:00:00-03:00",
+    "Fin": "2026-04-28T12:00:00-03:00",
+    "Ubicación": "Juan Bautista Alberdi 5250 B1678CLR Caseros BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8076 (ASSERCA) - CAL - EA",
+    "Inicio": "2026-04-28T12:00:00-03:00",
+    "Fin": "2026-04-28T16:00:00-03:00",
+    "Ubicación": "14 de Julio 642 1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8605 (TECNONUCLEAR) - CAL - EA + LR",
+    "Inicio": "2026-04-29T07:00:00-03:00",
+    "Fin": "2026-04-29T16:00:00-03:00",
+    "Ubicación": "Fleni Escobar, RN9 Km 53, B1625 Loma Verde, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8433 (FRAMINGHAM) - CAL - LR + EA",
+    "Inicio": "2026-04-30T07:00:00-03:00",
+    "Fin": "2026-04-30T16:00:00-03:00",
+    "Ubicación": "Agüero 363, C1171ABC Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "7946 (SYNTEX) - CAL - EA",
+    "Inicio": "2026-05-04T07:00:00-03:00",
+    "Fin": "2026-05-04T16:00:00-03:00",
+    "Ubicación": "Luis de Sarro 501, B1838 Luis Guillon, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8081 (ASSERCA) - CAL + MAP - EA",
+    "Inicio": "2026-05-05T07:00:00-03:00",
+    "Fin": "2026-05-05T12:00:00-03:00",
+    "Ubicación": "14 de Julio 642 1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8371 (TECNONUCLAR) - CAL + MAP - EA",
+    "Inicio": "2026-05-06T07:00:00-03:00",
+    "Fin": "2026-05-06T16:00:00-03:00",
+    "Ubicación": "Tecnonuclear, C1430CRP, Arias 4176, C1430CRP Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8081 (ASSERCA) - RET - EA",
+    "Inicio": "2026-05-07T07:00:00-03:00",
+    "Fin": "2026-05-07T12:00:00-03:00",
+    "Ubicación": "14 de Julio 642 1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8371 (TECNONUCLAR) - RET - EA",
+    "Inicio": "2026-05-08T07:00:00-03:00",
+    "Fin": "2026-05-08T12:00:00-03:00",
+    "Ubicación": "Tecnonuclear, C1430CRP, Arias 4176, C1430CRP Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8993 (TECNONUCLEAR) - CAL + MAP - EA",
+    "Inicio": "2026-06-01T07:00:00-03:00",
+    "Fin": "2026-06-01T16:00:00-03:00",
+    "Ubicación": "Tecnonuclear, C1430CRP, Arias 4176, C1430CRP Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8083 (ASSERCA) - CAL + MAP - EA",
+    "Inicio": "2026-06-02T07:00:00-03:00",
+    "Fin": "2026-06-02T12:00:00-03:00",
+    "Ubicación": "14 de Julio 642 1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8993 (TECNONUCLEAR) - RET - EA",
+    "Inicio": "2026-06-03T07:00:00-03:00",
+    "Fin": "2026-06-03T12:00:00-03:00",
+    "Ubicación": "Tecnonuclear, C1430CRP, Arias 4176, C1430CRP Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8083 (ASSERCA) - RET - EA",
+    "Inicio": "2026-06-04T07:00:00-03:00",
+    "Fin": "2026-06-04T10:00:00-03:00",
+    "Ubicación": "14 de Julio 642 1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8419 (ASSERCA) - CAL + MAP (AUTOCLAVE) - EA",
+    "Inicio": "2026-06-04T10:00:00-03:00",
+    "Fin": "2026-06-04T16:00:00-03:00",
+    "Ubicación": "Yeruá 4975, C1427 Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Eric Ayala",
+    "Correo": "eayala@akrimet.com",
+    "Evento": "8386 (ORGANON) - CAL VAISALA - EA",
+    "Inicio": "2026-07-02T07:00:00-03:00",
+    "Fin": "2026-07-02T16:00:00-03:00",
+    "Ubicación": "3780 Domingo de Acassuso B1636 Olivos BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "7846 (KEMEX) - CAL - LR + JP",
+    "Inicio": "2026-02-20T07:00:00-03:00",
+    "Fin": "2026-02-20T10:00:00-03:00",
+    "Ubicación": "Nazarre 3446/54 C1417DXH C.A.B.A BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8086 / 8227 (BIOFACTOR) - RET / IQ + CAL - LR + JP (LLEVAR ESCALERA)",
+    "Inicio": "2026-02-20T10:00:00-03:00",
+    "Fin": "2026-02-20T12:30:00-03:00",
+    "Ubicación": "Roseti 1651, C1427BWG Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "7656 / 7628 (CASSARA) - CAL - JC + JP (soluciones de alta conductividad)",
+    "Inicio": "2026-02-23",
+    "Fin": "2026-02-24",
+    "Ubicación": "Saladillo 2452, C1440FFX Cdad. Autónoma de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8131 (CDV) - CAL - LR+JP",
+    "Inicio": "2026-02-24",
+    "Fin": "2026-02-25",
+    "Ubicación": "CDV - Planta 2 (Aftosa), C. 9 2011, B1629 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8135 / 8226 (CDV) - CAL - LR+JP",
+    "Inicio": "2026-02-25",
+    "Fin": "2026-02-26",
+    "Ubicación": "CDV - Planta 2 (Aftosa), C. 9 2011, B1629 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Reserva (CDV P1) - CAL - LR+JP",
+    "Inicio": "2026-02-26",
+    "Fin": "2026-02-27",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Cargar Datos",
+    "Inicio": "2026-02-27T07:00:00-03:00",
+    "Fin": "2026-02-27T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Reserva (CDV) - CAL - JP+JC",
+    "Inicio": "2026-02-28",
+    "Fin": "2026-03-01",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "7567 / 7803 (DÍA PARANA) - CAL - GM + JP (VIAJE)",
+    "Inicio": "2026-03-02",
+    "Fin": "2026-03-07",
+    "Ubicación": "Carlos Patat 1350, Col. Avellaneda, Entre Ríos",
+    "Descripción": "Hotel Coé Verá: <a href=\"https://maps.app.goo.gl/GqHn4p5aVw2TFSun8\">https://maps.app.goo.gl/GqHn4p5aVw2TFSun8</a>"
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8165 (VEINFAR) - MAP - JP + GA",
+    "Inicio": "2026-03-09T07:00:00-03:00",
+    "Fin": "2026-03-09T16:00:00-03:00",
+    "Ubicación": "Larraya 1570 C1440 CABA CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8175 (DNM FARMA) - MAP - JP + GA",
+    "Inicio": "2026-03-10T07:00:00-03:00",
+    "Fin": "2026-03-10T16:00:00-03:00",
+    "Ubicación": "3499 Avenida Juan Bautista Alberdi C1407 Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Capacitacion con cronometros",
+    "Inicio": "2026-03-11T07:00:00-03:00",
+    "Fin": "2026-03-11T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8287 (CENTRO MEDICO FITZ ROY) - CAL - JP (comparativa llevar bloque por las dudas)",
+    "Inicio": "2026-03-11T10:00:00-03:00",
+    "Fin": "2026-03-11T13:00:00-03:00",
+    "Ubicación": "865 Acevedo C1414 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8276 (FUNDACION HUESPED) - CAL - JP",
+    "Inicio": "2026-03-11T13:00:00-03:00",
+    "Fin": "2026-03-11T16:00:00-03:00",
+    "Ubicación": "345 Avenida Forest C1427 Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8108 (BeOne) - ENSAYOS de alarma Y RET - JP ",
+    "Inicio": "2026-03-12T09:00:00-03:00",
+    "Fin": "2026-03-12T15:00:00-03:00",
+    "Ubicación": "2441 Arismendi C1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "7515 (RICHMOND) - CAL - GM+JP",
+    "Inicio": "2026-03-13",
+    "Fin": "2026-03-14",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8400 (MERCK) - CAL VAISALA - JP",
+    "Inicio": "2026-03-16T07:00:00-03:00",
+    "Fin": "2026-03-16T16:00:00-03:00",
+    "Ubicación": "La Paz 1234 B1640CXI Martínez BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8165 (VEINFAR) - RET - JP + GA",
+    "Inicio": "2026-03-17T07:00:00-03:00",
+    "Fin": "2026-03-17T10:00:00-03:00",
+    "Ubicación": "Larraya 1570 C1440 CABA CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8163 (VEINFAR P1) - MAP - GA + JP",
+    "Inicio": "2026-03-17T10:00:00-03:00",
+    "Fin": "2026-03-17T16:00:00-03:00",
+    "Ubicación": "4190 Avenida Piedra Buena C1439 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "7823 (ECZANE) - MAP - JP",
+    "Inicio": "2026-03-18T07:00:00-03:00",
+    "Fin": "2026-03-18T15:00:00-03:00",
+    "Ubicación": "353 Deán Funes B1870AHG Avellaneda BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8361 / 6508 / 8370 (CDV P3) - CAL - JP + GM",
+    "Inicio": "2026-03-19",
+    "Fin": "2026-03-21",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8446 (FABRA) - CAL - JP + NM",
+    "Inicio": "2026-03-23T07:00:00-03:00",
+    "Fin": "2026-03-23T16:00:00-03:00",
+    "Ubicación": "Carlos Villate 5271 B1605AXM Munro BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8261 (QUICKFOOD) - CAL - LR+JP (VIAJE)",
+    "Inicio": "2026-03-25",
+    "Fin": "2026-03-29",
+    "Ubicación": "QuickFood Baradero, Colombres, B2942 Buenos Aires, Provincia de Buenos Aires, Argentina",
+    "Descripción": "Hosteria Edelweiss - Baradero: <a href=\"https://maps.app.goo.gl/T6UcQ81QeAuxeiDB9\">https://maps.app.goo.gl/T6UcQ81QeAuxeiDB9</a>"
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8154 (ASSERCA) - CAL + MAP - JP (DEBEN VOLVER LOS SENSORES PARA SER RECONFIGURADOS)",
+    "Inicio": "2026-03-30",
+    "Fin": "2026-03-31",
+    "Ubicación": "Yeruá 4975 C1427 Buenos Aires CABA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Oficina",
+    "Inicio": "2026-03-31",
+    "Fin": "2026-04-01",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8059 (TECNONUCLEAR) - CAL - JP",
+    "Inicio": "2026-04-01T07:00:00-03:00",
+    "Fin": "2026-04-01T11:00:00-03:00",
+    "Ubicación": "C1430CRP, Arias 4176, C1430CRP Cdad. Autónoma de Buenos Aires",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Ver comentarios (CDV Abril P1) - CAL - JC + JP",
+    "Inicio": "2026-04-06",
+    "Fin": "2026-04-09",
+    "Ubicación": "",
+    "Descripción": "PARA LA PROXIMA SEMANA: \n8112 - COC\n8552 - FOR2\n8554 - PMC + SAP + BAE + LAV2 + BRU + BIP\n\nPARA ESTA SEMANA:\n8558 - BAX + ACO3 + VIR + BIT + BAN + ENV2\n8560 - PPD"
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Reunion CAMPO",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T07:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Datos"
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8511 (AYUDIN) - CAL - JP",
+    "Inicio": "2026-04-09",
+    "Fin": "2026-04-11",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Ver comentarios (CDV Abril P1) - CAL - JC + JP",
+    "Inicio": "2026-04-13",
+    "Fin": "2026-04-18",
+    "Ubicación": "",
+    "Descripción": "\n PARA ESTA SEMANA: \n8558 - BAX + ACO3 + VIR + BIT + BAN + ENV2\n8560 - PPD\n\n\nLA SEMANA PASADA: \n8112 - COC \n8552 - FOR2 \n8554 - PMC + SAP + BAE + LAV2 + BRU + BIP"
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8619 / 8622 / 8626 (CDV Abril P2) - CAL - JC + JP",
+    "Inicio": "2026-04-20",
+    "Fin": "2026-04-24",
+    "Ubicación": "CDV - Planta 2 (Aftosa), C. 9 2011, B1629 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": "8619 - PVI\n8622 - CCI + SER + CEL\n8626 - DPT"
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8619 / 8622 / 8626 (CDV Abril P2) - CAL - NM + JP",
+    "Inicio": "2026-04-24",
+    "Fin": "2026-04-25",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "CAPACITACIÓN EN ACTUALIZACIÓN DE SOFTWARE",
+    "Inicio": "2026-04-27T07:00:00-03:00",
+    "Fin": "2026-04-27T08:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Reserva (CDV P1)",
+    "Inicio": "2026-05-04",
+    "Fin": "2026-05-09",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "Reserva (CDV P1)",
+    "Inicio": "2026-05-11",
+    "Fin": "2026-05-13",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "8452 (MERCK) - CAL (VAISALA Y HIELO SECO)  - LR + JP",
+    "Inicio": "2026-05-18",
+    "Fin": "2026-05-22",
+    "Ubicación": "G. Marconi 877, B1812 Carlos Spegazzini, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "7980 (FISHER) - CAL - LR + JP",
+    "Inicio": "2026-06-02T07:00:00-03:00",
+    "Fin": "2026-06-02T16:00:00-03:00",
+    "Ubicación": "AV. Del Campo 1550/60 C1427APP Ciudad Autónoma de Buenos Aires BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Juan Pelozo",
+    "Correo": "jpelozo@akrimet.com",
+    "Evento": "7949 (SYNTEX) - CAL - JC + JP ",
+    "Inicio": "2026-07-02",
+    "Fin": "2026-07-04",
+    "Ubicación": "501 Luis de Sarro B1838 Luis Guillon BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-02-25T07:00:00-03:00",
+    "Fin": "2026-02-25T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-02-26T11:00:00-03:00",
+    "Fin": "2026-02-26T12:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "VACACIONES - NORBERTO (semana 1/2)",
+    "Inicio": "2026-03-02",
+    "Fin": "2026-03-07",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-03-04T07:00:00-03:00",
+    "Fin": "2026-03-04T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-05T09:45:00-03:00",
+    "Fin": "2026-03-05T10:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-03-11T07:00:00-03:00",
+    "Fin": "2026-03-11T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-12T08:45:00-03:00",
+    "Fin": "2026-03-12T09:45:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "ESPECTOFOTÓMETRO (2 equipos)",
+    "Inicio": "2026-03-12T13:00:00-03:00",
+    "Fin": "2026-03-12T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-03-18T07:00:00-03:00",
+    "Fin": "2026-03-18T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-19T08:45:00-03:00",
+    "Fin": "2026-03-19T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "8446 (FABRA) - CAL - JP + NM",
+    "Inicio": "2026-03-23T07:00:00-03:00",
+    "Fin": "2026-03-23T16:00:00-03:00",
+    "Ubicación": "Carlos Villate 5271 B1605AXM Munro BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "8357 (Y-TEC) - CAL - NM",
+    "Inicio": "2026-03-25",
+    "Fin": "2026-03-26",
+    "Ubicación": "YPF TECNOLOGÍA (Y-TEC), Av. del Petroleo Argentino 900-1198, B1923 Berisso, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-03-25T07:00:00-03:00",
+    "Fin": "2026-03-25T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-26T14:00:00-03:00",
+    "Fin": "2026-03-26T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "8360 (Y-TEC) - CAL - LR+NM",
+    "Inicio": "2026-03-30",
+    "Fin": "2026-04-02",
+    "Ubicación": "YPF TECNOLOGÍA (Y-TEC), Av. del Petroleo Argentino 900-1198, B1923 Berisso, Provincia de Buenos Aires, Argentina",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-04-01T07:00:00-03:00",
+    "Fin": "2026-04-01T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "8467 (Y-TEC) - CAL - LR + NM",
+    "Inicio": "2026-04-06",
+    "Fin": "2026-04-07",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion CAMPO",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T07:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Datos"
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-09T08:45:00-03:00",
+    "Fin": "2026-04-09T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "8215 / 8546 (CAMILI FERRON) - CAL - NM",
+    "Inicio": "2026-04-14T07:00:00-03:00",
+    "Fin": "2026-04-14T16:00:00-03:00",
+    "Ubicación": "418 Camino de la Ribera Sur B1828 Villa Fiorito BA AR",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-04-15T07:00:00-03:00",
+    "Fin": "2026-04-15T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-16T08:45:00-03:00",
+    "Fin": "2026-04-16T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-04-22T07:00:00-03:00",
+    "Fin": "2026-04-22T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-23T08:45:00-03:00",
+    "Fin": "2026-04-23T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "8619 / 8622 / 8626 (CDV Abril P2) - CAL - NM + JP",
+    "Inicio": "2026-04-24",
+    "Fin": "2026-04-25",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-04-29T07:00:00-03:00",
+    "Fin": "2026-04-29T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-30T08:45:00-03:00",
+    "Fin": "2026-04-30T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-05-06T07:00:00-03:00",
+    "Fin": "2026-05-06T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-07T08:45:00-03:00",
+    "Fin": "2026-05-07T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-05-13T07:00:00-03:00",
+    "Fin": "2026-05-13T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-14T08:45:00-03:00",
+    "Fin": "2026-05-14T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-05-20T07:00:00-03:00",
+    "Fin": "2026-05-20T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-21T08:45:00-03:00",
+    "Fin": "2026-05-21T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-05-27T07:00:00-03:00",
+    "Fin": "2026-05-27T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-28T08:45:00-03:00",
+    "Fin": "2026-05-28T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-06-03T07:00:00-03:00",
+    "Fin": "2026-06-03T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-04T08:45:00-03:00",
+    "Fin": "2026-06-04T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-06-10T07:00:00-03:00",
+    "Fin": "2026-06-10T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-11T08:45:00-03:00",
+    "Fin": "2026-06-11T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-06-17T07:00:00-03:00",
+    "Fin": "2026-06-17T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-18T08:45:00-03:00",
+    "Fin": "2026-06-18T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-06-24T07:00:00-03:00",
+    "Fin": "2026-06-24T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-25T08:45:00-03:00",
+    "Fin": "2026-06-25T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "PROGRAMAR PATRONES PARA SEMANA PRÓXIMA",
+    "Inicio": "2026-07-01T07:00:00-03:00",
+    "Fin": "2026-07-01T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Norberto Medina",
+    "Correo": "nmedina@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-07-02T08:45:00-03:00",
+    "Fin": "2026-07-02T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión CAL&VAL",
+    "Inicio": "2026-02-20T10:00:00-03:00",
+    "Fin": "2026-02-20T11:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-02-20T13:30:00-03:00",
+    "Fin": "2026-02-20T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-02-24T10:00:00-03:00",
+    "Fin": "2026-02-24T10:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-02-25T08:00:00-03:00",
+    "Fin": "2026-02-25T09:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-02-25T09:00:00-03:00",
+    "Fin": "2026-02-25T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-02-25T14:00:00-03:00",
+    "Fin": "2026-02-25T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión Mapeos Tasa logística",
+    "Inicio": "2026-02-26T10:30:00-03:00",
+    "Fin": "2026-02-26T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-02-26T11:00:00-03:00",
+    "Fin": "2026-02-26T12:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-02-27T13:30:00-03:00",
+    "Fin": "2026-02-27T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "RE: Calificacion de packaging OT 7279",
+    "Inicio": "2026-03-02T11:00:00-03:00",
+    "Fin": "2026-03-02T11:30:00-03:00",
+    "Ubicación": "Reunión de Microsoft Teams",
+    "Descripción": "Hola Valeria, envío la cita.\n\nCualquier inconveniente con el horario, avisanos por favor.\n\nMuchas gracias!\nJuan Aquino.\n________________________________\nFrom: Juan Ignacio Aquino <jiaquino@amegabiotech.com>\nSent: Thursday, February 26, 2026 2:24:01 PM\nTo: vlorenzo@akrimet.com <vlorenzo@akrimet.com>\nCc: Axel Villalba <avillalba@amegabiotech.com>\nSubject: RE: Calificacion de packaging OT 7279\n\nBuen día Valeria,\n\nMi nombre es Juan Ignacio Aquino y soy el Jefe de garantía de calidad en Gema. Te escribo por el mismo motivo que te contacto Axel en el día de ayer.\n\nEstamos a contra reloj con estos ensayos y quisiera reunirme con vos el próximo Lunes para conversar sobre los tiempos de ejecución para repetir el OQ, revisar el grado de avance que se llego para transmitir a nuestro sector administrativo la necesidad de pago y conversar el nuevo presupuesto para ejecutar nuevamente las actividades, dando prioridad a los ensayos a temperatura de < -15°C.\n\nEnvío la cita por teams.\n\nCualquier consulta, estamos a tu disposición.\nMuchas gracias!\nSaludos,\n\nJuan Ignacio Aquino | Jefe de Garantía de Calidad\n\n[Descripción: Descripción: logoamega]\n\nBUENOS AIRES +54 11 5670.4500\n\nFray J. Sarmiento 2350 | B1636AKJ | Olivos\n\nOf. Corporativa: Av. del Libertador 2740 | B1636DSU | Olivos\n\nBuenos Aires | Argentina\n\nTel: +54 11 4106.0650 | +54 11 4106.0699\n\nSANTA FE +54 342 4510999\n\nRN 168 Paraje El Pozo – PTLC SAPEM\n\n3000 | Santa Fe | Pcia. de Santa Fe | Argentina\n\n\n\n\n\n\n\n\nDe: Axel Villalba\nEnviado el: miércoles, 25 de febrero de 2026 17:01\nPara: 'Valeria Lorenzo' <vlorenzo@akrimet.com>\nCC: Carlos Martín Burgos <cburgos@amegabiotech.com>; Sebastian Garcia Magan <SMagan@amegabiotech.com>; Nicolás Díaz <ndiaz@akrimet.com>; AKM | Team Calificaciones <team.calificaciones@akrimet.com>\nAsunto: RE: Calificacion de packaging OT 7279\n\n\n\nMuchas gracias Valeria por la rápida respuesta.\n\nDe acuerdo a lo conversado hace minutos atrás vía telefónica, te confirmo que vamos a suspender las tareas planificadas a partir del día de la fecha, dejando terminar las ejecuciones que estaban en curso en esta semana y que estarían terminando entre jueves y viernes.\n\nUna vez que tengamos redactado (internamente) el nuevo protocolo de ejecución de OQ, con fechas acordes al resto del paquete documental que implica la calificación de transporte, les estaremos solicitando una nueva cotización para reiniciar desde cero las ejecuciones y los desafíos a distintas temperaturas y distintas conformaciones de cajas.\n\nLos temas comerciales de lo ya facturado/abonado y lo pendiente lo terminaremos de resolver con el resumen completo del porcentaje de ejecución.\n\nA penas pueda terminar de redactar el nuevo esquema documental, me estaré poniendo en contacto nuevamente para plantearles las necesidades, la cotización correspondiente y la planificación de la nueva ejecución.\n\nQuedo atento por cualquier duda que surja de esta comunicación\n\nSaludos,\n\nAxel\n\n\n\nAxel Villalba | Supervisor de Validaciones & Calificaciones\n\n[logoamega]\n\nBUENOS AIRES +54 11 5670.4500\n\nFray J. Sarmiento 2350 | B1636AKJ | Olivos\n\nOf. Corporativa: Av. del Libertador 2740 | B1636DSU | Olivos\n\nBuenos Aires | Argentina\n\nTel: +54 11 4106.0650 | +54 11 4106.0699\n\nSANTA FE +54 342 4510999\n\nRN 168 Paraje El Pozo – PTLC SAPEM\n\n3000 | Santa Fe | Pcia. de Santa Fe | Argentina\n\n\n\n\n\nDe: Valeria Lorenzo <vlorenzo@akrimet.com<mailto:vlorenzo@akrimet.com>>\nEnviado el: miércoles, 25 de febrero de 2026 16:23\nPara: Axel Villalba <avillalba@amegabiotech.com<mailto:avillalba@amegabiotech.com>>\nCC: Carlos Martín Burgos <cburgos@amegabiotech.com<mailto:cburgos@amegabiotech.com>>; Sebastian Garcia Magan <SMagan@amegabiotech.com<mailto:SMagan@amegabiotech.com>>; Nicolás Díaz <ndiaz@akrimet.com<mailto:ndiaz@akrimet.com>>; AKM | Team Calificaciones <team.calificaciones@akrimet.com<mailto:team.calificaciones@akrimet.com>>\nAsunto: Re: Calificacion de packaging OT 7279\n\n\n\nEXTERNAL EMAIL – This message was sent from outside your organization. Keep security in mind: verify the sender before clicking links or opening attachments. If in doubt, please contact IT support.\n\n\n\nHola Axel buenas tardes, si por supuesto te paso el teléfono : 11-6257-5346\n\n\n\naguardamos tu llamado,\n\n\n\nSaludos!\n\n\n\n[Akrimet Logo]\n\nValeria\n\nLorenzo\n\nAnalista de Calificaciones y Validaciones | Área térmica, Equipos de medición\n\nARG: +54 11 7700 0200\n\n|\n\nCOL: +57 150 856 97\n\n|\n\nESP: +34 9 1060 5785\n\nBRA: +55 11 4810 7593\n\n|\n\nMEX: +52 55 4164 2313\n\n|\n\nUSA: +1 786 977 4374\n\nCHI: +56 2 2712 1743\n\n|\n\nPER: +51 170 704 73\n\n|\n\nURU: +59 8 2613 2983\n\nEmail: vlorenzo@akrimet.com<mailto:vlorenzo@akrimet.com>\n\nExt.: 2016\n\n🌐 akribis.info<https://akribis.info/>\n🌐 akrimet.com<https://akrimet.com/>\n\n[LinkedIn]<https://linkedin.com/company/akrimet>[Instagram]<https://instagram.com/akrimet>[Twitter]<https://twitter.com/akrimet>[Facebook]<https://facebook.com/akrimet>[YouTube]<https://youtube.com/@akrimet>\n\nEl contenido de este correo electrónico es confidencial y está destinado únicamente al destinatario especificado en el mensaje. Si usted no es el destinatario previsto, por favor notifique al remitente y elimine este mensaje inmediatamente.\n\n\n\n\n\nEl mié, 25 feb 2026 a la(s) 4:18 p.m., Axel Villalba (avillalba@amegabiotech.com<mailto:avillalba@amegabiotech.com>) escribió:\n\nBuenas tardes Valeria\n\nNecesito comunicarme con vos por un tema de reevaluación de tareas planificadas.\n\nTe adelanto que vamos a suspender la planificación, aunque por el horario es probable que la contratación de hielo seco ya esté encaminada.\n\nDecime por favor si puedo llamarte ahora\n\nSaludos\n\n\n\nAxel Villalba | Supervisor de Validaciones & Calificaciones\n\n[logoamega]\n\nBUENOS AIRES +54 11 5670.4500\n\nFray J. Sarmiento 2350 | B1636AKJ | Olivos\n\nOf. Corporativa: Av. del Libertador 2740 | B1636DSU | Olivos\n\nBuenos Aires | Argentina\n\nTel: +54 11 4106.0650 | +54 11 4106.0699\n\nSANTA FE +54 342 4510999\n\nRN 168 Paraje El Pozo – PTLC SAPEM\n\n3000 | Santa Fe | Pcia. de Santa Fe | Argentina\n\n\n\n\n\nDe: Carlos Martín Burgos <cburgos@amegabiotech.com<mailto:cburgos@amegabiotech.com>>\nEnviado el: martes, 24 de febrero de 2026 11:29\nPara: Valeria Lorenzo <vlorenzo@akrimet.com<mailto:vlorenzo@akrimet.com>>\nCC: Sebastian Garcia Magan <SMagan@amegabiotech.com<mailto:SMagan@amegabiotech.com>>; Axel Villalba <avillalba@amegabiotech.com<mailto:avillalba@amegabiotech.com>>; Nicolás Díaz <ndiaz@akrimet.com<mailto:ndiaz@akrimet.com>>; AKM | Team Calificaciones <team.calificaciones@akrimet.com<mailto:team.calificaciones@akrimet.com>>\nAsunto: RE: Calificacion de packaging OT 7279\n\n\n\nHola Valeria, perfecto si disculpa me refería al envío para el viernes.\n\n\n\nSolicitamos el envío entonces y movemos el cronograma tal como comentaste.\n\n\n\nMuchas gracias!!\n\n\n\nCarlos Martín Burgos | Analista de Validaciones y Calificaciones\n\n[cid:image002.png@01DCA677.F3E6F1F0]\n\nBUENOS AIRES +54 11 5670.4500\n\nFray J. Sarmiento 2350 | B1636AKJ | Olivos\n\nOf. Corporativa: Av. del Libertador 2740 | B1636DSU | Olivos\n\nBuenos Aires | Argentina\n\nTel: +54 11 4106.0650 | +54 11 4106.0699\n\nSANTA FE +54 342 4510999\n\nRN 168 Paraje El Pozo – PTLC SAPEM\n\n3000 | Santa Fe | Pcia. de Santa Fe | Argentina\n\n\n\n\n\nDe: Valeria Lorenzo <vlorenzo@akrimet.com<mailto:vlorenzo@akrimet.com>>\nEnviado el: martes, 24 de febrero de 2026 11:16\nPara: Carlos Martín Burgos <cburgos@amegabiotech.com<mailto:cburgos@amegabiotech.com>>\nCC: Sebastian Garcia Magan <SMagan@amegabiotech.com<mailto:SMagan@amegabiotech.com>>; Axel Villalba <avillalba@amegabiotech.com<mailto:avillalba@amegabiotech.com>>; Nicolás Díaz <ndiaz@akrimet.com<mailto:ndiaz@akrimet.com>>; AKM | Team Calificaciones <team.calificaciones@akrimet.com<mailto:team.calificaciones@akrimet.com>>\nAsunto: Re: Calificacion de packaging OT 7279\n\n\n\nEXTERNAL EMAIL – This message was sent from outside your organization. Keep security in mind: verify the sender before clicking links or opening attachments. If in doubt, please contact IT support.\n\n\n\nCarlos buenos dias,\n\n\n\nRespecto a tu consulta en el mail anterior, exacto el 26/02 termina la corrida que inició el viernes pasado. Lo ideal sería como mencionaste el pedido del hielo seco para el viernes 27/02/26 así comenzamos la corrida faltan"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión OT´s CDV",
+    "Inicio": "2026-03-02T12:00:00-03:00",
+    "Fin": "2026-03-02T12:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de documentación GMP (URS, FS, RA, TM)",
+    "Inicio": "2026-03-02T14:00:00-03:00",
+    "Fin": "2026-03-02T15:00:00-03:00",
+    "Ubicación": "Reunión de Microsoft Teams",
+    "Descripción": "Ahora sí, sin querer la había programado para el 23.\nSaludos!\n\n________________________________________________________________________________\nReunión de Microsoft Teams\nUnirse: https://teams.microsoft.com/meet/21171846847517?p=O5DgNqGjQTqQA1uvAY\nId. de reunión: 211 718 468 475 17\nCódigo de acceso: SJ2CL7Ub\n________________________________\n¿Necesitas ayuda?<https://aka.ms/JoinTeamsMeeting?omkt=es-MX> | Referencia del sistema<https://teams.microsoft.com/l/meetup-join/19%3ameeting_MDc0MzExMGUtMzllYi00NTdkLTkwZWItZGQyNDIxYTZlYzFk%40thread.v2/0?context=%7b%22Tid%22%3a%2272eb150a-a260-41c4-b63f-77de99bc4f9f%22%2c%22Oid%22%3a%222d704d6c-3b84-4dd3-8984-39848f40cc6f%22%7d>\nPara organizadores: Opciones de la reunión<https://teams.microsoft.com/meetingOptions/?organizerId=2d704d6c-3b84-4dd3-8984-39848f40cc6f&tenantId=72eb150a-a260-41c4-b63f-77de99bc4f9f&threadId=19_meeting_MDc0MzExMGUtMzllYi00NTdkLTkwZWItZGQyNDIxYTZlYzFk@thread.v2&messageId=0&language=es-MX>\n________________________________________________________________________________\n"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-03-03T09:00:00-03:00",
+    "Fin": "2026-03-03T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-03-04T08:00:00-03:00",
+    "Fin": "2026-03-04T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foooking Richmond",
+    "Inicio": "2026-03-04T12:30:00-03:00",
+    "Fin": "2026-03-04T13:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-03-04T14:00:00-03:00",
+    "Fin": "2026-03-04T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-05T09:45:00-03:00",
+    "Fin": "2026-03-05T10:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-03-06T14:45:00-03:00",
+    "Fin": "2026-03-06T16:15:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-03-10T12:00:00-03:00",
+    "Fin": "2026-03-10T12:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-03-11T08:00:00-03:00",
+    "Fin": "2026-03-11T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-03-11T09:00:00-03:00",
+    "Fin": "2026-03-11T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Temas",
+    "Inicio": "2026-03-11T11:00:00-03:00",
+    "Fin": "2026-03-11T11:45:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Veinfar\nICLOS\nRichmond"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-03-11T14:00:00-03:00",
+    "Fin": "2026-03-11T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión de Calidad",
+    "Inicio": "2026-03-11T15:00:00-03:00",
+    "Fin": "2026-03-11T16:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": "<br><u>Nota</u>: Doc para alta de Activos<br><a href=\"https://docs.google.com/document/d/1Ois50jljEWQTrkJkphtKEt1hokdp-IdlP6B7nMQzaWo/edit?tab=t.0\" class=\"pastedDriveLink-1\">https://docs.google.com/document/d/1Ois50jljEWQTrkJkphtKEt1hokdp-IdlP6B7nMQzaWo/edit?tab=t.0</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-12T08:45:00-03:00",
+    "Fin": "2026-03-12T09:45:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión por Beta Test Bizneo",
+    "Inicio": "2026-03-16T09:00:00-03:00",
+    "Fin": "2026-03-16T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Nico y Cami: Operación en Mercedez Benz. ",
+    "Inicio": "2026-03-16T14:00:00-03:00",
+    "Fin": "2026-03-16T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Nico",
+    "Inicio": "2026-03-16T14:30:00-03:00",
+    "Fin": "2026-03-16T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-03-17T09:00:00-03:00",
+    "Fin": "2026-03-17T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\n\nAYUDIN\nPesas patrón para calibrar en OT de Campo\nPuntos de cal espectrofotometro"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-03-18T08:00:00-03:00",
+    "Fin": "2026-03-18T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-03-18T09:00:00-03:00",
+    "Fin": "2026-03-18T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-03-18T14:00:00-03:00",
+    "Fin": "2026-03-18T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión de Calidad",
+    "Inicio": "2026-03-18T14:15:00-03:00",
+    "Fin": "2026-03-18T15:15:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-19T08:45:00-03:00",
+    "Fin": "2026-03-19T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión CAL&VAL",
+    "Inicio": "2026-03-20T10:00:00-03:00",
+    "Fin": "2026-03-20T11:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-03-23T09:00:00-03:00",
+    "Fin": "2026-03-23T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión formularios digitales - Áreas y equipos",
+    "Inicio": "2026-03-23T10:00:00-03:00",
+    "Fin": "2026-03-23T14:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-03-25T08:00:00-03:00",
+    "Fin": "2026-03-25T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-03-25T09:00:00-03:00",
+    "Fin": "2026-03-25T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-03-25T14:00:00-03:00",
+    "Fin": "2026-03-25T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión: Rev etiquetas y otros",
+    "Inicio": "2026-03-25T14:45:00-03:00",
+    "Fin": "2026-03-25T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-03-26T14:00:00-03:00",
+    "Fin": "2026-03-26T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Circuito de Pago",
+    "Inicio": "2026-03-27T10:00:00-03:00",
+    "Fin": "2026-03-27T10:30:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-03-27T13:30:00-03:00",
+    "Fin": "2026-03-27T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Nico",
+    "Inicio": "2026-03-30T14:30:00-03:00",
+    "Fin": "2026-03-30T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-03-31T09:00:00-03:00",
+    "Fin": "2026-03-31T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revision Calibracion PIRANOMETROS",
+    "Inicio": "2026-03-31T10:45:00-03:00",
+    "Fin": "2026-03-31T11:45:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reserva (Richmond) VHP FF",
+    "Inicio": "2026-04-01T05:30:00-03:00",
+    "Fin": "2026-04-01T06:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-04-01T08:00:00-03:00",
+    "Fin": "2026-04-01T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion calibraciones",
+    "Inicio": "2026-04-01T10:00:00-03:00",
+    "Fin": "2026-04-01T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-01T12:00:00-03:00",
+    "Fin": "2026-04-01T13:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion con Akribis - Facturacion servicio",
+    "Inicio": "2026-04-01T13:00:00-03:00",
+    "Fin": "2026-04-01T13:30:00-03:00",
+    "Ubicación": "Reunión de Microsoft Teams",
+    "Descripción": "\n________________________________________________________________________________\nReunión de Microsoft Teams\nUnirse: https://teams.microsoft.com/meet/379313852144407?p=PoQ3WGpocGnchyJAMt\nId. de reunión: 379 313 852 144 407\nCódigo de acceso: LU3EX2tG\n________________________________\n¿Necesita ayuda?<https://aka.ms/JoinTeamsMeeting?omkt=es-ES> | Referencia del sistema<https://teams.microsoft.com/l/meetup-join/19%3ameeting_YmZjNGI2MWMtYmNjOC00ZjY4LWFkM2ItMGIyNzk3YjU5Y2Ez%40thread.v2/0?context=%7b%22Tid%22%3a%22505cca53-5750-4134-9501-8d52d5df3cd1%22%2c%22Oid%22%3a%22a0f55871-bb8f-4c19-92d9-93738a296bdf%22%7d>\nMarcar por teléfono\n+54 11 3989-2076,,475615084#<tel:+541139892076,,475615084#> Argentina, Buenos Aires\nBuscar un número local<https://dialin.teams.microsoft.com/005f736b-e741-4283-89e6-ce0732599baa?id=475615084>\nId. de conferencia telefónica: 475 615 084#\nUnirse en un dispositivo de videoconferencia\nClave de inquilino: daimlertruck@m.webex.com\nId. del vídeo: 122 187 706 15\nMás información<https://www.webex.com/msteams?confid=12218770615&tenantkey=daimlertruck&domain=m.webex.com>\nPara organizadores: Opciones de la reunión<https://teams.microsoft.com/meetingOptions/?organizerId=a0f55871-bb8f-4c19-92d9-93738a296bdf&tenantId=505cca53-5750-4134-9501-8d52d5df3cd1&threadId=19_meeting_YmZjNGI2MWMtYmNjOC00ZjY4LWFkM2ItMGIyNzk3YjU5Y2Ez@thread.v2&messageId=0&language=es-ES> | Restablecer el PIN de marcado<https://dialin.teams.microsoft.com/usp/pstnconferencing>\nPrivacidad y seguridad<https://mars.daimlertruck.com/mars/pub/Datenschutzhinweise_zur-Einwilligung_der_Transkription_MS-Teams.pdf>\n________________________________________________________________________________\n\nTo help protect sensitive information, avoid including confidential details in unencrypted replies.\nUse encryption if sending attachments or other sensitive content. If you're not the intended recipient,\nplease notify the sender, delete the email, and do not share its contents. Thank you.\n\n"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-04-01T14:00:00-03:00",
+    "Fin": "2026-04-01T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Carga de OTs",
+    "Inicio": "2026-04-01T14:00:00-03:00",
+    "Fin": "2026-04-01T14:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Flujo carga OTs",
+    "Inicio": "2026-04-06T09:00:00-03:00",
+    "Fin": "2026-04-06T10:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-04-07T09:00:00-03:00",
+    "Fin": "2026-04-07T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion CAMPO",
+    "Inicio": "2026-04-08T07:00:00-03:00",
+    "Fin": "2026-04-08T07:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "Datos"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-04-08T08:00:00-03:00",
+    "Fin": "2026-04-08T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-04-08T09:00:00-03:00",
+    "Fin": "2026-04-08T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-04-08T14:00:00-03:00",
+    "Fin": "2026-04-08T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-09T08:45:00-03:00",
+    "Fin": "2026-04-09T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-04-10T13:30:00-03:00",
+    "Fin": "2026-04-10T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Nico",
+    "Inicio": "2026-04-13T14:30:00-03:00",
+    "Fin": "2026-04-13T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-04-14T09:00:00-03:00",
+    "Fin": "2026-04-14T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-04-15T08:00:00-03:00",
+    "Fin": "2026-04-15T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-04-15T09:00:00-03:00",
+    "Fin": "2026-04-15T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-04-15T14:00:00-03:00",
+    "Fin": "2026-04-15T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-16T08:45:00-03:00",
+    "Fin": "2026-04-16T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión CAL&VAL",
+    "Inicio": "2026-04-17T10:00:00-03:00",
+    "Fin": "2026-04-17T11:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-04-17T13:30:00-03:00",
+    "Fin": "2026-04-17T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reserva (RICHMOND) - CAL - JC+JP",
+    "Inicio": "2026-04-20",
+    "Fin": "2026-04-22",
+    "Ubicación": "Nueva Planta Vacunas, C. 5, B1609 Fatima, Provincia de Buenos Aires, Argentina",
+    "Descripción": "PR006 cal"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-04-21T09:00:00-03:00",
+    "Fin": "2026-04-21T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-04-22T08:00:00-03:00",
+    "Fin": "2026-04-22T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-04-22T09:00:00-03:00",
+    "Fin": "2026-04-22T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-04-22T14:00:00-03:00",
+    "Fin": "2026-04-22T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-23T08:45:00-03:00",
+    "Fin": "2026-04-23T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-04-24T13:30:00-03:00",
+    "Fin": "2026-04-24T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-04-28T09:00:00-03:00",
+    "Fin": "2026-04-28T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Interlaboratorio CNEA (Pesas E2)",
+    "Inicio": "2026-04-28T14:00:00-03:00",
+    "Fin": "2026-04-28T17:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-04-29T08:00:00-03:00",
+    "Fin": "2026-04-29T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-04-29T09:00:00-03:00",
+    "Fin": "2026-04-29T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-04-29T14:00:00-03:00",
+    "Fin": "2026-04-29T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-04-30T08:45:00-03:00",
+    "Fin": "2026-04-30T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-05-01T13:30:00-03:00",
+    "Fin": "2026-05-01T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-05-05T09:00:00-03:00",
+    "Fin": "2026-05-05T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-05-06T08:00:00-03:00",
+    "Fin": "2026-05-06T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-05-06T09:00:00-03:00",
+    "Fin": "2026-05-06T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-05-06T14:00:00-03:00",
+    "Fin": "2026-05-06T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-07T08:45:00-03:00",
+    "Fin": "2026-05-07T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-05-08T13:30:00-03:00",
+    "Fin": "2026-05-08T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-05-12T09:00:00-03:00",
+    "Fin": "2026-05-12T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-05-13T08:00:00-03:00",
+    "Fin": "2026-05-13T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-05-13T09:00:00-03:00",
+    "Fin": "2026-05-13T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-05-13T14:00:00-03:00",
+    "Fin": "2026-05-13T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-14T08:45:00-03:00",
+    "Fin": "2026-05-14T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión CAL&VAL",
+    "Inicio": "2026-05-15T10:00:00-03:00",
+    "Fin": "2026-05-15T11:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-05-15T13:30:00-03:00",
+    "Fin": "2026-05-15T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Cumpleaños de Andrea Alejandro Abaz",
+    "Inicio": "2026-05-17",
+    "Fin": "2026-05-18",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-05-19T09:00:00-03:00",
+    "Fin": "2026-05-19T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-05-20T08:00:00-03:00",
+    "Fin": "2026-05-20T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-05-20T09:00:00-03:00",
+    "Fin": "2026-05-20T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-05-20T14:00:00-03:00",
+    "Fin": "2026-05-20T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-21T08:45:00-03:00",
+    "Fin": "2026-05-21T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-05-22T13:30:00-03:00",
+    "Fin": "2026-05-22T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Cumpleaños de Nicolás Lobo",
+    "Inicio": "2026-05-26",
+    "Fin": "2026-05-27",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-05-26T09:00:00-03:00",
+    "Fin": "2026-05-26T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-05-27T08:00:00-03:00",
+    "Fin": "2026-05-27T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-05-27T09:00:00-03:00",
+    "Fin": "2026-05-27T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-05-27T14:00:00-03:00",
+    "Fin": "2026-05-27T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-05-28T08:45:00-03:00",
+    "Fin": "2026-05-28T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-05-29T13:30:00-03:00",
+    "Fin": "2026-05-29T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-06-02T09:00:00-03:00",
+    "Fin": "2026-06-02T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-06-03T08:00:00-03:00",
+    "Fin": "2026-06-03T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-06-03T09:00:00-03:00",
+    "Fin": "2026-06-03T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-06-03T14:00:00-03:00",
+    "Fin": "2026-06-03T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-04T08:45:00-03:00",
+    "Fin": "2026-06-04T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-06-05T13:30:00-03:00",
+    "Fin": "2026-06-05T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-06-09T09:00:00-03:00",
+    "Fin": "2026-06-09T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-06-10T08:00:00-03:00",
+    "Fin": "2026-06-10T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-06-10T09:00:00-03:00",
+    "Fin": "2026-06-10T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-06-10T14:00:00-03:00",
+    "Fin": "2026-06-10T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-11T08:45:00-03:00",
+    "Fin": "2026-06-11T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-06-12T13:30:00-03:00",
+    "Fin": "2026-06-12T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-06-16T09:00:00-03:00",
+    "Fin": "2026-06-16T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-06-17T08:00:00-03:00",
+    "Fin": "2026-06-17T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-06-17T09:00:00-03:00",
+    "Fin": "2026-06-17T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-06-17T14:00:00-03:00",
+    "Fin": "2026-06-17T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-18T08:45:00-03:00",
+    "Fin": "2026-06-18T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión CAL&VAL",
+    "Inicio": "2026-06-19T10:00:00-03:00",
+    "Fin": "2026-06-19T11:00:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-06-19T13:30:00-03:00",
+    "Fin": "2026-06-19T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-06-23T09:00:00-03:00",
+    "Fin": "2026-06-23T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-06-24T08:00:00-03:00",
+    "Fin": "2026-06-24T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-06-24T09:00:00-03:00",
+    "Fin": "2026-06-24T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-06-24T14:00:00-03:00",
+    "Fin": "2026-06-24T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-06-25T08:45:00-03:00",
+    "Fin": "2026-06-25T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-06-26T13:30:00-03:00",
+    "Fin": "2026-06-26T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Revisión de Capacidad (Planificación/Ventas)",
+    "Inicio": "2026-06-30T09:00:00-03:00",
+    "Fin": "2026-06-30T09:30:00-03:00",
+    "Ubicación": "",
+    "Descripción": "<a href=\"https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view\">https://akribis.lightning.force.com/one/one.app#/sObject/01Z2K000000x9kJUAQ/view</a>"
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Coordinación Líderes",
+    "Inicio": "2026-07-01T08:00:00-03:00",
+    "Fin": "2026-07-01T09:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Foco",
+    "Inicio": "2026-07-01T09:00:00-03:00",
+    "Fin": "2026-07-01T11:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Proyecto Vida - Seguimiento Fechas ANMAT",
+    "Inicio": "2026-07-01T14:00:00-03:00",
+    "Fin": "2026-07-01T16:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunion Planificación",
+    "Inicio": "2026-07-02T08:45:00-03:00",
+    "Fin": "2026-07-02T09:45:00-03:00",
+    "Ubicación": "Edificio INNOVA - México-EP-Sala de Reuniones - México (20)",
+    "Descripción": ""
+  },
+  {
+    "Técnico": "Nicolás Díaz",
+    "Correo": "ndiaz@akrimet.com",
+    "Evento": "Reunión planificación",
+    "Inicio": "2026-07-03T13:30:00-03:00",
+    "Fin": "2026-07-03T15:00:00-03:00",
+    "Ubicación": "",
+    "Descripción": ""
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "nombre": "Luis Rivera",
+    "correo": "lrivera@akrimet.com",
+    "iniciales": "LR"
+  },
+  {
+    "nombre": "Juan Castillo",
+    "correo": "jcastillo@akrimet.com",
+    "iniciales": "JC"
+  },
+  {
+    "nombre": "Gabriel Mansoreitch",
+    "correo": "gmansoreitch@akrimet.com",
+    "iniciales": "GM"
+  },
+  {
+    "nombre": "Eric Ayala",
+    "correo": "eayala@akrimet.com",
+    "iniciales": "EA"
+  },
+  {
+    "nombre": "Juan Pelozo",
+    "correo": "jpelozo@akrimet.com",
+    "iniciales": "JP"
+  },
+  {
+    "nombre": "Norberto Medina",
+    "correo": "nmedina@akrimet.com",
+    "iniciales": "NM"
+  },
+  {
+    "nombre": "Nicolás Díaz",
+    "correo": "ndiaz@akrimet.com",
+    "iniciales": "ND"
+  }
+]
