@@ -1,0 +1,29 @@
+# Google API Credentials & Tokens
+credentials.json
+token.json
+
+# SQLite Database
+*.db
+*.db-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# JSON Caches & Migrated Files
+*.json
+*.migrated
+!papelera_proyectos.json # Si deseas mantener este, aunque recomiendo migrarlo a DB
+
+# Excel / Logs
+*.xlsx
+*.log
+
+# VS Code / IDEs
+.vscode/
+.idea/

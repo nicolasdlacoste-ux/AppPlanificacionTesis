@@ -6,11 +6,13 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import extractor
 import engine
+import utils
+from data_manager import DataManager
 
 DIAS_SEM = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"]
-IDX_OT = 1
-IDX_TRAB = 5
-IDX_PTS = 12
+IDX_OT = utils.IDX_OT
+IDX_TRAB = utils.IDX_TRAB
+IDX_PTS = utils.IDX_PTS
 
 class GestionProyectosModule:
     def __init__(self, root, contenedor, tecnicos_info, bd_ots, tech_events, volver_fn, preselect_id=None):
@@ -21,6 +23,7 @@ class GestionProyectosModule:
         self.tech_events = tech_events
         self.volver_fn = volver_fn
         self.preselect_id = preselect_id
+        self.db = DataManager()
         
         self.paquetes = []
         self.paquete_seleccionado = None
@@ -541,8 +544,8 @@ class GestionProyectosModule:
                                    "(Se guardará una copia en la Papelera de Reciclaje local)")
         if not preg: return
 
-        # 1. Guardar en Papelera (Recycle Bin)
-        self._guardar_en_papelera(pkg)
+        # 1. Guardar en Papelera (SQLite)
+        self.db.guardar_en_papelera(pkg)
 
         # 2. Borrar en Google Calendar
         svc_cal, _ = extractor.get_google_services()
@@ -558,19 +561,9 @@ class GestionProyectosModule:
         self._cargar_datos()
 
     def _guardar_en_papelera(self, pkg):
-        papelera_path = os.path.join(os.path.dirname(__file__), 'papelera_proyectos.json')
-        datos = []
-        if os.path.exists(papelera_path):
-            with open(papelera_path, 'r', encoding='utf-8') as f:
-                try: datos = json.load(f)
-                except: datos = []
-        
-        # Añadir timestamp de borrado
-        pkg["fecha_borrado"] = datetime.datetime.now().isoformat()
-        datos.append(pkg)
-        
-        with open(papelera_path, 'w', encoding='utf-8') as f:
-            json.dump(datos, f, indent=4, ensure_ascii=False)
+        # Mantenemos el método por compatibilidad interna de la clase si se llama desde otro punto, 
+        # pero ahora usa la DB
+        self.db.guardar_en_papelera(pkg)
 
     def _ver_conflictos_patrones(self, event, conflictos):
         pop = tk.Toplevel(self.root)

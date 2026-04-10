@@ -7,27 +7,27 @@ import uuid
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+from data_manager import DataManager
+
 import extractor
 import engine
+import utils
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_OTS_PATH = os.path.join(BASE_DIR, 'bd_ots_cache.json')
+IDX_ESTADO = utils.IDX_ESTADO
+IDX_OT    = utils.IDX_OT
+IDX_CLIE  = utils.IDX_CLIE
+IDX_TRAB  = utils.IDX_TRAB
+IDX_ID    = utils.IDX_ID
+IDX_MODELO = utils.IDX_MODELO
+IDX_MARCA = utils.IDX_MARCA
+IDX_SERIE = utils.IDX_SERIE
+IDX_PTS   = utils.IDX_PTS
+IDX_FECHA = utils.IDX_FECHA
+IDX_SF    = utils.IDX_SF
 
-IDX_ESTADO = 0   # Columna A  (Estatus Trabajos Campo)
-IDX_OT    = 1   # Columna B
-IDX_CLIE  = 3   # Columna D
-IDX_TRAB  = 5   # Columna F
-IDX_ID    = 8   # Columna I
-IDX_MODELO = 9  # Columna J
-IDX_MARCA = 10  # Columna K
-IDX_SERIE = 11  # Columna L
-IDX_PTS   = 12  # Columna M
-IDX_FECHA = 16  # Columna Q
-IDX_SF    = 17  # Columna R
-
-IDX_PATRON_NOMBRE = 0
-IDX_PATRON_TRABAJOS = 1
-IDX_PATRON_RANGO = 13
+IDX_PATRON_NOMBRE = utils.IDX_PATRON_NOMBRE
+IDX_PATRON_TRABAJOS = utils.IDX_PATRON_TRABAJOS
+IDX_PATRON_RANGO = utils.IDX_PATRON_RANGO
 
 ESTADOS_PROGRAMABLES = {"Nueva", "Reprogramar"}
 
@@ -87,11 +87,8 @@ class ProgramarOTsModule:
         return h
 
     def _cargar_patrones_db(self):
-        path = os.path.join(BASE_DIR, 'patrones_cache.json')
-        if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return []
+        db = DataManager()
+        return db.obtener_patrones()
 
     def _popup_partidas(self, event, numeros_ot):
         filas = []

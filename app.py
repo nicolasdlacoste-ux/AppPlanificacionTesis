@@ -14,11 +14,38 @@ import extractor
 import programar_ots as prog_ots
 import gestion_proyectos as gest_proy
 import utils
+from data_manager import DataManager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_PATH = os.path.join(BASE_DIR, 'datos_cache.json')
 CACHE_OTS_PATH = os.path.join(BASE_DIR, 'bd_ots_cache.json')
 TECNICOS_CACHE_PATH = os.path.join(BASE_DIR, 'tecnicos_cache.json')
+
+# --- CLASE TOOLTIP PARA UX MODERNA ---
+class Tooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+        self.widget.bind("<Enter>", self.show_tip)
+        self.widget.bind("<Leave>", self.hide_tip)
+
+    def show_tip(self, event=None):
+        if self.tip_window or not self.text: return
+        x = self.widget.winfo_rootx() + 25
+        y = self.widget.winfo_rooty() + 25
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry("+%d+%d" % (x, y))
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                      background="#34495e", foreground="white", relief=tk.SOLID, borderwidth=1,
+                      font=("Segoe UI", 9), padx=10, pady=5)
+        label.pack(ipadx=1)
+
+    def hide_tip(self, event=None):
+        tw = self.tip_window
+        self.tip_window = None
+        if tw: tw.destroy()
 
 class PlanificacionApp:
     def __init__(self, root, contenedor, on_volver):
@@ -33,13 +60,34 @@ class PlanificacionApp:
         self.bd_ots = []
         self.bd_ots_headers = []
         self.tecnicos_info = []
+        self.db = DataManager()
+        self.db.migrar_desde_json(BASE_DIR)
+        
         self.popup_activo = None
+        self.evento_seleccionado = None  # Almacena {ev, tech, date}
+        self.celda_seleccionada_f = None # Referencia al widget resaltado
         self.var_solo_ots = tk.BooleanVar(value=True)
         
         self.crear_interfaz()
-        self.cargar_tecnicos_cache()
-        self.cargar_bd_ots()
-        self.cargar_datos()
+        # Iniciar carga asíncrona para no bloquear el inicio
+        self.cargar_todo_async()
+
+    def cargar_todo_async(self):
+        """Inicia un hilo para cargar todos los datos de la DB sin congelar la UI."""
+        self.lbl_rango_fechas.config(text="🔄 Cargando datos desde la base de datos...", fg="#e67e22")
+        threading.Thread(target=self._hilo_carga_inicial, daemon=True).start()
+
+    def _hilo_carga_inicial(self):
+        try:
+            self.cargar_tecnicos_cache()
+            self.cargar_bd_ots()
+            self.cargar_datos(sync_ui=False) # Cargar solo datos en memoria
+            
+            # Al terminar, refrescar la UI en el hilo principal
+            self.root.after(0, self.dibujar_grilla)
+        except Exception as e:
+            msg = f"Error en carga inicial: {e}"
+            self.root.after(0, lambda: messagebox.showerror("Error", msg))
 
     def mostrar_solucionador(self):
         # Crear un "pseudo-paquete" semanal dinámico basado en la vista actual
@@ -154,33 +202,27 @@ class PlanificacionApp:
         self.lbl_metrica_mes.pack(side=tk.RIGHT, padx=30, pady=10)
 
     def cargar_tecnicos_cache(self):
-        if os.path.exists(TECNICOS_CACHE_PATH):
-            with open(TECNICOS_CACHE_PATH, 'r', encoding='utf-8') as f:
-                self.tecnicos_info = json.load(f)
+        self.tecnicos_info = self.db.obtener_tecnicos()
 
     def cargar_bd_ots(self):
-        """Carga la base de datos local de OTs desde el cache JSON."""
-        if not os.path.exists(CACHE_OTS_PATH):
-            return
-        with open(CACHE_OTS_PATH, 'r', encoding='utf-8') as f:
-            datos = json.load(f)
+        """Carga la base de datos local de OTs desde SQLite."""
+        datos = self.db.obtener_bd_ots()
         if datos:
-            self.bd_ots_headers = datos[0]
+            self.bd_ots_headers = datos[0] # La primera fila guardada fueron los headers
             self.bd_ots = datos[1:]
 
-    def cargar_datos(self):
-        if not os.path.exists(CACHE_PATH):
-            messagebox.showinfo("Sin Datos", "No se encontró caché local. Haz clic en 'Sincronizar Cloud' para descargar los datos por primera vez.")
+    def cargar_datos(self, sync_ui=True):
+        eventos = self.db.obtener_eventos_dict()
+        if not eventos:
+            if sync_ui:
+                messagebox.showinfo("Sin Datos", "No hay datos en la base de datos. Haz clic en 'Sincronizar Cloud' para descargar.")
             self.tech_events = {}
             self.technicians_list = []
-            self.dibujar_grilla()
+            if sync_ui: self.dibujar_grilla()
             return
             
-        with open(CACHE_PATH, 'r', encoding='utf-8') as f:
-            eventos = json.load(f)
-            
         self.procesar_eventos(eventos)
-        self.dibujar_grilla()
+        if sync_ui: self.dibujar_grilla()
 
     def procesar_eventos(self, eventos):
         self.tech_events = {}
@@ -442,48 +484,192 @@ class PlanificacionApp:
                 cell_f = tk.Frame(self.grid_frame, bg=bg_color, width=ANCHO_DIA, height=real_h)
                 cell_f.grid(row=row, column=col, padx=1, pady=1, sticky="nsew")
                 cell_f.grid_propagate(False)
-                cell_f.pack_propagate(False)                
                 
                 if not eventos_dia:
                     pass
                 else:
                     for ev, h_px in event_info:
-                        f_ev = tk.Frame(cell_f, bg=bg_color, height=h_px)
-                        f_ev.pack(fill=tk.X, padx=1, pady=1)
-                        f_ev.pack_propagate(False)
-                        
-                        text_box = ev["text"]
-                        bg_box = "#d1f2eb" if ev.get("es_ot") else "#fdfefe"
-                        fg_box = "black"
-                        
-                        # Comprobar si este evento particular está involucrado en el conflicto del día
-                        tiene_conflicto = False
-                        props = ev[0].get('extendedProperties', {}).get('private', {}) if isinstance(ev, list) else ev.get('extendedProperties', {}).get('private', {})
-                        p_str = props.get('app_patrones', '[]')
                         try:
-                            p_evento = json.loads(p_str)
-                            conf_match = set(p_evento).intersection(conflictos_por_dia.get(date_key, set()))
-                            if conf_match: tiene_conflicto = True
-                        except: pass
-                        
-                        if tiene_conflicto:
-                            text_box = f"⚠️ {text_box}"
-                            bg_box = "#fadbd8" 
-                            fg_box = "#c0392b"
+                            f_ev = tk.Frame(cell_f, bg=bg_color, height=h_px)
+                            f_ev.pack(fill=tk.X, padx=1, pady=1)
+                            f_ev.pack_propagate(False)
+                            
+                            text_box = ev.get("text", "Evento")
+                            bg_box = "#d1f2eb" if ev.get("es_ot") else "#fdfefe"
+                            fg_box = "black"
+                            
+                            # Comprobar conflictos de patrones
+                            tiene_conflicto = False
+                            props = ev.get('extendedProperties', {}).get('private', {})
+                            p_str = props.get('app_patrones', '[]')
+                            try:
+                                p_list = json.loads(p_str)
+                                conf_hoy = conflictos_por_dia.get(date_key, set())
+                                if any(p in conf_hoy for p in p_list):
+                                    tiene_conflicto = True
+                            except: pass
+                            
+                            if tiene_conflicto:
+                                text_box = f"⚠️ {text_box}"
+                                bg_box = "#fadbd8" 
+                                fg_box = "#c0392b"
 
-                        lbl_ev = tk.Label(f_ev, text=text_box, bg=bg_box, fg=fg_box,
-                                         font=("Segoe UI", 8, "bold" if tiene_conflicto else "normal"), 
-                                         anchor="nw", justify="left", 
-                                         wraplength=ANCHO_DIA-10, relief=tk.SOLID if tiene_conflicto else tk.RAISED, 
-                                         bd=2 if tiene_conflicto else 1, padx=3, pady=2, cursor="hand2")
-                        lbl_ev.pack(fill=tk.BOTH, expand=True)
-                        
-                        lbl_ev.bind("<Button-1>", lambda e, t=tech, d=date_key, ev_single=ev: self.mostrar_popup_ots(e, t, d, [ev_single]))
+                            lbl_ev = tk.Label(f_ev, text=text_box, bg=bg_box, fg=fg_box,
+                                             font=("Segoe UI", 8, "bold" if tiene_conflicto else "normal"), 
+                                             anchor="nw", justify="left", 
+                                             wraplength=ANCHO_DIA-10, relief=tk.SOLID if tiene_conflicto else tk.RAISED, 
+                                             bd=2 if tiene_conflicto else 1, padx=3, pady=2, cursor="hand2")
+                            lbl_ev.pack(fill=tk.BOTH, expand=True)
+                            
+                            # Crear Tooltip detallado
+                            tip_text = f"📋 {text_box}\n"
+                            tip_text += f"📅 {ev.get('Inicio','')[11:16]} - {ev.get('Fin','')[11:16]}\n"
+                            if p_str and p_str != "[]":
+                                try: tip_text += f"🛠️ Patrones: {', '.join(json.loads(p_str))}\n"
+                                except: pass
+                            tip_text += "------------------\n💡 Click: Seleccionar/Mover\n💡 Der: Opciones"
+                            Tooltip(lbl_ev, tip_text)
+                            
+                            lbl_ev.bind("<Button-1>", lambda e, t=tech, d=date_key, ev_single=ev, w=lbl_ev: self.seleccionar_evento_interactivo(e, t, d, ev_single, w))
+                            lbl_ev.bind("<Button-3>", lambda e, t=tech, d=date_key, ev_single=ev: self.mostrar_menu_contextual(e, t, d, ev_single))
+                        except Exception as e_draw:
+                            print(f"Error dibujando cuadrito de evento: {e_draw}")
+                
+                # Clic en la celda vacía para mover el seleccionado
+                cell_f.bind("<Button-1>", lambda e, t=tech, d=date_key: self.intentar_mover_a_celda(t, d))
 
         # Refrescar Métricas
         self.calcular_metricas(fechas_semana)
 
-    def regresar_a_esta_vista(self):
+    def seleccionar_evento_interactivo(self, event, tech, date_key, ev, widget):
+        if self.evento_seleccionado and self.evento_seleccionado['ev']['id'] == ev['id']:
+            # Deseleccionar si se hace click en el mismo
+            self.limpiar_seleccion()
+            return
+            
+        self.limpiar_seleccion()
+        self.evento_seleccionado = {"ev": ev, "tech": tech, "date": date_key}
+        self.celda_seleccionada_f = widget
+        widget.config(relief=tk.FLAT, bd=3, highlightbackground="#3498db", highlightthickness=2)
+        
+        # Opcional: Mostrar popup normal también si se prefiere
+        # self.mostrar_popup_ots(event, tech, date_key, [ev])
+
+    def limpiar_seleccion(self):
+        if self.celda_seleccionada_f and self.celda_seleccionada_f.winfo_exists():
+            self.celda_seleccionada_f.config(relief=tk.RAISED, bd=1, highlightthickness=0)
+        self.evento_seleccionado = None
+        self.celda_seleccionada_f = None
+
+    def intentar_mover_a_celda(self, tech_dest, date_dest):
+        if not self.evento_seleccionado:
+            return
+            
+        ev = self.evento_seleccionado['ev']
+        tech_orig = self.evento_seleccionado['tech']
+        date_orig = self.evento_seleccionado['date']
+        
+        if tech_dest == tech_orig and date_dest == date_orig:
+            self.limpiar_seleccion()
+            return
+
+        msg = f"¿Mover evento '{ev['text']}'?\nDe: {tech_orig} ({date_orig})\nA: {tech_dest} ({date_dest})"
+        if not messagebox.askyesno("Confirmar Movimiento", msg):
+            self.limpiar_seleccion()
+            return
+
+        # Proceder con el movimiento asíncrono
+        threading.Thread(target=self._hilo_mover_evento, args=(ev, tech_dest, date_dest), daemon=True).start()
+        self.limpiar_seleccion()
+        self.lbl_rango_fechas.config(text="🔄 Procesando movimiento en Calendar...", fg="#e67e22")
+
+    def _hilo_mover_evento(self, ev, tech_dest, date_dest):
+        try:
+            import extractor
+            svc_cal, _ = extractor.get_google_services()
+            
+            # Buscar el correo del tecnico destino
+            correo_dest = next((t['correo'] for t in self.tecnicos_info if t['nombre'] == tech_dest), None)
+            if not correo_dest:
+                raise Exception(f"No se encontró correo para el técnico {tech_dest}")
+
+            # Calcular nuevas fechas preservando la hora
+            # Manejar ISO con offset
+            dt_ini = datetime.datetime.fromisoformat(ev['Inicio'].replace("Z", "+00:00"))
+            dt_fin = datetime.datetime.fromisoformat(ev['Fin'].replace("Z", "+00:00"))
+            
+            nueva_f = datetime.datetime.strptime(date_dest, "%Y-%m-%d").date()
+            delta = nueva_f - dt_ini.date()
+            
+            nuevo_dt_ini = dt_ini + datetime.timedelta(days=delta.days)
+            nuevo_dt_fin = dt_fin + datetime.timedelta(days=delta.days)
+
+            # 1. MOVER EL EVENTO (Patch)
+            # Nota: Si el técnico cambia, es más complejo porque el evento pertenece a un calendario
+            # Si el calendario es el mismo (calendar_id), solo cambiamos fechas.
+            # Si el calendario es distinto, hay que ELIMINAR y CREAR o usar move()
+            
+            # Asumimos de momento que movemos dentro del "Pool" y actualizamos el tecnico en extendedProperties
+            cal_id_orig = ev.get('calendar_id')
+            
+            # Si el tecnico cambia, el evento debe "viajar" al calendario del nuevo tecnico
+            # Usando la API move()
+            if correo_dest != cal_id_orig:
+                svc_cal.events().move(
+                    calendarId=cal_id_orig,
+                    eventId=ev['id'],
+                    destination=correo_dest
+                ).execute()
+                # El eventId puede cambiar al moverlo, pero usualmente se mantiene
+            
+            # 2. Update de fechas y metadatos
+            # Actualizamos el Técnico en los metadatos privados
+            props = ev.get('extendedProperties', {}).get('private', {})
+            props['app_tecnico'] = tech_dest
+            
+            svc_cal.events().patch(
+                calendarId=correo_dest,
+                eventId=ev['id'],
+                body={
+                    'start': {'dateTime': nuevo_dt_ini.isoformat()},
+                    'end': {'dateTime': nuevo_dt_fin.isoformat()},
+                    'extendedProperties': {'private': props}
+                }
+            ).execute()
+
+            # 3. Refrescar datos locales
+            self.root.after(0, self.sincronizar_cloud)
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror("Error al mover", f"No se pudo completar el movimiento: {e}"))
+            self.root.after(0, self.dibujar_grilla)
+
+    def mostrar_menu_contextual(self, event, tech, date_key, ev):
+        menu = tk.Menu(self.root, tearoff=0, font=("Segoe UI", 10))
+        menu.add_command(label=f"📋 Ver Detalles", command=lambda: self.mostrar_popup_ots(event, tech, date_key, [ev]))
+        menu.add_separator()
+        
+        # Acceso directo a Gestion
+        pkg_id = ev.get('extendedProperties', {}).get('private', {}).get('app_pkg_id')
+        if pkg_id:
+            menu.add_command(label="📁 Ir a Gestión de Proyecto", command=lambda: self.mostrar_gestion_proyectos(preselect_id=pkg_id))
+        
+        menu.add_separator()
+        menu.add_command(label="🗑️ Eliminar de Calendar", command=lambda: self.confirmar_eliminacion_rapida(ev), foreground="red")
+        
+        menu.post(event.x_root, event.y_root)
+
+    def confirmar_eliminacion_rapida(self, ev):
+        if messagebox.askyesno("Confirmar", f"¿Eliminar definitivamente '{ev['text']}' de Google Calendar?"):
+            threading.Thread(target=self._hilo_eliminar_evento, args=(ev,), daemon=True).start()
+
+    def _hilo_eliminar_evento(self, ev):
+        try:
+            import extractor
+            svc_cal, _ = extractor.get_google_services()
+            svc_cal.events().delete(calendarId=ev['calendar_id'], eventId=ev['id']).execute()
+            self.root.after(0, self.sincronizar_cloud)
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror("Error", f"No se pudo eliminar: {e}"))
         """Re-construye la interfaz y carga los datos para asegurar un refresco completo."""
         self.crear_interfaz()
         self.cargar_datos()
@@ -602,12 +788,11 @@ class PlanificacionApp:
             messagebox.showinfo("Sin BD", "No hay BD de OTs en caché. Sincronicé primero con el botón 'Sincronizar Cloud'.")
             return
         
-        # Detectar el índice de las columnas que necesitamos (B=1, F=5, M=12)
+        # Usar índices desde utils
         try:
-            header = self.bd_ots_headers
-            idx_ot = 1      # Columna B: N° OT
-            idx_trab = 5    # Columna F: Trabajo a Ejecutar
-            idx_pts = 12    # Columna M: Puntos de Calibración
+            idx_ot = utils.IDX_OT
+            idx_trab = utils.IDX_TRAB
+            idx_pts = utils.IDX_PTS
         except Exception:
             return
         
@@ -906,43 +1091,32 @@ class MenuPrincipal:
         PlanificacionApp(self.root, contenedor, self._mostrar_menu)
 
     def _abrir_programar(self):
-        tech_events, tecnicos_info, bd_ots, bd_ots_hdrs = {}, [], [], []
-
-        if os.path.exists(CACHE_PATH):
-            with open(CACHE_PATH, 'r', encoding='utf-8') as f:
-                evs = json.load(f)
-            # Reusar procesar_eventos sin lanzar la UI completa
-            tmp = PlanificacionApp.__new__(PlanificacionApp)
-            tmp.root = self.root
-            tmp.today = datetime.date.today()
-            tmp.current_start_date = tmp.today - datetime.timedelta(days=tmp.today.weekday())
-            tmp.tech_events, tmp.technicians_list = {}, []
-            tmp.bd_ots, tmp.bd_ots_headers, tmp.tecnicos_info = [], [], []
-            tmp.popup_activo = None
-            tmp.procesar_eventos(evs)
-            tech_events = tmp.tech_events
-
-        if os.path.exists(CACHE_OTS_PATH):
-            with open(CACHE_OTS_PATH, 'r', encoding='utf-8') as f:
-                datos = json.load(f)
-            bd_ots_hdrs = datos[0] if datos else []
-            bd_ots = datos[1:] if len(datos) > 1 else []
-
-        if os.path.exists(TECNICOS_CACHE_PATH):
-            with open(TECNICOS_CACHE_PATH, 'r', encoding='utf-8') as f:
-                tecnicos_info = json.load(f)
-
-        if not bd_ots:
-            messagebox.showinfo("Sin Datos",
-                "No hay datos de OTs en cache. Sincroniza primero desde Planificacion Semanal.")
+        db = DataManager()
+        evs = db.obtener_eventos_dict()
+        tecnicos_info = db.obtener_tecnicos()
+        raw_ots = db.obtener_bd_ots()
+        
+        if not raw_ots:
+            messagebox.showinfo("Sin Datos", "No hay datos en la DB. Sincroniza primero.")
             return
 
+        # Procesar eventos para el formato tech_events que requiere el módulo
+        # NOTA: En el futuro, el módulo de programación también debería usar la DB directamente
+        tmp = PlanificacionApp.__new__(PlanificacionApp)
+        tmp.db = db
+        tmp.procesar_eventos(evs)
+        tech_events = tmp.tech_events
+        
+        bd_ots_hdrs = raw_ots[0] if raw_ots else []
+        bd_ots = raw_ots[1:] if len(raw_ots) > 1 else []
+
         self._limpiar()
-        self.root.geometry("1200x750")
+        self.root.geometry("1400x850") # Un poco más grande
         self.root.resizable(True, True)
         self.root.configure(bg="#f4f4f4")
         contenedor = tk.Frame(self.root, bg="#f4f4f4")
         contenedor.pack(fill=tk.BOTH, expand=True)
+        
         prog_ots.ProgramarOTsModule(
             self.root, contenedor,
             tech_events, tecnicos_info,
@@ -951,34 +1125,21 @@ class MenuPrincipal:
         )
 
     def _abrir_gestion(self):
-        # 1. Cargar datos necesarios (Caches)
-        tech_events, tecnicos_info, bd_ots = {}, [], []
-
-        if os.path.exists(CACHE_PATH):
-            with open(CACHE_PATH, 'r', encoding='utf-8') as f:
-                evs = json.load(f)
-            tmp = PlanificacionApp.__new__(PlanificacionApp)
-            tmp.root = self.root; tmp.today = datetime.date.today()
-            tmp.current_start_date = tmp.today - datetime.timedelta(days=tmp.today.weekday())
-            tmp.tech_events, tmp.technicians_list = {}, []
-            tmp.bd_ots, tmp.bd_ots_headers, tmp.tecnicos_info = [], [], []
-            tmp.procesar_eventos(evs)
-            tech_events = tmp.tech_events
-
-        if os.path.exists(CACHE_OTS_PATH):
-            with open(CACHE_OTS_PATH, 'r', encoding='utf-8') as f:
-                datos = json.load(f)
-            bd_ots = datos[1:] if len(datos) > 1 else []
-
-        if os.path.exists(TECNICOS_CACHE_PATH):
-            with open(TECNICOS_CACHE_PATH, 'r', encoding='utf-8') as f:
-                tecnicos_info = json.load(f)
+        db = DataManager()
+        evs = db.obtener_eventos_dict()
+        tecnicos_info = db.obtener_tecnicos()
+        raw_ots = db.obtener_bd_ots()
 
         if not tecnicos_info:
-            messagebox.showinfo("Sin Datos", "Sincroniza primero la agenda desde Planificacion Semanal.")
+            messagebox.showinfo("Sin Datos", "Sincroniza primero la agenda.")
             return
 
-        # 2. Configurar UI
+        tmp = PlanificacionApp.__new__(PlanificacionApp)
+        tmp.db = db
+        tmp.procesar_eventos(evs)
+        tech_events = tmp.tech_events
+        bd_ots = raw_ots[1:] if len(raw_ots) > 1 else []
+
         self._limpiar()
         self.root.geometry("1400x850")
         self.root.resizable(True, True)
@@ -986,7 +1147,6 @@ class MenuPrincipal:
         contenedor = tk.Frame(self.root, bg="#f4f4f4")
         contenedor.pack(fill=tk.BOTH, expand=True)
 
-        # 3. Lanzar módulo
         gest_proy.GestionProyectosModule(
             self.root, 
             contenedor, 

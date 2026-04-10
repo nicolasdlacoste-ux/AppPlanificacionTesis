@@ -182,6 +182,7 @@ class ConflictosModule:
                                           relief=tk.RAISED, bd=1, padx=3, pady=2, wraplength=ANCHO_DIA-10, cursor="hand2")
                         lbl_ot.pack(fill=tk.X, padx=2, pady=2)
                         lbl_ot.bind("<Button-1>", lambda e, t=tech, d=f, evs_dia=evs: self._mostrar_popup_partidas(e, t, d, evs_dia))
+                        lbl_ot.bind("<Button-3>", lambda e, ev_single=ev: self._menu_contextual_conflicto(e, ev_single))
                     
                     box_pats = tk.Frame(cell_f, bg=cell_bg)
                     box_pats.pack(fill=tk.BOTH, expand=True, padx=5, pady=2)
@@ -442,3 +443,17 @@ class ConflictosModule:
             self.volver_fn()
         except Exception as e:
             messagebox.showerror("Error", f"Fallo al guardar en Google: {e}")
+
+    def _menu_contextual_conflicto(self, event, ev):
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="🗑️ Eliminar este evento", command=lambda: self._eliminar_rapido(ev), foreground="red")
+        menu.post(event.x_root, event.y_root)
+
+    def _eliminar_rapido(self, ev):
+        if messagebox.askyesno("Confirmar", "¿Eliminar este evento para resolver el conflicto?"):
+            try:
+                svc_cal, _ = extractor.get_google_services()
+                svc_cal.events().delete(calendarId=ev['calendar_id'], eventId=ev['id']).execute()
+                messagebox.showinfo("Éxito", "Evento eliminado. Cierre y vuelva a abrir para ver cambios.")
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo eliminar: {e}")

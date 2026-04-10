@@ -44,3 +44,21 @@ def evaluar_conflicto(ots_por_tecnico):
     else:
         # No hay OT común entre todos -> Conflicto de duplicación
         return True, set()
+
+# --- ÍNDICES DE COLUMNAS DE LA BD DE OTS (SPREADSHEET) ---
+IDX_ESTADO = 0   # Columna A (Estatus Trabajos Campo)
+IDX_OT    = 1    # Columna B
+IDX_CLIE  = 3    # Columna D
+IDX_TRAB  = 5    # Columna F
+IDX_ID    = 8    # Columna I
+IDX_MODELO = 9   # Columna J
+IDX_MARCA = 10   # Columna K
+IDX_SERIE = 11   # Columna L
+IDX_PTS   = 12   # Columna M
+IDX_FECHA = 16   # Columna Q
+IDX_SF    = 17   # Columna R
+
+# --- ÍNDICES DE COLUMNAS DE LA BD DE PATRONES ---
+IDX_PATRON_NOMBRE = 0
+IDX_PATRON_TRABAJOS = 1
+IDX_PATRON_RANGO = 13
