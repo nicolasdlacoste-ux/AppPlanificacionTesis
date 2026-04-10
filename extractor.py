@@ -2,6 +2,9 @@ import os.path
 import datetime
 import pandas as pd
 import json
+import re
+import uuid
+import utils
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -25,6 +28,9 @@ RANGE_NAME = 'Tecnicos'
 
 SPREADSHEET_ID_OTS = '1P_-XkU4YqQTd08FQAgmofam0bPowf7dYD4IojSPi59M'
 RANGE_NAME_OTS = 'OTs'
+
+SPREADSHEET_ID_PATRONES = '1FV6mrF35GvLsckWC6W5I6YUm6MCfDTe3y5AK0HIyBF4'
+RANGE_NAME_PATRONES = 'Patrones'
 
 def get_google_services():
     """Muestra el flujo de autorización y crea los clientes de la API."""
@@ -80,7 +86,7 @@ def obtener_tecnicos(service_sheets):
         print(f"Ocurrió un error conectando a Sheets: {err}")
         return []
 
-def crear_evento_calendar(service_calendar, correo, titulo, descripcion, fecha, jornada_completa=True):
+def crear_evento_calendar(service_calendar, correo, titulo, descripcion, fecha, jornada_completa=True, metadata=None):
     """Crea un evento en el calendario de un técnico en una fecha específica."""
     fecha_str = fecha.strftime("%Y-%m-%d")
     hora_fin = "16:00:00" if jornada_completa else "11:30:00"
@@ -97,6 +103,9 @@ def crear_evento_calendar(service_calendar, correo, titulo, descripcion, fecha, 
             'timeZone': 'America/Argentina/Buenos_Aires',
         },
     }
+    if metadata:
+        event['extendedProperties'] = {'private': metadata}
+    
     try:
         creado = service_calendar.events().insert(calendarId=correo, body=event).execute()
         print(f"  Evento creado para {correo}: {creado.get('htmlLink')}")
@@ -116,6 +125,17 @@ def obtener_bd_ots(service_sheets):
         print(f"Ocurrió un error conectando a la BD de OTs: {err}")
         return []
 
+def obtener_bd_patrones(service_sheets):
+    """Descarga la tabla completa de la base de datos de Patrones."""
+    try:
+        sheet = service_sheets.spreadsheets()
+        result = sheet.values().get(spreadsheetId=SPREADSHEET_ID_PATRONES,
+                                    range=RANGE_NAME_PATRONES).execute()
+        return result.get('values', [])
+    except HttpError as err:
+        print(f"Ocurrió un error conectando a la BD de Patrones: {err}")
+        return []
+
 def obtener_agendas(service_calendar, tecnicos):
     """Itera sobre la lista de técnicos y extrae los eventos recientes y próximos."""
     eventos_totales = []
@@ -128,64 +148,190 @@ def obtener_agendas(service_calendar, tecnicos):
     # Las APIs requieren formato ISO 8601 con 'Z' al final
     timeMin = inicio_busqueda.isoformat() + 'Z'  
     timeMax = fin_busqueda.isoformat() + 'Z'
-
-    for tecnico in tecnicos:
-        correo = tecnico['correo']
-        nombre = tecnico['nombre']
-        print(f"Consultando agenda de: {nombre} ({correo})")
+    batch = service_calendar.new_batch_http_request()
+    
+    def callback(request_id, response, exception):
+        correo = request_id
+        nombre = next((t['nombre'] for t in tecnicos if t['correo'] == correo), "Desconocido")
         
-        try:
-            # Consultamos los eventos
-            events_result = service_calendar.events().list(
-                calendarId=correo, 
-                timeMin=timeMin,
-                timeMax=timeMax,
-                singleEvents=True,
-                orderBy='startTime'
-            ).execute()
-            
-            events = events_result.get('items', [])
-            
-            if not events:
-                print(f"  No se encontraron eventos próximos para {nombre}.")
-            else:
-                for event in events:
-                    # 1. Ignorar eventos cancelados (o instancias borradas de una serie)
-                    if event.get('status') == 'cancelled':
-                        continue
-                        
-                    # 2. Ignorar si el técnico lo rechazó (declined)
-                    rechazado = False
-                    for asistente in event.get('attendees', []):
-                        if asistente.get('email') == correo and asistente.get('responseStatus') == 'declined':
-                            rechazado = True
-                            break
-                    if rechazado:
-                        continue
-                        
-                    # 3. Ignorar avisos de "Lugar de Trabajo" (workingLocation) 
-                    if event.get('eventType') == 'workingLocation':
-                        continue
-
-                    start = event['start'].get('dateTime', event['start'].get('date'))
-                    end = event['end'].get('dateTime', event['end'].get('date'))
-                    
-                    eventos_totales.append({
-                        "Técnico": nombre,
-                        "Correo": correo,
-                        "Evento": event.get('summary', '(Sin Título)'),
-                        "Inicio": start,
-                        "Fin": end,
-                        "Ubicación": event.get('location', ''),
-                        "Descripción": event.get('description', '')
-                    })
-        except HttpError as err:
-            if err.resp.status == 404:
+        if exception is not None:
+            # Intentar obtener el status code
+            status = getattr(getattr(exception, 'resp', None), 'status', 500)
+            if status == 404:
                 print(f"  [!] No existe el calendario o no tienes permisos para el correo: {correo}")
             else:
-                print(f"  [!] Error consultando a {correo}: {err}")
+                print(f"  [!] Error consultando a {correo}: {exception}")
+            return
+            
+        events = response.get('items', [])
+        
+        if not events:
+            print(f"  No se encontraron eventos próximos para {nombre}.")
+        else:
+            for event in events:
+                # 1. Ignorar eventos cancelados (o instancias borradas de una serie)
+                if event.get('status') == 'cancelled':
+                    continue
+                    
+                # 2. Ignorar si el técnico lo rechazó (declined)
+                rechazado = False
+                for asistente in event.get('attendees', []):
+                    if asistente.get('email') == correo and asistente.get('responseStatus') == 'declined':
+                        rechazado = True
+                        break
+                if rechazado:
+                    continue
+                    
+                # 3. Ignorar avisos de "Lugar de Trabajo" (workingLocation) 
+                if event.get('eventType') == 'workingLocation':
+                    continue
+
+                start = event['start'].get('dateTime', event['start'].get('date'))
+                end = event['end'].get('dateTime', event['end'].get('date'))
                 
+                eventos_totales.append({
+                    "id": event.get('id'),
+                    "calendar_id": correo, # Guardamos el dueño para el patch
+                    "Técnico": nombre,
+                    "Correo": correo,
+                    "Evento": event.get('summary', '(Sin Título)'),
+                    "Inicio": start,
+                    "Fin": end,
+                    "Ubicación": event.get('location', ''),
+                    "Descripción": event.get('description', ''),
+                    "extendedProperties": event.get('extendedProperties', {})
+                })
+
+    print("=== Iniciando Extracción Batch de Eventos ===")
+    for tecnico in tecnicos:
+        correo = tecnico['correo']
+        print(f"  Encolando consulta para: {tecnico['nombre']} ({correo})")
+        
+        req = service_calendar.events().list(
+            calendarId=correo, 
+            timeMin=timeMin,
+            timeMax=timeMax,
+            singleEvents=True,
+            orderBy='startTime'
+        )
+        batch.add(req, callback=callback, request_id=correo)
+        
+    print("Enviando petición Batch unificada a Google...")
+    batch.execute()
+    print("=== Petición Batch completada ===")
     return eventos_totales
+
+def clasificar_agendas_en_paquetes(eventos):
+    """
+    Agrupa una lista plana de eventos de calendario en 'Paquetes' lógicos.
+    Usa metadatos (app_pkg_id) si existen, o heurística de título (legacy).
+    """
+    paquetes = {} # ID -> {datos...}
+    # Regex más flexible: Al menos busca "OTs (Cliente)" al inicio. Lo demás es opcional.
+    regex_legacy = r"^(?P<ots>[^()]+)\s*\((?P<cliente>[^)]+)\)"
+
+    for ev in eventos:
+        props = ev.get('extendedProperties', {}).get('private', {})
+        pkg_id = props.get('app_pkg_id')
+        
+        # 1. Identificar o generar ID de grupo
+        if pkg_id:
+            tipo = "real"
+        else:
+            # Heurística para eventos legacy
+            summary = ev.get('Evento', '')
+            match = re.match(regex_legacy, summary)
+            if match:
+                ots_raw = match.group('ots').strip()
+                cliente_raw = match.group('cliente').strip()
+                # Normalizar para el ID de paquete
+                ots_norm = "/".join(sorted([o.strip() for o in ots_raw.split('/')]))
+                pkg_id = f"legacy_{utils.normalizar_texto(ots_norm)}_{utils.normalizar_texto(cliente_raw)}"
+                tipo = "virtual"
+            else:
+                # Evento no clasificable
+                pkg_id = f"indiv_{ev.get('id', uuid.uuid4().hex)}"
+                tipo = "suelto"
+                match = None # Limpiar match previo
+
+        # 2. Inicializar paquete si no existe
+        if pkg_id not in paquetes:
+            paquetes[pkg_id] = {
+                "id": pkg_id,
+                "tipo": tipo,
+                "ots": props.get('app_ots', ''),
+                "cliente": props.get('app_cliente', ''),
+                "servicio": props.get('app_servicio', ''),
+                "eventos": []
+            }
+            # Completar datos si es legacy
+            if tipo == "virtual" and match:
+                paquetes[pkg_id]["ots"] = match.group('ots').strip()
+                paquetes[pkg_id]["cliente"] = match.group('cliente').strip()
+                # Intentar sacar el servicio si existe un "-" después del paréntesis
+                s_post = ev.get('summary', '').split(')')
+                if len(s_post) > 1 and '-' in s_post[1]:
+                    paquetes[pkg_id]["servicio"] = s_post[1].split('-')[1].strip()
+            
+            if tipo == "suelto":
+                paquetes[pkg_id]["ots"] = ev.get('Evento', '(Sin Título)')
+                paquetes[pkg_id]["cliente"] = "—"
+
+        paquetes[pkg_id]["eventos"].append(ev)
+
+    return list(paquetes.values())
+
+def sincronizar_metadatos_legado(service_calendar, paquetes_virtuales, bd_ots):
+    """
+    Toma paquetes detectados con Regex y les 'inyecta' metadatos reales en Google Calendar.
+    """
+    print(f"\nSincronizando metadatos para {len(paquetes_virtuales)} paquetes legados...")
+    
+    # 1. Crear mapa de OT -> SF_ID para búsqueda rápida
+    ot_to_sf = {}
+    from programar_ots import IDX_OT, IDX_SF
+    for f in bd_ots:
+        if len(f) > max(IDX_OT, IDX_SF):
+            ot_to_sf[str(f[IDX_OT]).strip()] = str(f[IDX_SF]).strip()
+
+    count_upgraded = 0
+    for pkg in paquetes_virtuales:
+        if pkg["tipo"] != "virtual": continue
+        
+        # Generar metadatos base
+        new_pkg_id = str(uuid.uuid4())
+        ots_list = [o.strip() for o in pkg["ots"].split('/')]
+        sf_ids = [ot_to_sf.get(ot, "") for ot in ots_list if ot_to_sf.get(ot)]
+        
+        total_j = len(pkg["eventos"])
+        
+        print(f"  Upgrading: {pkg['ots']} ({pkg['cliente']})")
+        
+        for idx, ev in enumerate(pkg["eventos"]):
+            cal_id = ev.get('calendar_id') # Necesitamos saber de quién es el evento
+            if not cal_id: continue
+            
+            metadata = {
+                'app_pkg_id': new_pkg_id,
+                'app_ots': pkg["ots"],
+                'app_sf_ids': ", ".join(sf_ids),
+                'app_patrones': "[]", # No sabemos los patrones antiguos
+                'app_jornada': f"{idx + 1}/{total_j}",
+                'app_cliente': pkg["cliente"],
+                'app_servicio': pkg["servicio"]
+            }
+            
+            try:
+                service_calendar.events().patch(
+                    calendarId=cal_id,
+                    eventId=ev['id'],
+                    body={'extendedProperties': {'private': metadata}}
+                ).execute()
+                count_upgraded += 1
+            except Exception as e:
+                print(f"    Error actualizando evento {ev['id']}: {e}")
+                
+    return count_upgraded
 
 def escribir_en_sheet(service_sheets, df):
     """Escribe el DataFrame de pandas directamente en la pestaña 'Agenda' de Google Sheets."""
@@ -282,6 +428,14 @@ def principal():
         with open(cache_ots_path, 'w', encoding='utf-8') as f:
             json.dump(bd_ots_datos, f, ensure_ascii=False)
         print(f"¡Éxito! Se sincronizaron {len(bd_ots_datos)} filas de OTs en caché rápido.")
+
+    print("\n5. Actualizando Base de Datos de Patrones...")
+    patrones_datos = obtener_bd_patrones(service_sheets)
+    if patrones_datos:
+        cache_patrones_path = os.path.join(BASE_DIR, 'patrones_cache.json')
+        with open(cache_patrones_path, 'w', encoding='utf-8') as f:
+            json.dump(patrones_datos, f, ensure_ascii=False)
+        print(f"¡Éxito! Se sincronizaron {len(patrones_datos)} filas de Patrones.")
 
 if __name__ == '__main__':
     principal()

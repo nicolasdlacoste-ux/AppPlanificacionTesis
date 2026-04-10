@@ -7,10 +7,13 @@ import threading
 import sys
 import statistics
 import calendar
+import re
 
 # Importar módulos
 import extractor
 import programar_ots as prog_ots
+import gestion_proyectos as gest_proy
+import utils
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_PATH = os.path.join(BASE_DIR, 'datos_cache.json')
@@ -31,13 +34,36 @@ class PlanificacionApp:
         self.bd_ots_headers = []
         self.tecnicos_info = []
         self.popup_activo = None
+        self.var_solo_ots = tk.BooleanVar(value=True)
         
         self.crear_interfaz()
         self.cargar_tecnicos_cache()
         self.cargar_bd_ots()
         self.cargar_datos()
 
+    def mostrar_solucionador(self):
+        # Crear un "pseudo-paquete" semanal dinámico basado en la vista actual
+        fechas = [self.current_start_date + datetime.timedelta(days=i) for i in range(7)]
+        eventos_semana = []
+        for f in fechas: 
+            eventos_semana.append({"Inicio": f.strftime("%Y-%m-%d")})
+            
+        paquete_semana = {"eventos": eventos_semana}
+
+        import conflictos_ui
+        conflictos_ui.ConflictosModule(self.root, paquete_semana, self.tecnicos_info, self.tech_events, 
+                                       self.volver_desde_modulo, modo_semanal=True, 
+                                       fecha_ref=self.current_start_date, bd_ots=self.bd_ots)
+
+    def volver_desde_modulo(self):
+        for w in self.contenedor.winfo_children(): w.destroy()
+        self.crear_interfaz()
+        self.dibujar_grilla()
+
     def crear_interfaz(self):
+        # Limpiar contenedor para evitar solapamientos al volver de otros módulos
+        for w in self.contenedor.winfo_children(): w.destroy()
+        
         # --- TOP HEADER BAR ---
         self.header_frame = tk.Frame(self.contenedor, bg="#2c3e50", height=60)
         self.header_frame.pack(fill=tk.X, side=tk.TOP)
@@ -61,6 +87,23 @@ class PlanificacionApp:
 
         btn_next = tk.Button(nav_frame, text="Semana Siguiente >", command=lambda: self.cambiar_semana(7), **btn_style)
         btn_next.pack(side=tk.LEFT, padx=5)
+
+        # Botón Gestión Proyectos (NUEVO)
+        btn_gest = tk.Button(nav_frame, text="📁 Gestión Proyectos", command=self.mostrar_gestion_proyectos, 
+                             bg="#3498db", fg="white", font=("Segoe UI", 10, "bold"), relief=tk.FLAT, padx=15, cursor="hand2")
+        btn_gest.pack(side=tk.LEFT, padx=10)
+
+        # Botón Solucionador Global
+        btn_conf = tk.Button(nav_frame, text="🚨 Solucionador", command=self.mostrar_solucionador, 
+                             bg="#e67e22", fg="white", font=("Segoe UI", 10, "bold"), relief=tk.FLAT, padx=15, cursor="hand2")
+        btn_conf.pack(side=tk.LEFT, padx=10)
+
+        # Filtro Solo OTs (NUEVO)
+        chk_ots = tk.Checkbutton(nav_frame, text="🔍 Solo OTs", variable=self.var_solo_ots, 
+                                 command=self.dibujar_grilla, bg="#2c3e50", fg="white", 
+                                 selectcolor="#2c3e50", activebackground="#2c3e50", 
+                                 activeforeground="white", font=("Segoe UI", 10, "bold"), cursor="hand2")
+        chk_ots.pack(side=tk.LEFT, padx=10)
         
         # Boton volver al menu (antes del sync, a la derecha)
         tk.Button(self.header_frame, text="<- Menu", command=self.on_volver,
@@ -90,6 +133,9 @@ class PlanificacionApp:
         self.hsb.pack(side=tk.BOTTOM, fill=tk.X)
         self.vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=20, pady=(0,20))
+        
+        # Vincular rueda del mouse globalmente con lógica de detección de contexto
+        self.root.bind_all("<MouseWheel>", self._on_mousewheel)
         
         # Frame interno que contiene la grilla de verdad
         self.grid_frame = tk.Frame(self.canvas, bg="#ddd")
@@ -192,7 +238,11 @@ class PlanificacionApp:
                             "text": desc, 
                             "horas": horas_dia,
                             "es_ot": es_ot,
-                            "original_text": summary
+                            "original_text": summary,
+                            "extendedProperties": ev.get('extendedProperties', {}),
+                            "id": ev.get("id"),
+                            "calendar_id": ev.get("calendar_id", ev.get("Correo")),
+                            "description": ev.get("description", "")
                         })
                         
                 else:
@@ -259,7 +309,11 @@ class PlanificacionApp:
                             "text": desc, 
                             "horas": horas_dia,
                             "es_ot": es_ot,
-                            "original_text": summary
+                            "original_text": summary,
+                            "extendedProperties": ev.get('extendedProperties', {}),
+                            "id": ev.get("id"),
+                            "calendar_id": ev.get("calendar_id", ev.get("Correo")),
+                            "description": ev.get("description", "")
                         })
                         
             except Exception as e:
@@ -284,12 +338,54 @@ class PlanificacionApp:
         d2 = fechas_semana[6].strftime("%d/%m/%Y")
         self.lbl_rango_fechas.config(text=f"Semana del {d1} al {d2}")
 
+        # Identificar Conflictos Globales de Patrones para la semana actual
+        conflictos_por_dia = {} # { date_key: set(patrones_en_conflicto) }
+        for fecha in fechas_semana:
+            dk = fecha.strftime("%Y-%m-%d")
+            patrones_asig = {} # { patron: { tech_normalized: set(ot_numbers) } }
+            
+            for t_name, dias_eventos in self.tech_events.items():
+                for ev in dias_eventos.get(dk, []):
+                    props = ev.get('extendedProperties', {}).get('private', {})
+                    p_str = props.get('app_patrones', '[]')
+                    try:
+                        p_list = json.loads(p_str)
+                        if not p_list: continue
+                        
+                        # Extraer OT numbers de TODO el día del técnico para este patrón
+                        nums_tech = set()
+                        for ev_all in dias_eventos.get(dk, []):
+                            sum_txt = ev_all.get("original_text", "")
+                            nums_tech.update(utils.extraer_ots(sum_txt))
+                        
+                        for p in p_list:
+                            # Normalizamos el nombre del técnico para la comparacion interna
+                            t_norm = utils.normalizar_texto(t_name)
+                            patrones_asig.setdefault(p, {})[t_norm] = nums_tech
+                    except: pass
+            
+            # Decidir conflicto por patrón usando la utilidad centralizada
+            conf_hoy = set()
+            for p, techs_dict in patrones_asig.items():
+                hay_conf, _ = utils.evaluar_conflicto(techs_dict)
+                if hay_conf:
+                    conf_hoy.add(p)
+            conflictos_por_dia[dk] = conf_hoy
+
         # Estilos Headers
         header_font = ("Segoe UI", 11, "bold")
         
+        # --- DIMENSIONES FIJAS (Píxeles) ---
+        ANCHO_TEC = 150
+        ANCHO_DIA = 200
+        ALTO_JORNADA = 105  # Altura reducida para que entren 6 técnicos en pantalla completa
+        
         # -- DIBUJAR ENCABEZADOS (Fila 0) --
-        # Esquina superior izquierda (vacío)
-        tk.Label(self.grid_frame, text="Técnicos / Días", bg="#34495e", fg="white", font=header_font, width=20, height=2).grid(row=0, column=0, padx=1, pady=1, sticky="nsew")
+        # Esquina superior izquierda
+        f_corner = tk.Frame(self.grid_frame, bg="#34495e", width=ANCHO_TEC, height=50)
+        f_corner.grid(row=0, column=0, padx=1, pady=1, sticky="nsew")
+        f_corner.grid_propagate(False)
+        tk.Label(f_corner, text="Técnicos / Días", bg="#34495e", fg="white", font=header_font).pack(expand=True)
         
         dias_nombres = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO"]
         
@@ -297,49 +393,119 @@ class PlanificacionApp:
             dia_str = fecha.strftime("%d/%m")
             texto_col = f"{nombre_dia}\n{dia_str}"
             
-            # Sábado (5) y Domingo (6) en gris más oscuro
             is_weekend = fecha.weekday() >= 5
             bg_color = "#95a5a6" if is_weekend else "#34495e"
-            if fecha == self.today:
-                bg_color = "#27ae60" # Color verde si es HOY
-                
-            tk.Label(self.grid_frame, text=texto_col, bg=bg_color, fg="white", font=header_font, width=22).grid(row=0, column=col, padx=1, pady=1, sticky="nsew")
+            if fecha == self.today: bg_color = "#27ae60"
+            
+            f_h = tk.Frame(self.grid_frame, bg=bg_color, width=ANCHO_DIA, height=50)
+            f_h.grid(row=0, column=col, padx=1, pady=1, sticky="nsew")
+            f_h.grid_propagate(False)
+            tk.Label(f_h, text=texto_col, bg=bg_color, fg="white", font=header_font).pack(expand=True)
 
         # -- DIBUJAR FILAS DE TÉCNICOS --
         for row, tech in enumerate(self.technicians_list, start=1):
             # Nombre del técnico
-            tk.Label(self.grid_frame, text=tech, bg="#ecf0f1", fg="black", font=("Segoe UI", 10, "bold"), anchor="w", padx=10).grid(row=row, column=0, padx=1, pady=1, sticky="nsew")
+            f_t = tk.Frame(self.grid_frame, bg="#ecf0f1", width=ANCHO_TEC, height=ALTO_JORNADA)
+            f_t.grid(row=row, column=0, padx=1, pady=1, sticky="nsew")
+            f_t.grid_propagate(False)
+            tk.Label(f_t, text=tech, bg="#ecf0f1", fg="black", font=("Segoe UI", 10, "bold"), anchor="w", padx=10, wraplength=ANCHO_TEC-20).pack(fill=tk.BOTH, expand=True)
             
             for col, fecha in enumerate(fechas_semana, start=1):
                 date_key = fecha.strftime("%Y-%m-%d")
                 eventos_dia = self.tech_events.get(tech, {}).get(date_key, [])
                 
+                # Filtrar si solo queremos OTs
+                if self.var_solo_ots.get():
+                    eventos_dia = [ev for ev in eventos_dia if ev.get("es_ot")]
+                
                 is_weekend = fecha.weekday() >= 5
                 
-                # Texto
-                text_lines = [ev["text"] for ev in eventos_dia]
-                display_text = "\n\n".join(text_lines) if text_lines else ""
-                
-                # Color de fondo (gris para fin de semana o celda con datos vs vacía)
+                # Color de fondo base de la celda
                 if is_weekend:
-                    bg_color = "#e0e0e0" # Gris de fin de semana
-                    if display_text:
-                        bg_color = "#d5dbdb" # Un poco menos gris si hay actividad
+                    bg_color = "#e0e0e0" if not eventos_dia else "#d5dbdb"
                 else:
-                    bg_color = "#ffffff"
-                    if display_text:
-                        bg_color = "#e8f8f5" # Ligero tono verde agua si hay actividad
-                        
-                cursor_style = "hand2" if display_text else "arrow"
-                lbl = tk.Label(self.grid_frame, text=display_text, bg=bg_color, font=("Segoe UI", 9), anchor="nw", justify="left", wraplength=180, pady=5, padx=5, cursor=cursor_style)
-                lbl.grid(row=row, column=col, padx=1, pady=1, sticky="nsew")
+                    bg_color = "#ffffff" if not eventos_dia else "#e8f8f5"
                 
-                if display_text:
-                    # Capturamos variables en el closure para que no se sobreescriban
-                    lbl.bind("<Button-1>", lambda e, t=tech, d=date_key, ev=eventos_dia: self.mostrar_popup_ots(e, t, d, ev))
+                # Calcular alturas de eventos para determinar si la celda debe expandirse
+                event_info = []
+                total_ev_h = 0
+                for ev in eventos_dia:
+                    h_px = int((ev["horas"] / 9.0) * ALTO_JORNADA)
+                    h_px = max(25, h_px) # Mínimo 25px para legibilidad
+                    event_info.append((ev, h_px))
+                    total_ev_h += h_px + 2 # +2 por padding vertical
+                
+                # Respetar el alto mínimo pero permitir expansión si hay saturación
+                real_h = max(ALTO_JORNADA, total_ev_h)
+
+                # Contenedor de la Celda Diaria
+                cell_f = tk.Frame(self.grid_frame, bg=bg_color, width=ANCHO_DIA, height=real_h)
+                cell_f.grid(row=row, column=col, padx=1, pady=1, sticky="nsew")
+                cell_f.grid_propagate(False)
+                cell_f.pack_propagate(False)                
+                
+                if not eventos_dia:
+                    pass
+                else:
+                    for ev, h_px in event_info:
+                        f_ev = tk.Frame(cell_f, bg=bg_color, height=h_px)
+                        f_ev.pack(fill=tk.X, padx=1, pady=1)
+                        f_ev.pack_propagate(False)
+                        
+                        text_box = ev["text"]
+                        bg_box = "#d1f2eb" if ev.get("es_ot") else "#fdfefe"
+                        fg_box = "black"
+                        
+                        # Comprobar si este evento particular está involucrado en el conflicto del día
+                        tiene_conflicto = False
+                        props = ev[0].get('extendedProperties', {}).get('private', {}) if isinstance(ev, list) else ev.get('extendedProperties', {}).get('private', {})
+                        p_str = props.get('app_patrones', '[]')
+                        try:
+                            p_evento = json.loads(p_str)
+                            conf_match = set(p_evento).intersection(conflictos_por_dia.get(date_key, set()))
+                            if conf_match: tiene_conflicto = True
+                        except: pass
+                        
+                        if tiene_conflicto:
+                            text_box = f"⚠️ {text_box}"
+                            bg_box = "#fadbd8" 
+                            fg_box = "#c0392b"
+
+                        lbl_ev = tk.Label(f_ev, text=text_box, bg=bg_box, fg=fg_box,
+                                         font=("Segoe UI", 8, "bold" if tiene_conflicto else "normal"), 
+                                         anchor="nw", justify="left", 
+                                         wraplength=ANCHO_DIA-10, relief=tk.SOLID if tiene_conflicto else tk.RAISED, 
+                                         bd=2 if tiene_conflicto else 1, padx=3, pady=2, cursor="hand2")
+                        lbl_ev.pack(fill=tk.BOTH, expand=True)
+                        
+                        lbl_ev.bind("<Button-1>", lambda e, t=tech, d=date_key, ev_single=ev: self.mostrar_popup_ots(e, t, d, [ev_single]))
 
         # Refrescar Métricas
         self.calcular_metricas(fechas_semana)
+
+    def regresar_a_esta_vista(self):
+        """Re-construye la interfaz y carga los datos para asegurar un refresco completo."""
+        self.crear_interfaz()
+        self.cargar_datos()
+
+    def mostrar_gestion_proyectos(self, preselect_id=None):
+        # Limpiar contenedor 
+        for w in self.contenedor.winfo_children(): w.destroy()
+        gest_proy.GestionProyectosModule(
+            self.root, 
+            self.contenedor, 
+            self.tecnicos_info, 
+            self.bd_ots, 
+            self.tech_events, 
+            self.regresar_a_esta_vista, # Usar el nuevo método de refresco
+            preselect_id=preselect_id
+        )
+
+    def on_tecnico_click(self, tech_name, date_val):
+        if not self.technicians_list:
+            self.lbl_metrica_semana.config(text="Ocupación Semanal: N/A")
+            self.lbl_metrica_mes.config(text="Ocupación Mensual: N/A")
+            return
 
     def calcular_metricas(self, fechas_semana):
         if not self.technicians_list:
@@ -399,9 +565,15 @@ class PlanificacionApp:
 
     def mostrar_popup_ots(self, event, tech, date_key, eventos_dia):
         """Muestra un popup flotante con el resumen de partidas de las OTs del día."""
-        # Cerrar popup previo si existe
-        if self.popup_activo and self.popup_activo.winfo_exists():
+        # Lógica de "Toggle": si clickeamos el mismo evento con un popup ya abierto, lo cerramos y no lo volvemos a abrir
+        widget = event.widget
+        if getattr(self, 'popup_activo', None) and self.popup_activo.winfo_exists():
             self.popup_activo.destroy()
+            if getattr(self, 'last_clicked_widget', None) == widget:
+                self.last_clicked_widget = None
+                return
+        
+        self.last_clicked_widget = widget
         
         # 1. Extraer todos los números de OT del día (considerando múltiples OTs con /)
         numeros_ot = set()
@@ -470,8 +642,41 @@ class PlanificacionApp:
         outer = tk.Frame(popup, bg="#2c3e50", padx=1, pady=1)
         outer.pack(fill=tk.BOTH, expand=True)
         
-        inner = tk.Frame(outer, bg="#ffffff")
-        inner.pack(fill=tk.BOTH, expand=True)
+        inner_container = tk.Frame(outer, bg="#ffffff")
+        inner_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Canvas y Scrollbar para el popup (Tamaño dinámico con topes)
+        pop_canvas = tk.Canvas(inner_container, bg="#ffffff", highlightthickness=0)
+        popup.pop_canvas = pop_canvas # Guardar referencia para el scroll inteligente
+        pop_vsb = ttk.Scrollbar(inner_container, orient="vertical", command=pop_canvas.yview)
+        pop_canvas.configure(yscrollcommand=pop_vsb.set)
+        
+        pop_vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        pop_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        inner = tk.Frame(pop_canvas, bg="#ffffff")
+        pop_win = pop_canvas.create_window((0,0), window=inner, anchor="nw")
+        
+        def _resize_pop(e):
+            # Calcular dimensiones basadas en el contenido
+            pop_canvas.configure(scrollregion=pop_canvas.bbox("all"))
+            
+            # Ajustar el canvas al contenido pero con límites máximos
+            req_w = min(850, inner.winfo_reqwidth() + 20)
+            req_h = min(600, inner.winfo_reqheight())
+            
+            pop_canvas.config(width=req_w, height=req_h)
+            pop_canvas.itemconfig(pop_win, width=req_w)
+            
+            # Ocultar scrollbar si no es necesaria
+            if inner.winfo_reqheight() <= 600:
+                pop_vsb.pack_forget()
+            else:
+                pop_vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        inner.bind("<Configure>", _resize_pop)
+
+        # Ya no necesitamos bind_all aquí, _on_mousewheel se encargará de detectar el popup
         
         # Título del popup
         fecha_dt = datetime.datetime.strptime(date_key, "%Y-%m-%d").date()
@@ -485,11 +690,12 @@ class PlanificacionApp:
         
         # Tabla de partidas
         tabla_frame = tk.Frame(inner, bg="#ffffff")
-        tabla_frame.pack(fill=tk.BOTH, padx=10, pady=8)
+        tabla_frame.pack(fill=tk.X, padx=10, pady=8)
         
         # Encabezados de la tabla
         enc_style = {"bg": "#34495e", "fg": "white", "font": ("Segoe UI", 9, "bold"), "pady": 4, "padx": 8}
         tk.Label(tabla_frame, text="Trabajo a Ejecutar", **enc_style).grid(row=0, column=0, sticky="ew", padx=1, pady=1)
+        tabla_frame.grid_columnconfigure(0, weight=1) # Hacer que la columna de trabajo se expanda
         tk.Label(tabla_frame, text="Puntos de Cal.", **enc_style).grid(row=0, column=1, sticky="ew", padx=1, pady=1)
         tk.Label(tabla_frame, text="Partidas", **enc_style).grid(row=0, column=2, sticky="ew", padx=1, pady=1)
         
@@ -508,6 +714,54 @@ class PlanificacionApp:
         total = sum(conteo.values())
         tk.Label(inner, text=f"Total de partidas: {total}", bg="#ecf0f1", fg="#2c3e50",
                  font=("Segoe UI", 9, "bold"), pady=6, padx=12, anchor="e").pack(fill=tk.X)
+        
+        # --- NUEVO: Mostrar Patrones Asignados ---
+        patrones_dia = set()
+        for ev in eventos_dia:
+            props = ev.get('extendedProperties', {}).get('private', {})
+            p_str = props.get('app_patrones', '[]')
+            try:
+                plist = json.loads(p_str)
+                for p in plist: patrones_dia.add(p)
+            except: pass
+            
+        if patrones_dia:
+            tk.Label(inner, text="🛠️ Patrones Asignados:", bg="#34495e", fg="white",
+                     font=("Segoe UI", 9, "bold"), anchor="w", pady=4, padx=12).pack(fill=tk.X, pady=(10,0))
+            
+            p_frame = tk.Frame(inner, bg="#f9f9f9", padx=10, pady=5)
+            p_frame.pack(fill=tk.X)
+            for p in sorted(patrones_dia):
+                tk.Label(p_frame, text=f"• {p}", bg="#f9f9f9", font=("Segoe UI", 8)).pack(anchor="w")
+
+        # --- BOTÓN DE ATAJO A GESTIÓN ---
+        # 1. Identificar pkg_id para este evento
+        pkg_id = None
+        for ev in eventos_dia:
+            props = ev.get('extendedProperties', {}).get('private', {})
+            if props.get('app_pkg_id'):
+                pkg_id = props.get('app_pkg_id'); break
+        
+        # Si no hay metadatos, intentar construir el ID de Legacy para que el atajo funcione igual
+        if not pkg_id:
+            ots_norm = "/".join(sorted(list(numeros_ot)))
+            # Sacamos el cliente del resumen si es legacy
+            c_tmp = "Desconocido"
+            import re
+            m = re.search(r"\(([^)]+)\)", titulo_txt)
+            if not m and eventos_dia:
+                m = re.search(r"\(([^)]+)\)", eventos_dia[0].get('Evento', ''))
+            if m: c_tmp = m.group(1).strip()
+            pkg_id = f"legacy_{ots_norm}_{c_tmp}"
+
+        def ir_a_gest():
+            popup.destroy()
+            self.mostrar_gestion_proyectos(preselect_id=pkg_id)
+
+        btn_gest = tk.Button(inner, text="⚙️ Gestionar este Proyecto", command=ir_a_gest,
+                             bg="#34495e", fg="white", font=("Segoe UI", 9, "bold"), 
+                             relief=tk.FLAT, pady=6, cursor="hand2")
+        btn_gest.pack(fill=tk.X)
         
         # Calcular posición inteligente: evitar que el popup se salga de la pantalla
         popup.update_idletasks()
@@ -535,6 +789,24 @@ class PlanificacionApp:
     def cambiar_semana(self, dias):
         self.current_start_date += datetime.timedelta(days=dias)
         self.dibujar_grilla()
+
+    def _on_mousewheel(self, event):
+        """Lógica de scroll inteligente que detecta si el mouse está sobre un popup o la grilla."""
+        try:
+            # 1. Si hay un popup activo y el mouse está dentro de él, scrollear el popup
+            if self.popup_activo and self.popup_activo.winfo_exists():
+                # Obtenemos el widget bajo el puntero
+                w = self.root.winfo_containing(event.x_root, event.y_root)
+                if w and str(w).startswith(str(self.popup_activo)):
+                    # Buscar el canvas del popup (lo guardamos en el objeto popup para fácil acceso)
+                    if hasattr(self.popup_activo, 'pop_canvas'):
+                        self.popup_activo.pop_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                        return
+
+            # 2. De lo contrario, scrollear el canvas principal
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        except:
+            pass
 
     def ir_a_hoy(self):
         self.current_start_date = self.today - datetime.timedelta(days=self.today.weekday())
@@ -580,7 +852,7 @@ class MenuPrincipal:
 
     def _mostrar_menu(self):
         self._limpiar()
-        self.root.geometry("600x420")
+        self.root.geometry("600x520")
         self.root.resizable(False, False)
         self.root.configure(bg="#2c3e50")
 
@@ -596,9 +868,14 @@ class MenuPrincipal:
                   relief=tk.FLAT, cursor="hand2", width=30, pady=12).pack(pady=8)
 
         tk.Button(self.root, text="  Programar OTs",
-                  command=self._abrir_programar,
-                  bg="#27ae60", fg="white", font=("Segoe UI", 14, "bold"),
-                  relief=tk.FLAT, cursor="hand2", width=30, pady=12).pack(pady=8)
+                   command=self._abrir_programar,
+                   bg="#27ae60", fg="white", font=("Segoe UI", 14, "bold"),
+                   relief=tk.FLAT, cursor="hand2", width=30, pady=12).pack(pady=8)
+
+        tk.Button(self.root, text="  📁 Gestión de Proyectos",
+                   command=self._abrir_gestion,
+                   bg="#34495e", fg="white", font=("Segoe UI", 14, "bold"),
+                   relief=tk.FLAT, cursor="hand2", width=30, pady=12).pack(pady=8)
 
         self.btn_sync_menu = tk.Button(self.root, text="  Sincronizar Cloud  ⟳",
                   command=self.sincronizar_cloud,
@@ -621,7 +898,7 @@ class MenuPrincipal:
 
     def _abrir_planificacion(self):
         self._limpiar()
-        self.root.geometry("1400x800")
+        self.root.state('zoomed')   # Iniciar en pantalla completa (maximizado)
         self.root.resizable(True, True)
         self.root.configure(bg="#f4f4f4")
         contenedor = tk.Frame(self.root, bg="#f4f4f4")
@@ -670,6 +947,52 @@ class MenuPrincipal:
             self.root, contenedor,
             tech_events, tecnicos_info,
             bd_ots, bd_ots_hdrs,
+            self._mostrar_menu
+        )
+
+    def _abrir_gestion(self):
+        # 1. Cargar datos necesarios (Caches)
+        tech_events, tecnicos_info, bd_ots = {}, [], []
+
+        if os.path.exists(CACHE_PATH):
+            with open(CACHE_PATH, 'r', encoding='utf-8') as f:
+                evs = json.load(f)
+            tmp = PlanificacionApp.__new__(PlanificacionApp)
+            tmp.root = self.root; tmp.today = datetime.date.today()
+            tmp.current_start_date = tmp.today - datetime.timedelta(days=tmp.today.weekday())
+            tmp.tech_events, tmp.technicians_list = {}, []
+            tmp.bd_ots, tmp.bd_ots_headers, tmp.tecnicos_info = [], [], []
+            tmp.procesar_eventos(evs)
+            tech_events = tmp.tech_events
+
+        if os.path.exists(CACHE_OTS_PATH):
+            with open(CACHE_OTS_PATH, 'r', encoding='utf-8') as f:
+                datos = json.load(f)
+            bd_ots = datos[1:] if len(datos) > 1 else []
+
+        if os.path.exists(TECNICOS_CACHE_PATH):
+            with open(TECNICOS_CACHE_PATH, 'r', encoding='utf-8') as f:
+                tecnicos_info = json.load(f)
+
+        if not tecnicos_info:
+            messagebox.showinfo("Sin Datos", "Sincroniza primero la agenda desde Planificacion Semanal.")
+            return
+
+        # 2. Configurar UI
+        self._limpiar()
+        self.root.geometry("1400x850")
+        self.root.resizable(True, True)
+        self.root.configure(bg="#f4f4f4")
+        contenedor = tk.Frame(self.root, bg="#f4f4f4")
+        contenedor.pack(fill=tk.BOTH, expand=True)
+
+        # 3. Lanzar módulo
+        gest_proy.GestionProyectosModule(
+            self.root, 
+            contenedor, 
+            tecnicos_info, 
+            bd_ots, 
+            tech_events, 
             self._mostrar_menu
         )
 

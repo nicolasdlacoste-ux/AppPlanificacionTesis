@@ -1,0 +1,200 @@
+[
+    {
+        "id": "78d71d93-3420-4374-9626-6863a9b9941a",
+        "tipo": "real",
+        "ots": "8598",
+        "cliente": "BG ANALIZADORES SA",
+        "servicio": "CAL",
+        "eventos": [
+            {
+                "id": "o63s1p1rva31hu1tsr4ikotm80",
+                "calendar_id": "ndiaz@akrimet.com",
+                "Técnico": "Nicolás Díaz",
+                "Correo": "ndiaz@akrimet.com",
+                "Evento": "8598 (BG ANALIZADORES SA) - CAL - ND",
+                "Inicio": "2026-04-10T07:00:00-03:00",
+                "Fin": "2026-04-10T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "\n\n--------------------------------\n\nPatrones asignados:\n- AK-194\n- AK-195",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "78d71d93-3420-4374-9626-6863a9b9941a",
+                        "app_cliente": "BG ANALIZADORES SA",
+                        "app_patrones": "[\"AK-194\", \"AK-195\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "1/2"
+                    }
+                }
+            },
+            {
+                "id": "2cur6f59j110r2nuhunl79i6u0",
+                "calendar_id": "ndiaz@akrimet.com",
+                "Técnico": "Nicolás Díaz",
+                "Correo": "ndiaz@akrimet.com",
+                "Evento": "8598 (BG ANALIZADORES SA) - CAL - ND",
+                "Inicio": "2026-04-11T07:00:00-03:00",
+                "Fin": "2026-04-11T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "\n\n--------------------------------\n\nPatrones asignados:\n- AK-194\n- AK-195",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "78d71d93-3420-4374-9626-6863a9b9941a",
+                        "app_cliente": "BG ANALIZADORES SA",
+                        "app_patrones": "[\"AK-194\", \"AK-195\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "2/2"
+                    }
+                }
+            }
+        ],
+        "fecha_min": "2026-04-10T07:00:00-03:00",
+        "fecha_borrado": "2026-04-06T21:27:37.658425"
+    },
+    {
+        "id": "31d842cf-ce49-4c73-8089-1edc7494bf6f",
+        "tipo": "real",
+        "ots": "8598",
+        "cliente": "DIA ARGENTINA S.A.",
+        "servicio": "CAL",
+        "eventos": [
+            {
+                "id": "emh19cspf782umhbg4ua8vlmj8",
+                "calendar_id": "nmedina@akrimet.com",
+                "Técnico": "Norberto Medina",
+                "Correo": "nmedina@akrimet.com",
+                "Evento": "8598 (DIA ARGENTINA S.A.) - CAL - NM",
+                "Inicio": "2026-04-09T07:00:00-03:00",
+                "Fin": "2026-04-09T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "prueba\n\n--------------------------------\n\nPatrones asignados:\n- AK-194\n- AK-195",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "31d842cf-ce49-4c73-8089-1edc7494bf6f",
+                        "app_cliente": "DIA ARGENTINA S.A.",
+                        "app_patrones": "[\"AK-194\", \"AK-195\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "1/3"
+                    }
+                }
+            },
+            {
+                "id": "ha70ua7n2emqielilhr4sq4eeg",
+                "calendar_id": "nmedina@akrimet.com",
+                "Técnico": "Norberto Medina",
+                "Correo": "nmedina@akrimet.com",
+                "Evento": "8598 (DIA ARGENTINA S.A.) - CAL - NM",
+                "Inicio": "2026-04-10T07:00:00-03:00",
+                "Fin": "2026-04-10T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "prueba\n\n--------------------------------\n\nPatrones asignados:\n- AK-003a",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "31d842cf-ce49-4c73-8089-1edc7494bf6f",
+                        "app_cliente": "DIA ARGENTINA S.A.",
+                        "app_patrones": "[\"AK-003a\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "2/3"
+                    }
+                }
+            },
+            {
+                "id": "jb7dv5vla0klg4na7pvkk0ci44",
+                "calendar_id": "nmedina@akrimet.com",
+                "Técnico": "Norberto Medina",
+                "Correo": "nmedina@akrimet.com",
+                "Evento": "8598 (DIA ARGENTINA S.A.) - CAL - NM",
+                "Inicio": "2026-04-13T07:00:00-03:00",
+                "Fin": "2026-04-13T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "prueba\n\n--------------------------------\n\nPatrones asignados:\n- AK-194\n- AK-195",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "31d842cf-ce49-4c73-8089-1edc7494bf6f",
+                        "app_cliente": "DIA ARGENTINA S.A.",
+                        "app_patrones": "[\"AK-194\", \"AK-195\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "3/3"
+                    }
+                }
+            },
+            {
+                "id": "4uhpto3a3f2da4r11ur5p0drig",
+                "calendar_id": "ndiaz@akrimet.com",
+                "Técnico": "Nicolás Díaz",
+                "Correo": "ndiaz@akrimet.com",
+                "Evento": "8598 (DIA ARGENTINA S.A.) - CAL - ND",
+                "Inicio": "2026-04-09T07:00:00-03:00",
+                "Fin": "2026-04-09T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "prueba\n\n--------------------------------\n\nPatrones asignados:\n- AK-194\n- AK-195",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "31d842cf-ce49-4c73-8089-1edc7494bf6f",
+                        "app_cliente": "DIA ARGENTINA S.A.",
+                        "app_patrones": "[\"AK-194\", \"AK-195\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "1/3"
+                    }
+                }
+            },
+            {
+                "id": "3nl8b7be3h5hvenoe8c4hoh16g",
+                "calendar_id": "ndiaz@akrimet.com",
+                "Técnico": "Nicolás Díaz",
+                "Correo": "ndiaz@akrimet.com",
+                "Evento": "8598 (DIA ARGENTINA S.A.) - CAL - ND",
+                "Inicio": "2026-04-10T07:00:00-03:00",
+                "Fin": "2026-04-10T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "prueba\n\n--------------------------------\n\nPatrones asignados:\n- AK-003a",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "31d842cf-ce49-4c73-8089-1edc7494bf6f",
+                        "app_cliente": "DIA ARGENTINA S.A.",
+                        "app_patrones": "[\"AK-003a\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "2/3"
+                    }
+                }
+            },
+            {
+                "id": "6r6mn2didi2mtbgvq7fkn3perg",
+                "calendar_id": "ndiaz@akrimet.com",
+                "Técnico": "Nicolás Díaz",
+                "Correo": "ndiaz@akrimet.com",
+                "Evento": "8598 (DIA ARGENTINA S.A.) - CAL - ND",
+                "Inicio": "2026-04-13T07:00:00-03:00",
+                "Fin": "2026-04-13T16:00:00-03:00",
+                "Ubicación": "",
+                "Descripción": "prueba\n\n--------------------------------\n\nPatrones asignados:\n- AK-194\n- AK-195",
+                "extendedProperties": {
+                    "private": {
+                        "app_ots": "8598",
+                        "app_sf_ids": "0WORb00000Hv4GP",
+                        "app_pkg_id": "31d842cf-ce49-4c73-8089-1edc7494bf6f",
+                        "app_cliente": "DIA ARGENTINA S.A.",
+                        "app_patrones": "[\"AK-194\", \"AK-195\"]",
+                        "app_servicio": "CAL",
+                        "app_jornada": "3/3"
+                    }
+                }
+            }
+        ],
+        "fecha_min": "2026-04-09T07:00:00-03:00",
+        "fecha_borrado": "2026-04-07T09:08:44.241539"
+    }
+]
