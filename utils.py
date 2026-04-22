@@ -56,9 +56,10 @@ IDX_MARCA = 10   # Columna K
 IDX_SERIE = 11   # Columna L
 IDX_PTS   = 12   # Columna M
 IDX_FECHA = 16   # Columna Q
-IDX_SF    = 17   # Columna R
+IDX_DIRECCION = 17 # Columna R
 
 # --- ÍNDICES DE COLUMNAS DE LA BD DE PATRONES ---
 IDX_PATRON_NOMBRE = 0
 IDX_PATRON_TRABAJOS = 1
+IDX_PATRON_CLASE = 10  # Columna K
 IDX_PATRON_RANGO = 13

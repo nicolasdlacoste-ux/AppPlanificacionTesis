@@ -13,10 +13,18 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from data_manager import DataManager
 
-# Configuración de Rutas base para mayor seguridad sin importar desde dónde se corra
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Configuración de Rutas base para PyInstaller
+import sys
 
-# Rutas por defecto (si no hay variables de entorno)
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        # Si corre como .exe (PyInstaller)
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+BASE_DIR = get_base_path()
+
+# Rutas por defecto (afuera del .exe para persistencia)
 TOKEN_PATH_DEFAULT = os.path.join(BASE_DIR, 'token.json')
 CREDENTIALS_PATH_DEFAULT = os.path.join(BASE_DIR, 'credentials.json')
 
@@ -34,6 +42,7 @@ RANGE_NAME_OTS = 'OTs'
 
 SPREADSHEET_ID_PATRONES = '1FV6mrF35GvLsckWC6W5I6YUm6MCfDTe3y5AK0HIyBF4'
 RANGE_NAME_PATRONES = 'Patrones'
+RANGE_NAME_VEHICULOS = 'Vehículos'
 
 def get_google_services():
     """Muestra el flujo de autorización y crea los clientes de la API."""
@@ -67,7 +76,10 @@ def get_google_services():
                     flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH_DEFAULT, SCOPES)
             else:
                 if not os.path.exists(CREDENTIALS_PATH_DEFAULT):
-                    raise FileNotFoundError("No se encontró credentials.json ni variable de entorno GOOGLE_CREDENTIALS_JSON")
+                    msg = "No se encontró credentials.json ni variable de entorno GOOGLE_CREDENTIALS_JSON."
+                    if getattr(sys, 'frozen', False):
+                        msg += f"\n\nSOLUCIÓN: Copia el archivo 'credentials.json' a la misma carpeta donde está el ejecutable ({BASE_DIR})."
+                    raise FileNotFoundError(msg)
                 flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH_DEFAULT, SCOPES)
             
             creds = flow.run_local_server(port=0)
@@ -200,4 +212,28 @@ def actualizar_patrones_desde_sheets(service_sheets):
         return values
     except Exception as e:
         print(f"Error leyendo Patrones: {e}")
+        return []
+
+def actualizar_vehiculos_desde_sheets(service_sheets):
+    """Lee la planilla de Vehículos en el mismo ID de Patrones."""
+    try:
+        sheet = service_sheets.spreadsheets()
+        result = sheet.values().get(spreadsheetId=SPREADSHEET_ID_PATRONES,
+                                    range=RANGE_NAME_VEHICULOS).execute()
+        values = result.get('values', [])
+        if not values or len(values) < 2: return []
+        
+        # Estructura esperada: Nombre, Dominio, # Asientos
+        # La primera fila son encabezados
+        vehiculos = []
+        for row in values[1:]:
+            if len(row) > 0 and str(row[0]).strip() != "":
+                 nombre = str(row[0]).strip()
+                 asientos_str = str(row[2]).strip() if len(row) > 2 else "1"
+                 try: asientos = int(asientos_str)
+                 except: asientos = 1
+                 vehiculos.append({"nombre": nombre, "asientos": asientos})
+        return vehiculos
+    except Exception as e:
+        print(f"Error leyendo Vehículos: {e}")
         return []
