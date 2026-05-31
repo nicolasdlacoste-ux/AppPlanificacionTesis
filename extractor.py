@@ -5,12 +5,14 @@ import json
 import re
 import uuid
 import utils
+import threading
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import google.auth.exceptions
 from data_manager import DataManager
 
 # Configuración de Rutas base para PyInstaller
@@ -18,21 +20,54 @@ import sys
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
-        # Si corre como .exe (PyInstaller)
+        # Directorio donde está el .exe (para archivos persistentes como token.json)
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
 
-BASE_DIR = get_base_path()
+def get_internal_path():
+    if getattr(sys, 'frozen', False):
+        # Directorio temporal interno de PyInstaller (para archivos empaquetados)
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
 
-# Rutas por defecto (afuera del .exe para persistencia)
-TOKEN_PATH_DEFAULT = os.path.join(BASE_DIR, 'token.json')
-CREDENTIALS_PATH_DEFAULT = os.path.join(BASE_DIR, 'credentials.json')
+def get_user_data_path():
+    r"""
+    Retorna la ruta para archivos de datos persistentes del usuario (perfil local).
+    En Windows usa %LOCALAPPDATA%\AkrimetPlanner.
+    """
+    if os.name == 'nt': # Windows
+        base = os.environ.get('LOCALAPPDATA') or os.path.expanduser('~\\AppData\\Local')
+        path = os.path.join(base, 'AkrimetPlanner')
+    else: # Otros (Linux/Mac)
+        path = os.path.expanduser('~/.akrimetplanner')
+    
+    try:
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+    except Exception as e:
+        print(f"Error creando directorio de datos de usuario: {e}")
+        # Fallback al directorio actual si falla la creación (poco probable)
+        return get_base_path()
+        
+    return path
+
+BASE_DIR = get_base_path()
+INTERNAL_DIR = get_internal_path()
+USER_DATA_DIR = get_user_data_path()
+
+# Archivo de sesión (persiste en el perfil del usuario, fuera del directorio del exe)
+TOKEN_PATH_DEFAULT = os.path.join(USER_DATA_DIR, 'token.json')
+# Secreto de la app (empaquetado adentro del exe)
+CREDENTIALS_PATH_DEFAULT = os.path.join(INTERNAL_DIR, 'credentials.json')
 
 # Si modificas estos rangos (SCOPES), borra el archivo token.json.
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',  # Lectura + Escritura en Calendar
     'https://www.googleapis.com/auth/spreadsheets'
 ]
+
+# Lock para evitar que múltiples hilos disparen el flujo OAuth simultáneamente
+_auth_lock = threading.Lock()
 
 SPREADSHEET_ID = '1LZA2cNq2bYgUP8z4INT9iDcT87cHKro2DtVuwibTtkI'
 RANGE_NAME = 'Tecnicos'
@@ -76,13 +111,22 @@ def get_google_services():
                     flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH_DEFAULT, SCOPES)
             else:
                 if not os.path.exists(CREDENTIALS_PATH_DEFAULT):
-                    msg = "No se encontró credentials.json ni variable de entorno GOOGLE_CREDENTIALS_JSON."
-                    if getattr(sys, 'frozen', False):
-                        msg += f"\n\nSOLUCIÓN: Copia el archivo 'credentials.json' a la misma carpeta donde está el ejecutable ({BASE_DIR})."
-                    raise FileNotFoundError(msg)
+                    raise FileNotFoundError("Error de compilación: No se empaquetó el credentials.json en el ejecutable.")
                 flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH_DEFAULT, SCOPES)
             
-            creds = flow.run_local_server(port=0)
+            with _auth_lock:
+                # Re-chequeo del token dentro del lock por si otro hilo ya lo generó
+                if os.path.exists(TOKEN_PATH_DEFAULT):
+                    try:
+                        creds = Credentials.from_authorized_user_file(TOKEN_PATH_DEFAULT, SCOPES)
+                        if creds and creds.valid:
+                            pass # Usar estas credenciales
+                        else:
+                            creds = flow.run_local_server(port=0)
+                    except:
+                        creds = flow.run_local_server(port=0)
+                else:
+                    creds = flow.run_local_server(port=0)
         
         # Intentar guardar el token actualizado (si se desea persistencia local fuera de Git)
         # Si no se define lo contrario, lo guardamos en el default (que ya está en .gitignore)
@@ -97,7 +141,83 @@ def get_google_services():
     
     return service_calendar, service_sheets
 
+def _safe_get_google_services():
+    """Wrapper con auto-refresco de token. Si falla por TransportError, reintenta una vez."""
+    try:
+        return get_google_services()
+    except google.auth.exceptions.TransportError as e:
+        print(f"[Auth] TransportError detectado, reintentando refresco de token: {e}")
+        try:
+            if os.path.exists(TOKEN_PATH_DEFAULT):
+                os.remove(TOKEN_PATH_DEFAULT)
+            return get_google_services()
+        except Exception as retry_err:
+            raise RuntimeError(f"No se pudo reconectar con Google: {retry_err}")
+
+def get_current_user_profile(svc_cal):
+    """
+    Obtiene el perfil del usuario autenticado usando el calendario primario.
+    No requiere scopes adicionales (ya tenemos 'calendar').
+    Retorna: { "email": ..., "nombre": ... }
+    """
+    try:
+        primary = svc_cal.calendars().get(calendarId='primary').execute()
+        return {
+            "email": primary.get('id', ''),
+            "nombre": primary.get('summary', primary.get('id', 'Usuario'))
+        }
+    except Exception as e:
+        print(f"[Auth] No se pudo obtener perfil de usuario: {e}")
+        return {"email": "", "nombre": "Usuario desconocido"}
+
+def obtener_email_usuario(svc_cal):
+    """Obtiene el email del usuario autenticado consultando el ID del calendario principal."""
+    try:
+        cal = svc_cal.calendars().get(calendarId='primary').execute()
+        return cal.get('id', '')
+    except Exception as e:
+        print(f"[Auth] Error al obtener email de usuario: {e}")
+        return ""
+
+def obtener_calendarios_usuario(svc_cal):
+    """
+    Obtiene todos los calendarios accesibles por el usuario autenticado.
+    Filtra solo aquellos donde el usuario tiene permisos de escritura (writer u owner).
+    """
+    try:
+        calendars = []
+        page_token = None
+        while True:
+            calendar_list = svc_cal.calendarList().list(pageToken=page_token).execute()
+            for entry in calendar_list.get('items', []):
+                summary = entry.get('summary', '')
+                cal_id = entry.get('id', '')
+                
+                # Filtrar calendarios de sistema o no deseados
+                if "Cumpleaños" in summary or "Birthdays" in summary:
+                    continue
+                if "#contacts@group.v.calendar.google.com" in cal_id:
+                    continue
+                if "holiday@group.v.calendar.google.com" in cal_id:
+                    continue
+
+                role = entry.get('accessRole', '')
+                if role in ['writer', 'owner']:
+                    calendars.append({
+                        "id": cal_id,
+                        "summary": summary,
+                        "color": entry.get('backgroundColor', '#000000')
+                    })
+            page_token = calendar_list.get('nextPageToken')
+            if not page_token:
+                break
+        return calendars
+    except Exception as e:
+        print(f"[Auth] Error al obtener lista de calendarios: {e}")
+        return []
+
 def obtener_tecnicos(service_sheets):
+
     """Lee el ID de la planilla y extrae Nombres y Correos."""
     try:
         sheet = service_sheets.spreadsheets()

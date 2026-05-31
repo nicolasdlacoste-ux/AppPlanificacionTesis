@@ -9,42 +9,74 @@ const App = (() => {
     let _ots = [];
     let _patrones = [];
     let _vehiculos = [];
-    let _patronModalCallback = null; // temp selected while modal is open
+    let _holidays = {};
+    let _patronModalCallback = null;
+    let _isBatchMode = false;
+    let _batchSelected = new Set();
+    let _batchTecnico = null;
+    // ─────────────────────────────────
+    // TRACEABILITY
+    // ─────────────────────────────────
+    async function logTrace(eventId, step, detail, calendarId = null) {
+        try {
+            await fetch('/api/trace', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event_id: eventId,
+                    step: step,
+                    detail: detail,
+                    calendar_id: calendarId
+                })
+            });
+        } catch (e) {
+            console.error("[TRACE] Failed to send trace log", e);
+        }
+    }
 
     // ─────────────────────────────────
     // BOOT
     // ─────────────────────────────────
     async function init() {
+        console.log("[BOOT] Iniciando App.init()...");
         RightPanel.init();
         Backlog.init();
         bindNavButtons();
-        bindSyncButton();
         bindPatronModal();
         bindPanelToggles();
         bindEmptySpaceClick();
+        console.log("[BOOT] Inicializando ConfigMenu...");
+        ConfigMenu.init();
         
-        // Sincronizar scroll vertical entre área de eventos y columna de técnicos
+        console.log("[BOOT] Inicializando PollManager...");
+        PollManager.init();
+        
         const scrollArea = document.getElementById('scheduler-scroll-area');
         const techLabels = document.getElementById('tech-labels-col');
-        scrollArea.addEventListener('scroll', () => {
-            techLabels.scrollTop = scrollArea.scrollTop;
-        });
+        if (scrollArea && techLabels) {
+            scrollArea.addEventListener('scroll', () => {
+                techLabels.scrollTop = scrollArea.scrollTop;
+            });
+        }
 
         initPanelResizer();
+        initTarjetaSalida();
 
+        // 1. Identificar usuario (no bloqueante)
+        console.log("[BOOT] Llamando a initUserChip()...");
+        initUserChip(); 
+
+        // 2. Cargar datos (bloqueante)
+        console.log("[BOOT] Llamando a loadAll()...");
         await loadAll();
-        Scheduler.setView('week'); // Sincroniza estado inicial y UI
+        console.log("[BOOT] loadAll() completado. Seteando vista...");
+        Scheduler.setView('week');
         
         startHeartbeat();
-        triggerBackgroundSync(); // Sync automática en background sin bloquear la UI
         
-        // Sincronización automática de eventos cada 60 minutos
         setInterval(() => {
             console.log('[AutoSync] Ejecutando sincronización de 60 minutos...');
-            triggerBackgroundSync();
         }, 60 * 60 * 1000);
-
-        initTarjetaSalida();
     }
 
     async function refresh() {
@@ -53,16 +85,105 @@ const App = (() => {
     }
 
     // ─────────────────────────────────
+    // IDENTIDAD DE USUARIO
+    // ─────────────────────────────────
+    async function initUserChip() {
+        console.log("[BOOT] initUserChip: Buscando elementos de identidad...");
+        const chip    = document.getElementById('user-chip');
+        const avatar  = document.getElementById('user-avatar');
+        const emailEl = document.getElementById('user-email');
+        const btnOut  = document.getElementById('btn-logout');
+        if (!chip) {
+            console.warn("[BOOT] initUserChip: No se encontró 'user-chip', abortando identificación visual.");
+            return;
+        }
+
+        try {
+            console.log("[BOOT] initUserChip: Fetching /api/auth/me...");
+            // Timeout de 5s para evitar bloqueos en el arranque
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+            const res = await fetch('/api/auth/me', { signal: controller.signal });
+            clearTimeout(timeoutId);
+            const profile = await res.json();
+
+            if (profile.email) {
+                const parts = (profile.nombre || '').split(' ');
+                const initials = parts.length >= 2
+                    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+                    : profile.email.substring(0, 2).toUpperCase();
+
+                if (avatar) avatar.textContent = initials;
+                if (emailEl) emailEl.textContent = profile.email;
+                chip.title = `Conectado como ${profile.nombre || profile.email}`;
+
+                if (_tecnicos.length === 0) {
+                    console.log('[Auth] Usuario detectado.');
+                }
+            } else {
+                if (avatar) avatar.textContent = '?';
+                if (emailEl) emailEl.textContent = 'Sin sesión';
+                chip.title = 'No autenticado';
+            }
+        } catch (e) {
+            console.warn("[BOOT] initUserChip Error:", e.message);
+            if (avatar) avatar.textContent = '?';
+            if (emailEl) emailEl.textContent = 'Sin sesión';
+        }
+
+        if (btnOut) {
+            btnOut.addEventListener('click', async () => {
+                if (!confirm('¿Desconectar la cuenta de Google?\nDeberás volver a autenticarte la próxima vez que sincronices.')) return;
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    if (avatar) avatar.textContent = '?';
+                    if (emailEl) emailEl.textContent = 'Sin sesión';
+                    if (chip) chip.title = '';
+                    toast('Cuenta desconectada. Sincronizá para volver a conectar.', 'info');
+                } catch (e) {
+                    toast('Error al desconectar: ' + e.message, 'error');
+                }
+            });
+        }
+    }
+
+    // ─────────────────────────────────
     // SYNC: TARGETED REFRESH HELPERS
     // ─────────────────────────────────
 
     /** Recarga SOLO los eventos desde SQLite (~1 petición vs 5 del refresh completo). */
     async function refreshEvents() {
+        console.trace("[UI_FORENSICS] refreshEvents() invocado - Posible causa de Shadow Events o sobreescritura de cache");
         try {
-            const evRes = await fetch('/api/eventos');
+            const evRes = await fetch(`/api/eventos?t=${Date.now()}`);
             if (!evRes.ok) return;
-            _eventos = await evRes.json();
-            Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos });
+            const newEvents = await evRes.json();
+            console.log("[DIAGNOSTIC] First event from /api/eventos:", newEvents[0]);
+            const merged = [];
+            for (let i = 0; i < newEvents.length; i++) {
+                const incoming = newEvents[i];
+                let local = null;
+                for (let j = 0; j < _eventos.length; j++) {
+                    // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
+                    if (_eventos[j].google_event_id === incoming.google_event_id) { local = _eventos[j]; break; }
+                }
+                if (local && local._syncing) merged.push(local);
+                else merged.push(incoming);
+            }
+            for (let j = 0; j < _eventos.length; j++) {
+                const local = _eventos[j];
+                if (local._syncing) {
+                    let found = false;
+                    for (let k = 0; k < merged.length; k++) {
+                        // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
+                        if (merged[k].google_event_id === local.google_event_id) { found = true; break; }
+                    }
+                    if (!found) merged.push(local);
+                }
+            }
+            _eventos = merged;
+            Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos, holidays: _holidays });
             Scheduler.render();
             Backlog.render(_ots, _eventos);
             updateFooter();
@@ -76,19 +197,55 @@ const App = (() => {
      * Evita recargar todos los datos cuando solo cambió un evento.
      */
     function refreshSingleEvent(eventData) {
-        const idx = _eventos.findIndex(e => e.id === eventData.id);
-        if (idx !== -1) _eventos[idx] = eventData;
-        else _eventos.push(eventData);
-        Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos });
+        console.trace(`[UI_FORENSICS] refreshSingleEvent() invocado para: ${eventData.google_event_id}`);
+        console.log("[DIAGNOSTIC] refreshSingleEvent received:", eventData);
+        // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
+        const idx = _eventos.findIndex(e => e.google_event_id === eventData.google_event_id);
+        if (idx !== -1) {
+            const current = _eventos[idx];
+            if (eventData.version !== undefined && current.version !== undefined && eventData.version < current.version) {
+                console.warn("[Sync] Ignorando update obsoleto para " + eventData.google_event_id);
+                return;
+            }
+            _eventos[idx] = eventData;
+        } else {
+            // Asegurar que el evento tenga el campo tecnico_nombre para el scheduler
+            if (!eventData.tecnico_nombre && (eventData.correo_tecnico || eventData.calendar_id)) {
+                const tech = _tecnicos.find(t => t.correo === eventData.correo_tecnico || t.id === eventData.calendar_id);
+                if (tech) eventData.tecnico_nombre = tech.nombre;
+            }
+            _eventos.push(eventData);
+        }
+        Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos, holidays: _holidays });
         Scheduler.render();
         Backlog.render(_ots, _eventos);
         updateFooter();
     }
 
+    /** Marca todos los eventos de un grupo como 'sincronizando' para feedback visual inmediato. */
+    function setGroupSyncing(grupoId, syncing) {
+        if (!grupoId) return;
+        let changed = false;
+        _eventos.forEach(ev => {
+            if (!ev) return;
+            // [CANONICAL_MIGRATION] extendedProperties -> extended_props
+            const gid = ev.extended_props?.private?.grupo_id || ev._grupo?.grupo_id;
+            if (gid === grupoId) {
+                ev._syncing = syncing;
+                changed = true;
+            }
+        });
+        if (changed) {
+            Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos, holidays: _holidays });
+            Scheduler.render();
+        }
+    }
+
     /** Elimina un evento de memoria y re-renderiza. Sin round-trip al servidor. */
     function removeSingleEvent(eventId) {
-        _eventos = _eventos.filter(e => e.id !== eventId);
-        Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos });
+        // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
+        _eventos = _eventos.filter(e => e.google_event_id !== eventId);
+        Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos, holidays: _holidays });
         Scheduler.render();
         Backlog.render(_ots, _eventos);
         updateFooter();
@@ -96,52 +253,38 @@ const App = (() => {
 
     /** Inserta múltiples eventos de golpe (ej: tras programar una OT multi-jornada). */
     function batchRefreshEvents(newEvents) {
+        console.trace(`[UI_FORENSICS] batchRefreshEvents() invocado para ${newEvents.length} eventos`);
         newEvents.forEach(ev => {
-            const idx = _eventos.findIndex(e => e.id === ev.id);
+            // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
+            const idx = _eventos.findIndex(e => e.google_event_id === ev.google_event_id);
             if (idx !== -1) _eventos[idx] = ev;
             else _eventos.push(ev);
         });
-        Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos });
+        Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos, holidays: _holidays });
         Scheduler.render();
         Backlog.render(_ots, _eventos);
         updateFooter();
     }
 
-    /**
-     * Sync automática en background al abrir la app.
-     * No bloquea la UI — espera 2s para no interferir con la carga inicial.
-     */
-    async function triggerBackgroundSync() {
-        await new Promise(r => setTimeout(r, 2000));
-        const syncFooter = document.getElementById('footer-sync');
-        const prevText = syncFooter ? syncFooter.textContent : '';
-        try {
-            if (syncFooter) syncFooter.textContent = '↻ Actualizando...';
-            const controller = new AbortController();
-            const tId = setTimeout(() => controller.abort(), 120000);
-            const res = await fetch('/api/sync', { signal: controller.signal });
-            clearTimeout(tId);
-            if (!res.ok) { if (syncFooter) syncFooter.textContent = prevText; return; }
-            const data = await res.json();
-            if (syncFooter && data.last_sync) {
-                syncFooter.textContent = `Última sync: ${data.last_sync}`;
-            }
-            await loadAll();
-            Scheduler.render();
-            toast(`✓ Datos actualizados (${data.eventos} eventos)`, 'info');
-        } catch (e) {
-            if (e.name !== 'AbortError') console.warn('[BgSync]', e.message);
-            if (syncFooter) syncFooter.textContent = prevText;
-        }
-    }
+
 
     function startHeartbeat() {
-        // Enviar un "latido" al servidor cada 10 segundos para evitar el apagado automático
-        setInterval(() => {
-            fetch('/api/heartbeat', { method: 'POST' }).catch(() => {
-                // Si el servidor ya cerró, no hacemos nada
-            });
-        }, 10000);
+        const sendPulse = () => {
+            fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+        };
+
+        // Enviar un "latido" al servidor cada 15 segundos
+        setInterval(sendPulse, 15000);
+        
+        // Pulso extra al volver a enfocar la ventana (evita cierres tras hibernación/background)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[Heartbeat] Ventana activa, enviando pulso de rescate...');
+                sendPulse();
+            }
+        });
+        
+        sendPulse(); // Primer pulso inmediato
     }
 
     // ─────────────────────────────────
@@ -151,6 +294,8 @@ const App = (() => {
         const resizer = document.getElementById('right-resizer');
         const panel = document.getElementById('right-panel');
         let isResizing = false;
+
+        if (!resizer || !panel) return;
 
         resizer.addEventListener('mousedown', e => {
             isResizing = true;
@@ -180,28 +325,81 @@ const App = (() => {
     }
 
     async function loadAll() {
+        console.log("[BOOT] loadAll: Iniciando carga masiva de datos...");
         try {
-            const [tecRes, evRes, otRes, patRes, vehsRes] = await Promise.all([
-                fetch('/api/tecnicos'),
-                fetch('/api/eventos'),
-                fetch('/api/ots/pendientes'),
-                fetch('/api/patrones'),
-                fetch('/api/vehiculos'),
-            ]);
+            const endpoints = [
+                { id: 'tecnicos', url: `/api/tecnicos?t=${Date.now()}` },
+                { id: 'eventos',  url: `/api/eventos?t=${Date.now()}` },
+                { id: 'ots',      url: `/api/ots/pendientes?t=${Date.now()}` },
+                { id: 'patrones', url: `/api/patrones?t=${Date.now()}` },
+                { id: 'vehiculos',url: `/api/vehiculos?t=${Date.now()}` },
+                { id: 'config',   url: `/api/config?t=${Date.now()}` }
+            ];
 
-            if (!tecRes.ok || !evRes.ok || !otRes.ok || !patRes.ok || !vehsRes.ok) {
-                throw new Error('Error en una o más peticiones de carga inicial');
+            console.log("[BOOT] loadAll: Ejecutando peticiones...");
+            const results = await Promise.all(endpoints.map(async (ep) => {
+                const start = Date.now();
+                try {
+                    // Timeout de 15s para cada petición individual
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                    const res = await fetch(ep.url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (!res.ok) {
+                        console.error(`[NETWORK] ! Error en ${ep.id}: Status ${res.status}`);
+                        return { id: ep.id, ok: false, status: res.status };
+                    }
+                    
+                    const data = await res.json();
+                    return { id: ep.id, ok: true, data };
+                } catch (err) {
+                    console.error(`[NETWORK] !! Error en ${ep.id}:`, err.message);
+                    return { id: ep.id, ok: false, error: err.message };
+                }
+            }));
+
+            // Validar críticos (Técnicos y Eventos)
+            const tecsRes = results.find(r => r.id === 'tecnicos');
+            const evsRes  = results.find(r => r.id === 'eventos');
+
+            if (!tecsRes?.ok || !evsRes?.ok) {
+                const reason = !tecsRes?.ok ? 'técnicos' : 'eventos';
+                console.error(`[BOOT] loadAll: Fallo crítico en ${reason}`);
+                throw new Error(`No se pudo cargar la información de ${reason}`);
             }
 
-            _tecnicos = await tecRes.json();
-            _eventos = await evRes.json();
-            _ots = await otRes.json();
-            _patrones = await patRes.json();
-            _vehiculos = await vehsRes.json();
+            // Asignar datos con fallbacks seguros
+            _tecnicos = tecsRes.data || [];
+            _eventos  = evsRes.data || [];
+            console.log("[DIAGNOSTIC] loadAll _eventos count:", _eventos.length);
+            if (_eventos.length > 0) console.log("[DIAGNOSTIC] loadAll sample event:", _eventos[0]);
+            
+            _ots      = results.find(r => r.id === 'ots')?.data || [];
+            _patrones = results.find(r => r.id === 'patrones')?.data || [];
+            _vehiculos= results.find(r => r.id === 'vehiculos')?.data || [];
+            
+            const configRes = results.find(r => r.id === 'config');
+            _holidays = (configRes?.ok && configRes.data?.holidays) ? configRes.data.holidays : {};
+
+            console.log(`[BOOT] loadAll: Datos listos -> Tecs: ${_tecnicos.length}, Evs: ${_eventos.length}`);
 
             window._tecnicos = _tecnicos;
-            Scheduler.assignColors(_tecnicos);
-            Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos });
+            
+            // Instrumentar logs literal como fue solicitado:
+            const scheduler = Scheduler;
+            console.log("[DEBUG scheduler object]", scheduler);
+            console.log("[DEBUG scheduler keys]", Object.keys(scheduler || {}));
+            console.log("[DEBUG setState]", typeof scheduler?.setState);
+
+            if (typeof Scheduler.assignColors === 'function') {
+                Scheduler.assignColors(_tecnicos);
+            } else {
+                console.error("[CRITICAL] Scheduler.assignColors is not a function!", Scheduler);
+            }
+            
+            Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos, holidays: _holidays });
             Backlog.render(_ots, _eventos);
             updateFooter();
         } catch (e) {
@@ -213,8 +411,66 @@ const App = (() => {
     // ─────────────────────────────────
     // EVENT SELECTION
     // ─────────────────────────────────
-    function selectEvent(ev) {
-        RightPanel.showEventDetail(ev);
+    function toggleBatchMode() {
+        _isBatchMode = !_isBatchMode;
+        _batchSelected.clear();
+        _batchTecnico = null;
+        
+        const btn = document.getElementById('btn-batch-mode');
+        if (btn) btn.classList.toggle('active', _isBatchMode);
+        if (btn) btn.style.backgroundColor = _isBatchMode ? 'var(--accent)' : '';
+        
+        if (_isBatchMode) {
+            RightPanel.showBatchMode();
+        } else {
+            RightPanel.showEmpty();
+        }
+        Scheduler.render();
+    }
+
+    function selectEvent(ev, ctrlPressed = false) {
+        if (ctrlPressed && !_isBatchMode) {
+            toggleBatchMode(); // esto activa el modo batch
+            
+            // Añadir el evento actual del panel derecho (si hay uno y es del mismo técnico)
+            const currentEv = RightPanel.getCurrentEvent ? RightPanel.getCurrentEvent() : null;
+            if (currentEv && (currentEv.tecnico_nombre || currentEv.tecnico) === (ev.tecnico_nombre || ev.tecnico)) {
+                let evsToToggle = [currentEv.google_event_id];
+                if (currentEv._grupo && currentEv._grupo.event_ids) {
+                    evsToToggle = currentEv._grupo.event_ids;
+                }
+                evsToToggle.forEach(id => _batchSelected.add(id));
+                _batchTecnico = currentEv.tecnico_nombre || currentEv.tecnico;
+            }
+        }
+
+        if (_isBatchMode) {
+            let myTec = ev.tecnico_nombre || ev.tecnico;
+            if (_batchSelected.size === 0) {
+                _batchTecnico = myTec;
+            } else if (myTec !== _batchTecnico) {
+                toast('Solo puedes seleccionar eventos del mismo técnico en Modo Batch.', 'warning');
+                return;
+            }
+            
+            let evsToToggle = [ev.google_event_id];
+            if (ev._grupo && ev._grupo.event_ids) {
+                evsToToggle = ev._grupo.event_ids;
+            }
+            
+            const isSelected = _batchSelected.has(ev.google_event_id);
+            if (isSelected) {
+                evsToToggle.forEach(id => _batchSelected.delete(id));
+                if (_batchSelected.size === 0) _batchTecnico = null;
+            } else {
+                evsToToggle.forEach(id => _batchSelected.add(id));
+            }
+            
+            RightPanel.updateBatchUI(Array.from(_batchSelected));
+            Scheduler.render();
+        } else {
+            RightPanel.showEventDetail(ev);
+        }
     }
 
     function openQuickCreate(tech, date, hour, otData) {
@@ -222,81 +478,184 @@ const App = (() => {
     }
 
     async function moveEvent(eventId, calendarId, destCorreo, nuevaFecha, hora) {
-        // --- ACTUALIZACIÓN OPTIMISTA ---
-        const eventIdx = _eventos.findIndex(e => e.id === eventId);
-        let originalEvent = null;
-        if (eventIdx !== -1) {
-            originalEvent = JSON.parse(JSON.stringify(_eventos[eventIdx]));
-            const destTec = _tecnicos.find(t => t.correo === destCorreo);
-            
-            // Actualización local temporal del evento
-            _eventos[eventIdx].resourceId = destTec ? destTec.nombre : _eventos[eventIdx].resourceId;
-            _eventos[eventIdx]['Técnico'] = destTec ? destTec.nombre : _eventos[eventIdx]['Técnico'];
-            
-            // Para que el renderizado persista antes de la sincronización de Calendar
-            if (nuevaFecha) {
-                const sTime = _eventos[eventIdx].start ? _eventos[eventIdx].start.substring(10) : 'T08:00:00';
-                const eTime = _eventos[eventIdx].end ? _eventos[eventIdx].end.substring(10) : 'T10:00:00';
-                _eventos[eventIdx].start = nuevaFecha + sTime;
-                _eventos[eventIdx].end = nuevaFecha + eTime;
-                _eventos[eventIdx].Inicio = _eventos[eventIdx].start;
-                _eventos[eventIdx].Fin = _eventos[eventIdx].end;
-                _eventos[eventIdx]._dayStr = nuevaFecha;
-            }
-            
-            // Sh/Eh se manejan por h_start si la vista es día
-            if (hora !== undefined) {
-                const duration = _eventos[eventIdx]._eh - _eventos[eventIdx]._sh;
-                _eventos[eventIdx]._sh = hora;
-                _eventos[eventIdx]._eh = hora + (duration > 0 ? duration : 1);
-                
-                // Reflejar en strings de Inicio/Fin para que Scheduler.getExpandedEvents no lo sobreescriba
-                const fmtH = (h) => {
-                    const integer = Math.floor(h);
-                    const minutes = Math.round((h - integer) * 60);
-                    return `T${String(integer).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`;
-                };
-                const baseDate = _eventos[eventIdx].start ? _eventos[eventIdx].start.substring(0, 10) : nuevaFecha;
-                _eventos[eventIdx].start = baseDate + fmtH(_eventos[eventIdx]._sh);
-                _eventos[eventIdx].end = baseDate + fmtH(_eventos[eventIdx]._eh);
-                _eventos[eventIdx].Inicio = _eventos[eventIdx].start;
-                _eventos[eventIdx].Fin = _eventos[eventIdx].end;
-            }
-            
-            Scheduler.setState({ tecnicos: _tecnicos, eventos: [..._eventos] }); // Spread para forzar cambio de ref
-            Scheduler.render();
-        }
-
+        // Consultar si es grupo antes de mover
+        let grupoInfo = null;
         try {
-            const destTec = _tecnicos.find(t => t.correo === destCorreo);
-            const res = await fetch(`/api/eventos/${eventId}/mover`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    event_id: eventId,
-                    calendar_id_origen: calendarId,
-                    correo_destino: destCorreo,
-                    nueva_fecha: nuevaFecha,
-                    h_start: hora
-                })
-            });
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            toast('Evento movido ✓', 'success');
-            // Si el ID cambió (fallback delete+insert), eliminar el viejo del estado local
-            if (data.event_id && data.event_id !== eventId) {
-                removeSingleEvent(eventId);
+            const res = await fetch(`/api/grupos/evento/${eventId}`);
+            if (res.ok) {
+                const g = await res.json();
+                if (g && g.grupo_id) grupoInfo = g;
             }
-            await refreshEvents();
-        } catch (e) {
-            toast('Error al mover: ' + e.message, 'error');
-            // Al fallar, volvemos a la versión previa descargando todo
-            await refreshEvents();
+        } catch (e) {}
+
+        if (_globalSyncing) {
+            toast('Operación en curso, por favor espera...', 'warning');
+            return;
+        }
+        const eventIdx = _eventos.findIndex(e => e.google_event_id === eventId);
+        if (eventIdx === -1 || _eventos[eventIdx]._syncing) return;
+        _globalSyncing = true;
+        const currentEvent = _eventos[eventIdx];
+        const destTec = _tecnicos.find(t => t.correo === destCorreo);
+        const nuevoTecNombre = destTec ? destTec.nombre : currentEvent.tecnico_nombre;
+
+        // [EVENT_MOVE] move_started (Drag & Drop)
+        logTrace(eventId, "move_started", {
+            origin: "drag_drop",
+            old_tecnico: currentEvent.tecnico_nombre,
+            new_tecnico: nuevoTecNombre,
+            new_calendar: destCorreo,
+            new_date: nuevaFecha
+        }, calendarId, "EVENT_MOVE");
+
+        // Función interna que hace el trabajo
+        const doMove = async (scope) => {
+            // Guardar estado original para posible rollback
+            const originalEventsCopy = JSON.parse(JSON.stringify(_eventos));
+
+            // --- ACTUALIZACIÓN OPTIMISTA ---
+            const applyOptimistic = (evToModify) => {
+                const isDraggedMember = evToModify.google_event_id === eventId;
+                if (isDraggedMember && destCorreo) {
+                    evToModify.calendar_id = destCorreo;
+                    evToModify.tecnico_nombre = nuevoTecNombre;
+                }
+
+                if (nuevaFecha) {
+                    const sTime = evToModify.inicio ? evToModify.inicio.substring(10) : 'T08:00:00';
+                    const eTime = evToModify.fin ? evToModify.fin.substring(10) : 'T10:00:00';
+                    evToModify.inicio = nuevaFecha + sTime;
+                    evToModify.fin = nuevaFecha + eTime;
+                    evToModify._dayStr = nuevaFecha;
+                }
+                
+                // sh/eh solo aplican al evento arrastrado si vino con hora en vista diaria
+                if (hora !== undefined && evToModify.google_event_id === eventId) {
+                    const duration = evToModify._eh - evToModify._sh;
+                    evToModify._sh = hora;
+                    evToModify._eh = hora + (duration > 0 ? duration : 1);
+                    const fmtH = (h) => {
+                        const integer = Math.floor(h);
+                        const minutes = Math.round((h - integer) * 60);
+                        return `T${String(integer).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`;
+                    };
+                    const baseDate = evToModify.inicio ? evToModify.inicio.substring(0, 10) : nuevaFecha;
+                    evToModify.inicio = baseDate + fmtH(evToModify._sh);
+                    evToModify.fin = baseDate + fmtH(evToModify._eh);
+                }
+                evToModify._syncing = true;
+            };
+
+            if (scope === 'grupo' && grupoInfo) {
+                grupoInfo.event_ids.forEach(eid => {
+                    const idx = _eventos.findIndex(e => e.google_event_id === eid || e.id === eid);
+                    if (idx !== -1) applyOptimistic(_eventos[idx]);
+                });
+            } else {
+                applyOptimistic(_eventos[eventIdx]);
+            }
+
+            Scheduler.setState({ tecnicos: _tecnicos, eventos: [..._eventos], holidays: _holidays });
+            Scheduler.render();
+
+            // [EVENT_MOVE] local_update_success
+            logTrace(eventId, "local_update_success", {
+                scope: scope,
+                new_tecnico: nuevoTecNombre,
+                new_calendar: destCorreo
+            }, calendarId, "EVENT_MOVE");
+
+            // --- LLAMADA API ---
+            const endpoint = scope === 'grupo' ? 'mover_grupo' : 'mover';
+
+            try {
+                const res = await fetch(`/api/eventos/${eventId}/${endpoint}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event_id: eventId,
+                        calendar_id_origen: calendarId,
+                        correo_destino: destCorreo,
+                        nueva_fecha: nuevaFecha,
+                        h_start: hora
+                    })
+                });
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+
+                // [EVENT_MOVE] mutation_enqueued
+                logTrace(eventId, "mutation_enqueued", {
+                    endpoint: endpoint,
+                    operation: "UPDATE"
+                }, calendarId, "EVENT_MOVE");
+
+                toast('Evento movido ✓', 'success');
+                
+                // Limpiar flag de sincronización inmediatamente
+                const clearFlags = () => {
+                    const idsToClear = (scope === 'grupo' && grupoInfo)
+                        ? grupoInfo.event_ids
+                        : [eventId];
+                    idsToClear.forEach(eid => {
+                        const ev = _eventos.find(e => e.google_event_id === eid || e.id === eid);
+                        if (ev) delete ev._syncing;
+                    });
+                };
+                clearFlags();
+                
+                // [EVENT_MOVE] frontend_state_updated
+                logTrace(eventId, "frontend_state_updated", {
+                    event_id: eventId
+                }, calendarId, "EVENT_MOVE");
+
+                Scheduler.render(); // Refrescar para quitar overlays de syncing
+
+                // Si la API dice que el ID cambió (fallback delete+insert)
+                // Forzamos refresh para capturar cambios por auto-agrupación (grupo_id, títulos con tags)
+                if (data.event_id && data.event_id !== eventId) {
+                    const ev = _eventos.find(e => e.google_event_id === eventId);
+                    if (ev) ev.google_event_id = data.event_id;
+                }
+                await refreshEvents();
+            } catch (e) {
+                // --- ROLLBACK ---
+                _eventos = originalEventsCopy;
+                Scheduler.setState({ tecnicos: _tecnicos, eventos: [..._eventos], holidays: _holidays });
+                Scheduler.render();
+                toast(`Error al mover: ${e.message}`, 'error');
+            } finally {
+                _globalSyncing = false;
+            }
+        };
+
+        if (grupoInfo) {
+            const cambioTecnico = destCorreo && destCorreo !== calendarId;
+            const currentDate = currentEvent.inicio ? currentEvent.inicio.substring(0, 10) : "";
+            const cambioFecha = nuevaFecha && currentDate && nuevaFecha !== currentDate;
+            
+            if (cambioTecnico && cambioFecha) {
+                toast('No se puede cambiar fecha y técnico a la vez en un evento de grupo.', 'error');
+                _globalSyncing = false;
+                Scheduler.render();
+                return;
+            }
+            // Solo técnico: un miembro (mover). Solo fecha: todo el grupo (mover_grupo).
+            await doMove(cambioTecnico && !cambioFecha ? 'solo' : 'grupo');
+        } else {
+            await doMove('solo');
         }
     }
 
     async function deleteEvent(eventId, calendarId) {
         if (!calendarId) { toast('Sin calendar ID para eliminar', 'error'); return; }
+        if (!confirm('¿Estás seguro de que deseas eliminar este evento de Google Calendar?')) return;
+        
+        _globalSyncing = true;
+
+        // ── Actualización optimista: quitar de memoria ANTES de que responda el servidor
+        removeSingleEvent(eventId);
+        RightPanel.showEmpty();
+
         try {
             const res = await fetch(
                 `/api/eventos/${eventId}?calendar_id=${encodeURIComponent(calendarId)}`,
@@ -304,29 +663,38 @@ const App = (() => {
             );
             if (!res.ok) throw new Error(await res.text());
             toast('Evento eliminado ✓', 'success');
-            RightPanel.showEmpty();
-            await refreshEvents(); // Recargar para ver cambios en posibles compañeros de grupo
         } catch (e) {
+            // Rollback: recargar eventos desde el servidor
             toast('Error al eliminar: ' + e.message, 'error');
+            await refreshEvents();
+        } finally {
+            _globalSyncing = false;
         }
     }
 
     async function splitEvent(eventId, calendarId) {
         if (!confirm('¿Deseas individualizar este evento? Se creará uno independiente por cada día.')) return;
+        _globalSyncing = true;
         try {
             const res = await fetch(`/api/eventos/${eventId}/split?calendar_id=${encodeURIComponent(calendarId)}`, {
                 method: 'POST'
             });
             if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
             toast('Evento individualizado ✓', 'success');
             RightPanel.showEmpty();
-            await refreshEvents(); // Solo recargar eventos
+            // El split puede generar N nuevos eventos con distintos IDs
+            // refreshEvents trae todos desde SQLite (ya están ahí porque el backend es DB-first)
+            await refreshEvents();
         } catch (e) {
             toast('Error al dividir: ' + e.message, 'error');
+        } finally {
+            _globalSyncing = false;
         }
     }
 
     async function quitarTecnicoDeGrupo(eventId, calendarId) {
+        _globalSyncing = true;
         try {
             const res = await fetch(`/api/eventos/${eventId}/quitar_tecnico?calendar_id=${encodeURIComponent(calendarId)}`, {
                 method: 'POST'
@@ -337,6 +705,8 @@ const App = (() => {
             await refreshEvents();
         } catch (e) {
             toast('Error al quitar técnico: ' + e.message, 'error');
+        } finally {
+            _globalSyncing = false;
         }
     }
 
@@ -344,35 +714,61 @@ const App = (() => {
     // NAVIGATION BUTTONS
     // ─────────────────────────────────
     function bindNavButtons() {
-        document.getElementById('btn-prev').addEventListener('click', () => Scheduler.navigate(-1));
-        document.getElementById('btn-next').addEventListener('click', () => Scheduler.navigate(1));
-        document.getElementById('btn-today').addEventListener('click', () => Scheduler.goToday());
-        document.getElementById('btn-view-day').addEventListener('click', () => Scheduler.setView('day'));
-        document.getElementById('btn-view-week').addEventListener('click', () => Scheduler.setView('week'));
-        document.getElementById('chk-solo-ots').addEventListener('change', e => {
-            Scheduler.setState({ soloOTs: e.target.checked });
-            Scheduler.render();
-        });
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const btnToday = document.getElementById('btn-today');
+        const btnViewDay = document.getElementById('btn-view-day');
+        const btnViewWeek = document.getElementById('btn-view-week');
+        const chkSoloOts = document.getElementById('chk-solo-ots');
+        const btnViewRes = document.getElementById('btn-view-resources');
+        const chkExpandPats = document.getElementById('chk-expand-pats');
+
+        if (btnPrev) btnPrev.addEventListener('click', () => Scheduler.navigate(-1));
+        if (btnNext) btnNext.addEventListener('click', () => Scheduler.navigate(1));
+        if (btnToday) btnToday.addEventListener('click', () => Scheduler.goToday());
         
-        document.getElementById('btn-view-resources').addEventListener('click', () => {
-            const isRes = Scheduler.toggleResourceMode();
-            document.getElementById('btn-view-resources').classList.toggle('active-blue', isRes);
-            
-            // Mostrar toggle de expandir
-            document.getElementById('lbl-expandir-pats').style.display = isRes ? 'flex' : 'none';
-            // Auto cerrar/abrir panel izquierdo simulando click para mantener estado
-            const leftCol = document.getElementById('left-panel').classList.contains('collapsed');
-            if (isRes && !leftCol) {
-                document.getElementById('toggle-left').click();
-            } else if (!isRes && leftCol) {
-                document.getElementById('toggle-left').click();
-            }
-        });
+        const btnBatch = document.getElementById('btn-batch-mode');
+        if (btnBatch) btnBatch.addEventListener('click', toggleBatchMode);
+
+        if (btnViewDay) btnViewDay.addEventListener('click', () => Scheduler.setView('day'));
+        if (btnViewWeek) btnViewWeek.addEventListener('click', () => Scheduler.setView('week'));
         
-        document.getElementById('chk-expand-pats').addEventListener('change', e => {
-            Scheduler.setState({ expandPats: e.target.checked });
-            Scheduler.render();
-        });
+        if (chkSoloOts) {
+            chkSoloOts.addEventListener('change', e => {
+                logTrace("SYSTEM", "FILTER_SOLO_OTS", { checked: e.target.checked });
+                Scheduler.setState({ soloOTs: e.target.checked });
+                Scheduler.render();
+            });
+        }
+        
+        if (btnViewRes) {
+            btnViewRes.addEventListener('click', () => {
+                const isRes = Scheduler.toggleResourceMode();
+                btnViewRes.classList.toggle('active-blue', isRes);
+                
+                // Mostrar toggle de expandir
+                const lblExpand = document.getElementById('lbl-expandir-pats');
+                if (lblExpand) lblExpand.style.display = isRes ? 'flex' : 'none';
+                
+                // Auto cerrar/abrir panel izquierdo simulando click para mantener estado
+                const lp = document.getElementById('left-panel');
+                const leftCol = lp ? lp.classList.contains('collapsed') : false;
+                const toggleLeft = document.getElementById('toggle-left');
+                
+                if (isRes && !leftCol && toggleLeft) {
+                    toggleLeft.click();
+                } else if (!isRes && leftCol && toggleLeft) {
+                    toggleLeft.click();
+                }
+            });
+        }
+        
+        if (chkExpandPats) {
+            chkExpandPats.addEventListener('change', e => {
+                Scheduler.setState({ expandPats: e.target.checked });
+                Scheduler.render();
+            });
+        }
     }
 
     function showConfirmModal(opts) {
@@ -397,12 +793,20 @@ const App = (() => {
     // ─────────────────────────────────
     function getVehiculos() { return _vehiculos; }
     
-    function checkVehicleConflicts(vehiculoNombre, dateStr, sh, eh, evId, techNombre) {
+    function checkVehicleConflicts(vehiculoNombre, dateStr, sh, eh, evId, techNombre, grupoId = null) {
         if (!vehiculoNombre) return null;
         
         const veh = _vehiculos.find(v => v.nombre === vehiculoNombre);
         if (!veh) return null;
         
+        // Si no se pasó grupoId explícitamente, intentar obtenerlo del evento actual
+        if (!grupoId && evId) {
+            const evTarget = _eventos.find(e => e.google_event_id === evId);
+            if (evTarget && evTarget.extended_props && evTarget.extended_props.private) {
+                grupoId = evTarget.extended_props.private.grupo_id;
+            }
+        }
+
         // Formatear dateStr si es Date
         const getStr = d => {
             if (typeof d === 'string') return d.substring(0, 10);
@@ -410,52 +814,57 @@ const App = (() => {
         };
         const targetDate = getStr(dateStr);
         
-        // Filtrar eventos del mismo día que usen el mismo vehículo
+        // Todos los eventos del mismo día (excluyendo el propio)
         const sameDayEvents = _eventos.filter(ev => {
-            const props = (ev.extendedProperties && ev.extendedProperties.private) || {};
+            if (ev.google_event_id === evId) return false;
+            const props = (ev.extended_props && ev.extended_props.private) || {};
             if (props.app_vehiculo !== vehiculoNombre) return false;
-            
-            // Ver si toca el targetDate
-            const evSh = ev.start || ev.Inicio || "";
-            const evEh = ev.end || ev.Fin || "";
+            const evSh = ev.inicio || "";
+            const evEh = ev.fin || "";
             if (!evSh || !evEh) return false;
             return getStr(evSh) <= targetDate && getStr(evEh) >= targetDate;
         });
-        
-        // Regla NUEVA: Verificar si EL TÉCNICO tiene asignado OTRO vehículo en este mismo día
+
+        // Regla NUEVA: Verificar si EL TÉCNICO tiene asignado OTRO vehículo este día
         const techEventsToday = _eventos.filter(ev => {
-            if (ev.id === evId) return false; // Mismo evento
-            if ((ev.resourceId || ev["Técnico"]) !== techNombre) return false;
-            const evSh = ev.start || ev.Inicio || "";
-            const evEh = ev.end || ev.Fin || "";
+            if (ev.google_event_id === evId) return false;
+            if (ev.tecnico_nombre !== techNombre) return false;
+            const evSh = ev.inicio || "";
+            const evEh = ev.fin || "";
             if (!evSh || !evEh) return false;
             return getStr(evSh) <= targetDate && getStr(evEh) >= targetDate;
         });
         
         for (const e of techEventsToday) {
-            const eProps = (e.extendedProperties && e.extendedProperties.private) || {};
+            const eProps = (e.extended_props && e.extended_props.private) || {};
             const eVeh = eProps.app_vehiculo;
             if (eVeh && eVeh !== vehiculoNombre) {
                 return `El técnico ${techNombre} ya tiene asignado el vehículo '${eVeh}' hoy. No puede usar '${vehiculoNombre}'.`;
             }
         }
         
-        // 1. Regla Capacidad: Contar técnicos únicos usando el vehículo ese día
+        // Regla Capacidad: contar técnicos únicos usando el vehículo ese día.
+        // IMPORTANTE: los miembros del mismo grupo SÍ cuentan como ocupantes del vehículo
+        // (comparten el vehículo yendo al mismo trabajo, pero siguen ocupando asientos).
         const uniqueTechs = new Set();
-        uniqueTechs.add(techNombre); // Se suma el técnico actual que intenta asignar
+        uniqueTechs.add(techNombre);
         sameDayEvents.forEach(e => {
-            if (e.resourceId || e["Técnico"]) uniqueTechs.add(e.resourceId || e["Técnico"]);
+            if (e.tecnico_nombre) uniqueTechs.add(e.tecnico_nombre);
         });
         
         if (uniqueTechs.size > veh.asientos) {
-            return `Límite de capacidad excedido: El vehículo '${vehiculoNombre}' solo tiene ${veh.asientos} asientos. Técnicos para hoy: ${Array.from(uniqueTechs).join(', ')}`;
+            // No bloqueamos — solo advertimos (badge de conflicto en UI)
+            return `Capacidad excedida: '${vehiculoNombre}' tiene ${veh.asientos} asiento(s), pero lo usarían ${uniqueTechs.size} técnicos: ${Array.from(uniqueTechs).join(', ')}`;
         }
         
-        // 2. Regla Solapamiento (distintos eventos (ev.id distinto) al mismo tiempo)
+        // Regla Solapamiento: mismos horarios, distinto trabajo (excluir mismo grupo)
         for (const ev of sameDayEvents) {
-            if (ev.id === evId) continue; // Mismo evento, OK
+            // Si pertenecen al mismo grupo → no es conflicto (mismo trabajo, mismo vehículo)
+            if (grupoId) {
+                const eProps = (ev.extended_props && ev.extended_props.private) || {};
+                if (eProps.grupo_id === grupoId) continue;
+            }
             
-            // Calcular horas simples
             const getHour = str => {
                 if (str.includes('T')) {
                     const match = str.match(/T(\d+):(\d+)/);
@@ -464,15 +873,14 @@ const App = (() => {
                     const match = str.split(' ')[1].split(':');
                     if (match) return parseInt(match[0]) + parseInt(match[1])/60;
                 }
-                return 12; // all-day default
+                return 12;
             };
             
-            const evS_time = getHour(ev.start || ev.Inicio);
-            const evE_time = getHour(ev.end || ev.Fin);
+            const evS_time = getHour(ev.inicio);
+            const evE_time = getHour(ev.fin);
             
-            // Solapamiento de tiempo?
             if (Math.max(sh, evS_time) < Math.min(eh, evE_time)) {
-                return `El vehículo '${vehiculoNombre}' ya está asignado al evento "${ev.title || ev.Evento}" en ese horario.`;
+                return `El vehículo '${vehiculoNombre}' ya está asignado a otro trabajo ("${ev.summary}") en ese horario.`;
             }
         }
         
@@ -489,6 +897,11 @@ const App = (() => {
         const toggleRight = document.getElementById('toggle-right');
         const iconLeft = document.getElementById('toggle-left-icon');
         const iconRight = document.getElementById('toggle-right-icon');
+
+        if (!leftPanel || !rightPanel || !toggleLeft || !toggleRight || !iconLeft || !iconRight) {
+            console.warn("[BOOT] bindPanelToggles: Faltan elementos para el colapso de paneles.");
+            return;
+        }
 
         let leftCollapsed = false;
         let rightCollapsed = false;
@@ -554,43 +967,7 @@ const App = (() => {
         });
     }
 
-    // ─────────────────────────────────
-    // SYNC BUTTON (with timeout)
-    // ─────────────────────────────────
-    function bindSyncButton() {
-        const btn = document.getElementById('btn-sync');
-        btn.addEventListener('click', async () => {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...';
-            try {
-                // 90 second timeout — sync can take time with many calendars
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 90000);
 
-                const res = await fetch('/api/sync', { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (!res.ok) {
-                    const errText = await res.text();
-                    throw new Error(`HTTP ${res.status}: ${errText}`);
-                }
-                const data = await res.json();
-                toast(`Sincronizado: ${data.eventos} eventos, ${data.tecnicos} técnicos`, 'success');
-                document.getElementById('footer-sync').textContent = `Última sync: ${data.last_sync}`;
-                await refresh();
-            } catch (e) {
-                if (e.name === 'AbortError') {
-                    toast('La sincronización tardó demasiado (timeout 90s)', 'error');
-                } else {
-                    toast('Error de sincronización: ' + e.message, 'error');
-                }
-                console.error('Sync error:', e);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar';
-            }
-        });
-    }
 
     // ─────────────────────────────────
     // PATRON MODAL (shared)
@@ -743,6 +1120,12 @@ const App = (() => {
     function bindPatronModal() {
         const searchInput = document.getElementById('patron-search');
         const jobFilter = document.getElementById('patron-job-filter');
+        const btnConfirm = document.getElementById('btn-confirmar-patrones');
+
+        if (!searchInput || !jobFilter || !btnConfirm) {
+            console.warn("[BOOT] bindPatronModal: Faltan elementos del modal de patrones.");
+            return;
+        }
 
         const triggerFilter = () => {
             _renderPatronList(_patrones, _patronModalCallback, searchInput.value, jobFilter.value);
@@ -751,8 +1134,20 @@ const App = (() => {
         searchInput.addEventListener('input', triggerFilter);
         jobFilter.addEventListener('change', triggerFilter);
 
-        document.getElementById('btn-confirmar-patrones').addEventListener('click', () => {
-            document.getElementById('modal-patrones').classList.add('hidden');
+        const btnClear = document.getElementById('btn-clear-patrones');
+        if (btnClear) {
+            btnClear.addEventListener('click', () => {
+                if (_patronModalCallback) {
+                    _patronModalCallback.length = 0; // Vaciar el array manteniendo la referencia
+                    triggerFilter();
+                    document.getElementById('patron-selected-count').textContent = '0 seleccionados';
+                }
+            });
+        }
+
+        btnConfirm.addEventListener('click', () => {
+            const modal = document.getElementById('modal-patrones');
+            if (modal) modal.classList.add('hidden');
             if (_patronOnConfirmCb) {
                 _patronOnConfirmCb([..._patronModalCallback]);
             } else if (_patronModalCallback !== null) {
@@ -797,7 +1192,7 @@ const App = (() => {
         weekEnd.setDate(weekStart.getDate() + 5); // Mon-Fri only
 
         const thisWeek = _eventos.filter(ev => {
-            const d = new Date((ev.start || '').substring(0, 10) + 'T12:00:00');
+            const d = new Date((ev.inicio || '').substring(0, 10) + 'T12:00:00');
             return d >= weekStart && d < weekEnd;
         });
         document.getElementById('footer-ocupacion').textContent =
@@ -809,16 +1204,32 @@ const App = (() => {
     // ─────────────────────────────────
     function toast(msg, type = 'info') {
         const container = document.getElementById('toast-container');
+        if (!container) return;
         const el = document.createElement('div');
         el.className = `toast ${type}`;
-        const icon = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' }[type] || 'fa-circle-info';
-        el.innerHTML = `<i class="fa-solid ${icon}"></i> ${msg}`;
+        const icon = { 
+            success: 'fa-circle-check', 
+            error: 'fa-circle-xmark', 
+            info: 'fa-circle-info',
+            warning: 'fa-triangle-exclamation'
+        }[type] || 'fa-circle-info';
+        
+        let messageText = msg;
+        if (msg && typeof msg !== 'string') {
+            try {
+                messageText = (msg instanceof Error) ? msg.message : JSON.stringify(msg);
+            } catch (e) {
+                messageText = String(msg);
+            }
+        }
+
+        el.innerHTML = `<i class="fa-solid ${icon}"></i> ${messageText}`;
         container.appendChild(el);
         setTimeout(() => {
             el.style.transition = 'opacity 0.4s';
             el.style.opacity = '0';
             setTimeout(() => el.remove(), 400);
-        }, 4500);
+        }, 5000);
     }
 
     // ─────────────────────────────────
@@ -954,14 +1365,57 @@ ____________________________________________________________
         if (btnPrint) btnPrint.classList.remove('hidden');
     }
 
+    function openSFLink(sfid) {
+        if (!sfid) return;
+        const url = `https://akribis.lightning.force.com/lightning/r/WorkOrder/${sfid}/view`;
+        window.open(url, '_blank');
+    }
+
+    function showSFLinksPopup(otsArr) {
+        const modal = document.getElementById('modal-sf-links');
+        const list = document.getElementById('sf-links-list');
+        list.innerHTML = '';
+
+        otsArr.forEach(otNro => {
+            const cleanNro = String(otNro).trim();
+            const otData = _ots.find(o => String(o.nro).trim() === cleanNro);
+            if (otData && otData.sfid) {
+                const btn = document.createElement('button');
+                btn.className = 'btn-secondary';
+                btn.style.justifyContent = 'flex-start';
+                btn.innerHTML = `<i class="fa-solid fa-up-right-from-square" style="color:#00a1e0"></i> OT ${otNro} — ${otData.cliente || 'SF'}`;
+                btn.onclick = () => {
+                    openSFLink(otData.sfid);
+                    modal.classList.add('hidden');
+                };
+                list.appendChild(btn);
+            }
+        });
+
+        if (list.childElementCount > 0) {
+            modal.classList.remove('hidden');
+        } else {
+            toast('No se encontraron IDs de Salesforce para estas OTs', 'info');
+        }
+    }
+
     return { 
         init, refresh, selectEvent, openQuickCreate, 
         deleteEvent, moveEvent, splitEvent,
         toast, openPatronModal,
         getVehiculos, checkVehicleConflicts,
         refreshSingleEvent, removeSingleEvent, batchRefreshEvents, refreshEvents,
-        renderTarjeta, quitarTecnicoDeGrupo
+        renderTarjeta, quitarTecnicoDeGrupo, setGroupSyncing,
+        openSFLink, showSFLinksPopup,
+        logTrace,
+        toggleBatchMode, isBatchMode: () => _isBatchMode, isEventSelected: (id) => _batchSelected.has(id), getBatchSelection: () => Array.from(_batchSelected),
+        getEventos: () => _eventos,
+        getBacklogOTs: () => _ots,
+        getState: () => ({ _tecnicos, _eventos, _ots, _patrones, _vehiculos, _holidays })
     };
 })();
+
+// Exposición global para depuración (F12)
+window.APP_DEBUG = { App, Scheduler, Backlog, RightPanel, ConfigMenu, PollManager };
 
 document.addEventListener('DOMContentLoaded', () => App.init());

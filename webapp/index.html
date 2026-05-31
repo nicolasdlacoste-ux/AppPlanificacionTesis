@@ -14,6 +14,9 @@
     <div class="header-left">
         <i class="fa-solid fa-calendar-check header-logo"></i>
         <span class="header-title">Akrimet <em>Planner</em></span>
+        <button id="btn-batch-mode" class="nav-btn" style="margin-left: 15px; border-radius: 4px;" title="Activar/Desactivar Modo Batch">
+            <i class="fa-solid fa-list-check"></i>
+        </button>
     </div>
     <div class="header-center">
         <button id="btn-view-resources" class="nav-btn" style="margin-right:8px" title="Vista de Patrones y Vehículos"><i class="fa-solid fa-truck-fast"></i></button>
@@ -34,7 +37,19 @@
             <button id="btn-view-day" class="view-btn active">Día</button>
             <button id="btn-view-week" class="view-btn">Semana</button>
         </div>
-        <button id="btn-sync" class="sync-btn"><i class="fa-solid fa-rotate"></i> Sincronizar</button>
+        <div id="user-chip" class="user-chip">
+            <div id="user-avatar" class="user-avatar">?</div>
+            <div id="user-email" class="user-email">Cargando...</div>
+            <button id="btn-logout" class="btn-logout" title="Cerrar Sesión">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
+        <!-- Polling Monitor (Moved to the space of the old Sync button) -->
+        <div id="poll-badge" class="poll-badge tooltip-target" data-tooltip="Estado de Sincronización en Tiempo Real">
+            <i class="fa-solid fa-satellite-dish"></i>
+            <span id="poll-status-text">Iniciando...</span>
+            <span id="poll-review-count" class="badge hidden">0</span>
+        </div>
     </div>
 </header>
 
@@ -75,6 +90,38 @@
     <!-- RIGHT PANEL: Context -->
     <aside id="right-panel">
         <div id="right-resizer" class="panel-resizer"></div>
+        <!-- Context: BATCH MODE -->
+        <div id="ctx-batch" class="ctx-view">
+            <div class="ctx-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="ctx-title"><i class="fa-solid fa-list-check"></i> Modo Batch</span>
+                </div>
+                <span class="ctx-subtitle" id="batch-selected-count">0 eventos seleccionados</span>
+            </div>
+            <div class="ctx-body">
+                <div class="param-grid">
+                    <label>Técnico (Opcional)</label>
+                    <select id="batch-tec" class="param-input">
+                        <option value="">-- Mantener Técnico Actual --</option>
+                    </select>
+                    <label>Fecha de Inicio Base</label>
+                    <input type="date" id="batch-fecha" class="param-input">
+                    <label>OTs</label>
+                    <input type="text" id="batch-ots" class="param-input" placeholder="Ej: 1234, 5678">
+                    <label>Patrones</label>
+                    <input type="text" id="batch-patrones" class="param-input" placeholder="Ej: PAT-1, PAT-2">
+                    <label>Vehículo</label>
+                    <select id="batch-vehiculo" class="param-input">
+                        <option value="">-- Sin Vehículo --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="ctx-footer" style="flex-direction: column; gap: 8px;">
+                <button id="btn-batch-apply" class="btn-primary w-full">Aplicar Cambios</button>
+                <button id="btn-batch-exit" class="btn-secondary w-full">Salir del Modo Batch</button>
+            </div>
+        </div>
+
         <!-- Context A: Empty -->
         <div id="ctx-empty" class="ctx-view active">
             <div class="ctx-empty-state">
@@ -86,7 +133,12 @@
         <!-- Context B: Event Detail -->
         <div id="ctx-event" class="ctx-view">
             <div class="ctx-header">
-                <span class="ctx-title" id="ev-title">—</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="ctx-title" id="ev-title">—</span>
+                    <button class="btn-sf-icon hidden" id="btn-ev-sf" title="Ir a Salesforce">
+                        <i class="fa-solid fa-cloud"></i>
+                    </button>
+                </div>
                 <span class="ctx-subtitle" id="ev-tecnico">—</span>
             </div>
             <div class="ctx-body" id="ev-body">
@@ -98,6 +150,13 @@
                         Evento multi-día (lectura)
                     </div>
                     <div class="info-row"><i class="fa-regular fa-clock"></i><span id="ev-horario">—</span></div>
+                    <div class="info-row">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span id="ev-direccion">—</span>
+                        <a id="ev-map-link" href="#" target="_blank" class="map-link hidden" title="Ver en Google Maps">
+                            <i class="fa-solid fa-up-right-from-square"></i>
+                        </a>
+                    </div>
                     <div class="section-title">Técnico(s)</div>
                     <div id="ev-tecnicos-list" class="tag-list">—</div>
                     <div class="section-title">Patrones</div>
@@ -125,6 +184,9 @@
                         <label class="full-row">Descripción</label>
                         <textarea id="edit-descripcion" class="param-input full-row" rows="3" style="resize: vertical"></textarea>
 
+                        <label class="full-row">Dirección</label>
+                        <input type="text" id="edit-direccion" class="param-input full-row" placeholder="Dirección del servicio">
+
                         <label>Técnico</label>
                         <select id="edit-tecnico" class="param-input"></select>
 
@@ -137,7 +199,14 @@
                         <label>Hora fin</label>
                         <input type="time" id="edit-hend" class="param-input">
 
-                        <label class="full-row">Patrones de calibración</label>
+                        <label class="full-row mt-2">OT(s) vinculadas</label>
+                        <div class="full-row" style="display:flex; gap:8px;">
+                            <input type="text" id="edit-new-ot" class="param-input" style="flex:1; margin-bottom:0;" placeholder="Nro de OT o Cliente...">
+                            <button class="btn-secondary" id="btn-add-ot" style="padding:0 12px;"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <div id="edit-ots-list" class="tag-list full-row" style="margin-top:8px;"></div>
+
+                        <label class="full-row mt-2">Patrones de calibración</label>
                         <div class="full-row patron-row">
                             <button class="btn-secondary" id="edit-btn-patrones">
                                 <i class="fa-solid fa-tools"></i> Seleccionar Patrones
@@ -158,6 +227,7 @@
             <div class="ctx-footer" id="ev-footer-view">
                 <button class="btn-primary" id="btn-add-tech"><i class="fa-solid fa-user-plus"></i> Técnico</button>
                 <button class="btn-secondary" id="btn-edit-event"><i class="fa-solid fa-pen"></i> Editar</button>
+                <button class="btn-secondary" id="btn-duplicate-event" title="Duplicar Evento"><i class="fa-regular fa-copy"></i> Duplicar</button>
                 <button class="btn-danger" id="btn-delete-event"><i class="fa-solid fa-trash"></i> Eliminar</button>
                 <button class="btn-accent hidden" id="btn-split-event"><i class="fa-solid fa-arrows-split-up-and-left"></i> Indiv.</button>
             </div>
@@ -170,8 +240,20 @@
         <!-- Context C: OT Scheduler -->
         <div id="ctx-ot-scheduler" class="ctx-view">
             <div class="ctx-header">
-                <span class="ctx-title" id="sched-ot-title">OT —</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="ctx-title" id="sched-ot-title">OT —</span>
+                    <button class="btn-sf-icon hidden" id="btn-ot-sf" title="Ir a Salesforce">
+                        <i class="fa-solid fa-cloud"></i>
+                    </button>
+                </div>
                 <span class="ctx-subtitle" id="sched-ot-cliente">—</span>
+                <div id="sched-ot-direccion-row" class="info-row" style="margin-top:5px; font-size:11px;">
+                    <i class="fa-solid fa-location-dot" style="color:var(--danger)"></i>
+                    <span id="sched-ot-direccion">—</span>
+                    <a id="sched-ot-map-link" href="#" target="_blank" class="map-link hidden" title="Ver en Google Maps">
+                        <i class="fa-solid fa-up-right-from-square"></i>
+                    </a>
+                </div>
             </div>
             <div class="ctx-body" id="sched-body">
 
@@ -254,10 +336,14 @@
                     <input type="text" id="qc-ot" placeholder="Ej: 12345" class="param-input">
                     <label>Cliente</label>
                     <input type="text" id="qc-client" class="param-input">
+                    <label>Dirección</label>
+                    <input type="text" id="qc-direccion" class="param-input" placeholder="Dirección aproximada">
                     <label>Hora inicio</label>
                     <input type="time" id="qc-hstart" value="07:00" class="param-input">
                     <label>Hora fin</label>
                     <input type="time" id="qc-hend" value="16:00" class="param-input">
+                    <label>Fecha Fin (Opcional)</label>
+                    <input type="date" id="qc-date-end" class="param-input">
                     <label>Descripción</label>
                     <textarea id="qc-desc" rows="3" class="param-input"></textarea>
                 </div>
@@ -265,6 +351,38 @@
             <div class="ctx-footer">
                 <button id="btn-create-quick" class="btn-primary w-full">
                     <i class="fa-solid fa-plus"></i> Crear Evento
+                </button>
+            </div>
+        </div>
+
+        <!-- Context E: Clone Event -->
+        <div id="ctx-clone" class="ctx-view">
+            <div class="ctx-header">
+                <span class="ctx-title">Clonar Evento</span>
+                <span class="ctx-subtitle" id="clone-subtitle">—</span>
+            </div>
+            <div class="ctx-body">
+                <div class="param-grid">
+                    <label>Título</label>
+                    <input type="text" id="clone-titulo" class="param-input">
+                    <label>Fecha</label>
+                    <input type="date" id="clone-fecha" class="param-input">
+                    <label>Hora inicio</label>
+                    <input type="time" id="clone-hstart" class="param-input">
+                    <label>Hora fin</label>
+                    <input type="time" id="clone-hend" class="param-input">
+                    <label>Dirección</label>
+                    <input type="text" id="clone-direccion" class="param-input">
+                    <label>OT(s) (opcional)</label>
+                    <input type="text" id="clone-ots" class="param-input" placeholder="Ej: 12345, 12346">
+                    <label>Descripción</label>
+                    <textarea id="clone-desc" rows="3" class="param-input"></textarea>
+                </div>
+            </div>
+            <div class="ctx-footer">
+                <button class="btn-secondary w-full mb-1" id="btn-cancel-clone" style="margin-bottom: 8px;">Cancelar</button>
+                <button id="btn-save-clone" class="btn-primary w-full">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Clon
                 </button>
             </div>
         </div>
@@ -281,35 +399,66 @@
 
 <!-- ══════════════ FOOTER ══════════════ -->
 <footer id="app-footer">
-    <span id="footer-ocupacion">—</span>
-    <span id="footer-sync" style="color:var(--text-muted)">Última sync: —</span>
-    <span style="color:var(--text-muted)">Akrimet Planner v2.0</span>
+    <div class="footer-left">
+        <span id="footer-ocupacion">—</span>
+    </div>
+    <div class="footer-center">
+        Akrimet Planner v2.2
+    </div>
+    <div class="footer-right">
+        <button id="btn-open-config" class="btn-config-footer" title="Configuración del Sistema">
+            <i class="fa-solid fa-gear"></i> Configuración
+        </button>
+    </div>
 </footer>
 
 <!-- ══════════════ MODALS ══════════════ -->
 
-<!-- Modal: Patrones (usado tanto en OT Scheduler como en Edición de Evento) -->
+<!-- Modal: Patrones -->
 <div id="modal-patrones" class="modal-overlay hidden">
-    <div class="modal-box">
+    <div class="modal-box modal-xl">
         <div class="modal-header">
-            <span>Seleccionar Patrones</span>
+            <span><i class="fa-solid fa-toolbox"></i> Seleccionar Patrones de Calibración</span>
             <button class="modal-close" data-modal="modal-patrones">&times;</button>
         </div>
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <input type="text" id="patron-search" placeholder="Filtrar patrones..." class="modal-search" style="flex:1; margin-bottom:0;">
-            <select id="patron-job-filter" class="modal-search" style="flex:1; margin-bottom:0; font-size:12px;">
-                <option value="">Cargando filtros...</option>
-            </select>
-        </div>
-        <div id="patron-list" class="modal-list" style="max-height: 250px;"></div>
         
-        <div id="modal-patron-ot-summary" class="modal-ot-summary hidden">
-            <div class="summary-title"><i class="fa-solid fa-clipboard-list"></i> Resumen OT Actual</div>
-            <div id="patron-ot-summary-content"></div>
+        <div class="modal-body-split" style="display:flex; gap:20px; padding:20px; height: 450px;">
+            <!-- COLUMNA IZQUIERDA: RESUMEN OT -->
+            <div id="modal-patron-ot-summary" class="modal-col-left" style="flex: 1.2; display: flex; flex-direction: column; background: var(--surface-2); border-radius: 8px; border: 1px solid var(--border); overflow: hidden;">
+                <div class="summary-title" style="padding: 10px; background: var(--surface-3); font-weight: 700; font-size: 11px; border-bottom: 1px solid var(--border);">
+                    <i class="fa-solid fa-clipboard-list" style="color: var(--accent);"></i> RESUMEN DE PARTIDAS
+                </div>
+                <div id="patron-ot-summary-content" style="flex: 1; overflow-y: auto; padding: 10px;">
+                    <!-- Se puebla dinámicamente -->
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA: FILTROS Y LISTA -->
+            <div class="modal-col-right" style="flex: 1.8; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display:flex; gap:8px; align-items: center;">
+                    <input type="text" id="patron-search" placeholder="Buscar por nombre o nro..." class="modal-search" style="flex:1; margin-bottom:0;">
+                    <select id="patron-job-filter" class="modal-search" style="flex:1; margin-bottom:0; font-size:12px;">
+                        <option value="">Cargando filtros...</option>
+                    </select>
+                    <button id="btn-clear-patrones" class="btn-secondary" title="Limpiar selección" style="padding: 8px 12px;">
+                        <i class="fa-solid fa-eraser"></i>
+                    </button>
+                </div>
+                
+                <div id="patron-list" class="modal-list" style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);">
+                    <!-- Se puebla dinámicamente -->
+                </div>
+            </div>
         </div>
+
         <div class="modal-footer">
-            <span id="patron-selected-count">0 seleccionados</span>
-            <button class="btn-primary" id="btn-confirmar-patrones">Confirmar</button>
+            <div style="display:flex; align-items:center; gap:12px;">
+                <i class="fa-solid fa-circle-info" style="color:var(--accent)"></i>
+                <span id="patron-selected-count" style="font-weight:600">0 seleccionados</span>
+            </div>
+            <button class="btn-primary" id="btn-confirmar-patrones" style="padding: 8px 25px;">
+                <i class="fa-solid fa-check"></i> Confirmar Selección
+            </button>
         </div>
     </div>
 </div>
@@ -415,15 +564,199 @@
     </div>
 </div>
 
+<!-- Modal: Configuración -->
+<div id="modal-config" class="modal-overlay hidden">
+    <div class="modal-box modal-wide">
+        <div class="modal-header">
+            <span><i class="fa-solid fa-gear"></i> Configuración del Sistema</span>
+            <button class="modal-close" data-modal="modal-config">&times;</button>
+        </div>
+        <div class="config-tabs">
+            <button class="tab-btn active" data-tab="tab-general">General</button>
+            <button class="tab-btn" data-tab="tab-seguridad">Seguridad</button>
+            <button class="tab-btn" data-tab="tab-tecnicos">Técnicos</button>
+            <button class="tab-btn" data-tab="tab-feriados">Feriados</button>
+        </div>
+        <div class="modal-body" style="padding:20px; max-height:450px; overflow-y:auto;">
+            <!-- PESTAÑA: GENERAL -->
+            <div id="tab-general" class="config-tab-content">
+                <div class="section-title">Sincronización con Google</div>
+                <div class="param-grid">
+                    <label>Días hacia el pasado</label>
+                    <input type="number" id="cfg-sync-past" class="param-input" value="30">
+                    <label>Días hacia el futuro</label>
+                    <input type="number" id="cfg-sync-future" class="param-input" value="180">
+                </div>
+                
+                <div class="section-title mt-4">Servicios Disponibles</div>
+                <div id="cfg-servicios-container" class="chip-container"></div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <input type="text" id="cfg-new-service" class="param-input" style="flex:1; margin-bottom:0;" placeholder="Nuevo servicio...">
+                    <button id="btn-add-service" class="btn-primary" disabled><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+
+            <!-- PESTAÑA: SEGURIDAD -->
+            <div id="tab-seguridad" class="config-tab-content hidden">
+                <div id="security-unlock-area">
+                    <div class="section-title">Panel Protegido</div>
+                    <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Ingrese el PIN de administrador para realizar cambios sensibles.</p>
+                    <div style="display:flex; gap:8px;">
+                        <input type="password" id="cfg-pin-input" class="param-input" style="flex:1; margin-bottom:0;" placeholder="PIN">
+                        <button id="btn-unlock-security" class="btn-primary">Desbloquear</button>
+                    </div>
+                    <p id="security-error-msg" style="color:var(--danger); font-size:11px; margin-top:8px; display:none;">PIN Incorrecto</p>
+                </div>
+                
+                <div id="security-content-area" class="hidden">
+                    <div class="section-title">Usuarios Autorizados</div>
+                    <div id="cfg-auth-users-container" class="chip-container"></div>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <input type="text" id="cfg-new-user" class="param-input" style="flex:1; margin-bottom:0;" placeholder="Email de usuario...">
+                        <button id="btn-add-user" class="btn-primary"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+
+                    <div class="section-title mt-4">Cambiar PIN</div>
+                    <input type="password" id="cfg-new-pin" class="param-input" placeholder="Nuevo PIN de 4-6 dígitos">
+                </div>
+            </div>
+
+            <!-- PESTAÑA: TÉCNICOS -->
+            <div id="tab-tecnicos" class="config-tab-content hidden">
+                <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    Gestión de Técnicos
+                    <button id="btn-refresh-calendars" class="btn-secondary" style="font-size:10px; padding:2px 8px;">
+                        <i class="fa-solid fa-arrows-rotate"></i> Actualizar
+                    </button>
+                </div>
+                <div class="mini-table-wrap" style="max-height:300px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Activo</th><th>ID Calendario</th><th>Alias / Nombre</th><th>Ini</th><th>Servicio</th><th>Orden</th></tr>
+                        </thead>
+                        <tbody id="cfg-tecnicos-tbody"></tbody>
+                    </table>
+                </div>
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">* Los técnicos se sincronizan con los calendarios disponibles en Google.</p>
+            </div>
+
+            <!-- PESTAÑA: FERIADOS -->
+            <div id="tab-feriados" class="config-tab-content hidden">
+                <div class="section-title">Calendario de Feriados</div>
+                <div class="mini-table-wrap" style="max-height:220px; margin-bottom:10px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Fecha</th><th>Nombre</th><th style="text-align:center">Acciones</th></tr>
+                        </thead>
+                        <tbody id="cfg-holidays-tbody"></tbody>
+                    </table>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:8px;">
+                    <input type="date" id="cfg-new-holiday-date" class="param-input" style="margin-bottom:0;">
+                    <input type="text" id="cfg-new-holiday-name" class="param-input" style="margin-bottom:0;" placeholder="Nombre feriado">
+                    <button id="btn-add-holiday" class="btn-primary"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div class="separator-text">O también</div>
+                <button id="btn-import-holidays" class="btn-secondary w-full" style="font-size:11px;">
+                    <i class="fa-brands fa-google"></i> Importar de Google Calendar (AR)
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <span id="config-status-msg" style="font-size:11px; margin-right:auto;"></span>
+            <button class="btn-primary" id="btn-save-config">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
 <!-- Toast container -->
 <div id="toast-container"></div>
+
+<!-- Modal: Arbitraje de Cambios (Polling) -->
+<div id="modal-poll-review" class="modal-overlay hidden">
+    <div class="modal-box modal-wide" style="max-width: 700px;">
+        <div class="modal-header" style="background-color: var(--accent); color: white;">
+            <span><i class="fa-solid fa-code-pull-request"></i> Revisión de Cambios de Google</span>
+            <button class="modal-close" data-modal="modal-poll-review" style="color: white;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 15px;">
+            <p style="font-size: 13px; margin-bottom: 15px;">
+                Los siguientes eventos fueron modificados o eliminados directamente en Google Calendar.
+                Revisá los cambios y decidí si querés aplicarlos al Planner local.
+            </p>
+            <div id="poll-review-list" style="max-height: 400px; overflow-y: auto;">
+                <!-- Tarjetas generadas dinámicamente -->
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Alerta Tooltip flotante -->
 <div id="alert-tooltip" class="hidden"></div>
 
-<script src="scheduler.js"></script>
-<script src="backlog.js"></script>
-<script src="right-panel.js"></script>
-<script src="app.js"></script>
+<!-- Modal: Acción de Grupo (Mover/Eliminar/Editar) -->
+<div id="modal-group-action" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span>Acción de Grupo detectada</span>
+            <button class="modal-close" data-modal="modal-group-action">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 15px;">
+            <p id="modal-group-msg" style="font-size: 12px; margin-bottom: 10px;"></p>
+            <div id="modal-group-members" class="tag-list" style="margin-bottom: 15px;"></div>
+            <div class="group-action-options" style="display:flex; flex-direction:column; gap:8px;">
+                <button id="btn-group-solo" class="btn-secondary w-full">
+                    <i class="fa-solid fa-user"></i> Aplicar SOLO a este técnico
+                </button>
+                <button id="btn-group-all" class="btn-primary w-full">
+                    <i class="fa-solid fa-users"></i> Aplicar a TODO el grupo
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary modal-close" data-modal="modal-group-action">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal: Salesforce Links (Multiple OTs) -->
+<div id="modal-sf-links" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header" style="background:#00a1e0; color:white">
+            <span>Enlaces de Salesforce</span>
+            <button class="modal-close" data-modal="modal-sf-links" style="color:white">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:15px">
+            <p style="font-size:12px; margin-bottom:10px; color:var(--text-muted)">Seleccione la orden de trabajo para abrir en Salesforce:</p>
+            <div id="sf-links-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary modal-close" data-modal="modal-sf-links">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirmación Clásica (Legacy Overlay) -->
+<div id="modal-confirm-overlay" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span id="confirmModalLabel">Confirmar Acción</span>
+            <button class="modal-close" data-modal="modal-confirm-overlay">&times;</button>
+        </div>
+        <div class="modal-body" id="confirmModalBody" style="padding:20px; font-size:13px;"></div>
+        <div class="modal-footer">
+            <button class="btn-secondary modal-close" data-modal="modal-confirm-overlay">Cancelar</button>
+            <button id="btn-confirm-action" class="btn-primary">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<script src="scheduler.js?v=2.1"></script>
+<script src="backlog.js?v=2.1"></script>
+<script src="right-panel.js?v=2.1"></script>
+<script src="config.js?v=2.1"></script>
+<script src="poll.js?v=2.1"></script>
+<script src="app.js?v=2.1"></script>
 </body>
 </html>

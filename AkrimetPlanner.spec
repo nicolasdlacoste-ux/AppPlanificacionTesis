@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('webapp', 'webapp')]
+datas = [('webapp', 'webapp'), ('credentials.json', '.')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('uvicorn')
@@ -48,4 +48,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['app_icon.ico'],
 )

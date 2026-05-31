@@ -2,7 +2,7 @@
 // SCHEDULER ENGINE — Akrimet Planner v2.0
 // ════════════════════════════════════════
 
-const Scheduler = (() => {
+var Scheduler = (() => {
     const START_H = 7;
     const END_H = 18;
     const HOURS = END_H - START_H; // 11 horas de rango (07:00 a 18:00)
@@ -23,6 +23,7 @@ const Scheduler = (() => {
         mode: 'scheduler', // 'scheduler' | 'resources'
         expandPats: false,
         soloOTs: false,
+        holidays: {},
     };
 
     const norm = s => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
@@ -41,15 +42,13 @@ const Scheduler = (() => {
         return day;
     };
 
-    // Extraer números de OT del título del evento
-    function extractOTsFromTitle(title) {
-        if (!title) return [];
-        return (title.match(/\d{4,}/g) || []);
-    }
 
     // Parsea fechas de Google ISO (con T) o Base de Datos (con espacio)
     function parseAnyDate(s) {
-        if (!s) return null;
+        if (!s) {
+            console.warn("[DIAGNOSTIC] parseAnyDate: input is empty/undefined");
+            return null;
+        }
         if (s instanceof Date) return s;
         // Si tiene 'T', es ISO de Google. Si no, intentamos parsear formato DB "YYYY-MM-DD HH:mm:ss"
         if (s.includes('T')) {
@@ -70,12 +69,34 @@ const Scheduler = (() => {
         return new Date(y, m, d, 12, 0, 0); // Noon for all-day
     }
 
+    function shouldRenderEvent(ev) {
+        if (!ev) return false;
+        // Ocultar eventos cancelados en Google aceptados por el usuario
+        if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+            return false;
+        }
+        return true;
+    }
+
     // Explota eventos multi-día en segmentos diarios
     function getExpandedEvents(events) {
+        if (!events || events.length === 0) {
+            console.log("[DIAGNOSTIC] getExpandedEvents: no events to expand");
+        }
         const expanded = [];
         events.forEach(ev => {
-            const evStartStr = (ev.start || ev.Inicio || '');
-            const evEndStr = (ev.end || ev.Fin || '');
+            if (!shouldRenderEvent(ev)) return;
+            
+            console.log("[DIAGNOSTIC] Expanding event:", {
+                id: ev.google_event_id,
+                summary: ev.summary,
+                inicio: ev.inicio,
+                fin: ev.fin,
+                tecnico_nombre: ev.tecnico_nombre
+            });
+            // [CANONICAL_MIGRATION] ev.start/ev.end -> ev.inicio/ev.fin
+            const evStartStr = (ev.inicio || '');
+            const evEndStr = (ev.fin || '');
             
             let dStart = parseAnyDate(evStartStr);
             let dEnd = parseAnyDate(evEndStr);
@@ -95,7 +116,7 @@ const Scheduler = (() => {
             while (isInclusive ? (current <= endLimit) : (current < endLimit)) {
                 const dayStr = fmtDate(current);
                 const isFirstDay = fmtDate(current) === fmtDate(dStart);
-                const isLastDay = fmtDate(current) === fmtDate(dEnd);
+                const isLastDay = isInclusive ? (fmtDate(current) === fmtDate(dEnd)) : (fmtDate(current) === fmtDate(new Date(dEnd.getFullYear(), dEnd.getMonth(), dEnd.getDate() - 1)));
 
                 let sh = 7, eh = 16;
                 if (isFirstDay && isTimed) sh = dStart.getHours() + dStart.getMinutes()/60;
@@ -107,7 +128,10 @@ const Scheduler = (() => {
                     ...ev,
                     _dayStr: dayStr,
                     _sh: sh,
-                    _eh: eh
+                    _eh: eh,
+                    _isFirstDay: isFirstDay,
+                    _isLastDay: isLastDay,
+                    _isMultiDay: (dEnd.getTime() - dStart.getTime()) > 86400000
                 });
                 current.setDate(current.getDate() + 1);
             }
@@ -116,7 +140,28 @@ const Scheduler = (() => {
     }
 
     function isOT(ev) {
-        return extractOTsFromTitle(ev.title).length > 0 || /RESERVA/i.test(ev.title || '');
+        // [OT_NORMALIZATION] Clasificación centralizada en backend.
+        // El frontend solo consume el campo canónico app_ots.
+        const appOts = ev.app_ots || [];
+        const isReserva = /RESERVA/i.test(ev.summary || '');
+        
+        const result = appOts.length > 0 || isReserva;
+
+        if (state.soloOTs) {
+            console.log(`[OT_NORMALIZATION_UI] Event ${ev.id}:`, {
+                appOts,
+                isReserva,
+                result
+            });
+        }
+        return result;
+    }
+
+    function getJobKey(ev) {
+        const ots = ev.app_ots || [];
+        const base = ots.length ? ots.slice().sort().join('-') : (ev.summary || 'no-title');
+        // Usamos día + horas para que solo resalte los que están al mismo tiempo
+        return `${base}_${ev._dayStr}_${ev._sh.toFixed(2)}_${ev._eh.toFixed(2)}`.replace(/\s+/g, '_');
     }
 
     function assignColors(tecnicos) {
@@ -127,7 +172,16 @@ const Scheduler = (() => {
     }
 
     function setState(partial) {
+        console.log("[SCHEDULER] setState:", Object.keys(partial).join(', '));
+        if (partial.eventos) {
+            console.log(`[DIAGNOSTIC] setState: Recibidos ${partial.eventos.length} eventos.`);
+            if (partial.eventos.length > 0) console.log("[DIAGNOSTIC] Sample event in setState:", partial.eventos[0]);
+        }
+        if (partial.tecnicos) console.log(`[SCHEDULER] Recibidos ${partial.tecnicos.length} técnicos.`);
+        
+        // Merge partial state, ensuring holidays is always an object
         Object.assign(state, partial);
+        if (!state.holidays) state.holidays = {};
     }
 
     function toggleResourceMode() {
@@ -141,30 +195,51 @@ const Scheduler = (() => {
     // ─────────────────────────────────────
 
     function render() {
-        renderTechLabels();
-        renderHeader();
-        renderRows();
-        updateDateLabel();
+        console.trace("[UI_FORENSICS] Scheduler.render() invocado");
+        console.log("[SCHEDULER] Iniciando render ciclo completo...");
+        const scrollArea = document.getElementById('scheduler-scroll-area');
+        const sTop = scrollArea ? scrollArea.scrollTop : 0;
+        const sLeft = scrollArea ? scrollArea.scrollLeft : 0;
+
+        try {
+            renderTechLabels();
+            renderHeader();
+            renderRows();
+            updateDateLabel();
+            console.log("[SCHEDULER] Render finalizado con éxito.");
+        } catch (err) {
+            console.error("[SCHEDULER] Error fatal durante el render:", err);
+        }
+
+        if (scrollArea) {
+            scrollArea.scrollTop = sTop;
+            scrollArea.scrollLeft = sLeft;
+        }
     }
 
     function renderTechLabels() {
         const col = document.getElementById('tech-labels-col');
+        if (!col) return;
         col.innerHTML = '<div class="tech-label-spacer"></div>';
         state.tecnicos.forEach(t => {
             const color = techColorMap[t.nombre] || '#64748b';
+            const fallbackInits = t.nombre.split(' ').filter(w => w.length > 2).map(w => w[0]).join('').toUpperCase().substring(0, 3);
+            const displayInits = t.iniciales || fallbackInits;
+            
             const cell = document.createElement('div');
             cell.className = 'tech-label-cell';
             cell.innerHTML = `
                 <div class="tech-label-name">
                     <span class="tech-color-dot" style="background:${color}"></span>${t.nombre}
                 </div>
-                <div class="tech-label-init">${t.iniciales || ''}</div>`;
+                <div class="tech-label-init">${displayInits}</div>`;
             col.appendChild(cell);
         });
     }
 
     function renderHeader() {
         const row = document.getElementById('time-header-row');
+        if (!row) return;
         row.innerHTML = '';
 
         if (state.mode === 'resources' && state.view === 'day') {
@@ -175,9 +250,15 @@ const Scheduler = (() => {
              cell.style.flexDirection = 'column';
              cell.style.gap = '4px';
              
+             const isHolidayName = state.holidays ? state.holidays[dateStr] : null;
+
              const label = document.createElement('span');
              label.textContent = state.currentDate.toLocaleDateString('es-ES', {weekday:'long', day:'numeric'}).toUpperCase();
              if (isToday) label.style.color = 'var(--accent)';
+             if (isHolidayName) {
+                 label.innerHTML += ` <span style="font-size:10px; color:var(--text-muted); font-style:italic; font-weight:normal; margin-left:4px;">Feriado</span>`;
+                 cell.title = isHolidayName;
+             }
              cell.appendChild(label);
              
              const alerts = calcDayAlerts(dateStr);
@@ -238,16 +319,21 @@ const Scheduler = (() => {
         for (let i = 0; i < 7; i++) {
             const d = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i);
             const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-            const isToday = fmtDate(d) === todayStr;
+            const dateStr = fmtDate(d);
+            const isToday = dateStr === todayStr;
+            const holidayName = state.holidays ? state.holidays[dateStr] : null;
             const cell = document.createElement('div');
 
             if (isRow) {
-                cell.className = 'day-cell' + (isWeekend ? ' weekend' : '') + (isToday ? ' today-col' : '');
+                cell.className = 'day-cell' + (isWeekend ? ' weekend' : '') + (isToday ? ' today-col' : '') + (holidayName ? ' holiday' : '');
                 cell.dataset.dow = i;
-                cell.dataset.date = fmtDate(d);
+                cell.dataset.date = dateStr;
             } else {
                 cell.className = 'time-header-cell week-day-header' +
-                    (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '');
+                    (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '') + (holidayName ? ' holiday' : '');
+                if (holidayName) {
+                    cell.title = holidayName;
+                }
                 
                 const alerts = calcDayAlerts(fmtDate(d));
                 const aDiv = document.createElement('div');
@@ -275,9 +361,13 @@ const Scheduler = (() => {
                     aDiv.appendChild(i);
                 }
 
-                cell.innerHTML = `
+                let dayLabelHTML = `
                     <span class="wh-day">${d.toLocaleDateString('es-ES', {weekday:'short'}).toUpperCase()}</span>
                     <span class="wh-date">${d.getDate()}/${d.getMonth()+1}</span>`;
+                if (holidayName) {
+                    dayLabelHTML += `<div style="font-size: 9px; margin-top: 2px; color: var(--text-muted); font-style: italic; font-weight: normal;">Feriado</div>`;
+                }
+                cell.innerHTML = dayLabelHTML;
                 cell.appendChild(aDiv);
             }
             container.appendChild(cell);
@@ -285,23 +375,41 @@ const Scheduler = (() => {
     }
 
     function renderRows() {
+        console.log(`[SCHEDULER] renderRows: Dibujando filas para ${state.tecnicos.length} técnicos.`);
         const container = document.getElementById('scheduler-rows-container');
+        if (!container) {
+            console.error("[SCHEDULER] Error: No se encontró 'scheduler-rows-container' en el DOM.");
+            return;
+        }
         container.innerHTML = '';
 
         // Apply week-grid or day-grid class to scroll area
         const scrollArea = document.getElementById('scheduler-scroll-area');
         const wrapper = document.getElementById('scheduler-wrapper');
         
-        if (state.mode === 'resources') wrapper.classList.add('res-mode');
-        else wrapper.classList.remove('res-mode');
-
-        if (state.view === 'week') {
-            scrollArea.classList.add('week-mode');
-            scrollArea.classList.remove('day-mode');
-        } else {
-            scrollArea.classList.add('day-mode');
-            scrollArea.classList.remove('week-mode');
+        if (wrapper) {
+            if (state.mode === 'resources') wrapper.classList.add('res-mode');
+            else wrapper.classList.remove('res-mode');
         }
+
+        if (scrollArea) {
+            if (state.view === 'week') {
+                scrollArea.classList.add('week-mode');
+                scrollArea.classList.remove('day-mode');
+            } else {
+                scrollArea.classList.add('day-mode');
+                scrollArea.classList.remove('week-mode');
+            }
+        }
+
+        // Pre-calcular frecuencia de técnicos por trabajo para mostrar iconos de grupo
+        const expandedAll = getExpandedEvents(state.eventos);
+        const jobFreq = {};
+        expandedAll.forEach(ev => {
+            const jk = getJobKey(ev);
+            jobFreq[jk] = (jobFreq[jk] || 0) + 1;
+        });
+        state._jobFreq = jobFreq;
 
         state.tecnicos.forEach(t => {
             const row = document.createElement('div');
@@ -349,10 +457,15 @@ const Scheduler = (() => {
 
         // Filter events for today + this tech using expanded logic
         const expanded = getExpandedEvents(state.eventos);
+        console.log(`[DIAGNOSTIC] renderDayRow (${tech.nombre}): expanded count = ${expanded.length}`);
         let eventsToday = expanded.filter(ev => {
-            if (norm(ev.resourceId || ev['Técnico']) !== norm(tech.nombre)) return false;
+            // [CANONICAL_MIGRATION] ev.tecnico_nombre
+            const evTech = ev.tecnico_nombre;
+            if (!evTech) console.warn("[DIAGNOSTIC] Event missing tech info:", ev);
+            if (norm(evTech) !== norm(tech.nombre)) return false;
             return ev._dayStr === dateStr;
         });
+        console.log(`[DIAGNOSTIC] renderDayRow (${tech.nombre}): filtered count = ${eventsToday.length}`);
         
         if (state.soloOTs) eventsToday = eventsToday.filter(ev => isOT(ev));
 
@@ -380,12 +493,23 @@ const Scheduler = (() => {
         renderWeekLayout(row, true);
 
         const expanded = getExpandedEvents(state.eventos);
+        
         let weekEvs = expanded.filter(ev => {
-            if (norm(ev.resourceId || ev['Técnico']) !== norm(tech.nombre)) return false;
+            // [CANONICAL_MIGRATION] ev.tecnico_nombre
+            const evTech = ev.tecnico_nombre || '';
+            if (!evTech) console.warn("[DIAGNOSTIC] renderWeekRow: Event missing tech info:", ev);
+            if (norm(evTech) !== norm(tech.nombre)) return false;
+            
             const d = parseAnyDate(ev._dayStr);
-            const weEnd = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7, 12, 0, 0);
-            return d >= ws && d < weEnd;
+            const weEnd = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7, 23, 59, 59);
+            const match = d >= ws && d <= weEnd;
+            return match;
         });
+
+        console.log(`[DIAGNOSTIC] renderWeekRow (${tech.nombre}): filtered count = ${weekEvs.length}`);
+        if (weekEvs.length > 0) {
+            console.log(`[SCHEDULER] Row ${tech.nombre}: Encontrados ${weekEvs.length} segmentos en la semana.`);
+        }
         if (state.soloOTs) weekEvs = weekEvs.filter(ev => isOT(ev));
 
         const byDay = {};
@@ -430,7 +554,19 @@ const Scheduler = (() => {
                     const heightPct = (1 / group.length) * 100;
 
                     const block = document.createElement('div');
+                    const jk = getJobKey(ev);
+                    
                     block.className = 'ev-block week-ev-block' + (state.soloOTs && !isOT(ev) ? ' dim' : '');
+                    if (ev._isMultiDay) {
+                        if (!ev._isFirstDay) block.classList.add('cont-prev');
+                        if (!ev._isLastDay) block.classList.add('cont-next');
+                    }
+                    
+                    block.dataset.jobKey = jk;
+        if (window.App && App.isBatchMode && App.isBatchMode() && App.isEventSelected(ev.google_event_id)) {
+            block.classList.add("batch-selected");
+        }
+
                     block.style.cssText = `
                         background:${color}dd;
                         left:${leftPct}%;
@@ -438,18 +574,51 @@ const Scheduler = (() => {
                         top:calc(${topPct}% + 1px);
                         height:calc(${heightPct}% - 2px);
                     `;
-                    block.innerHTML = `<div class="ev-title" style="font-size:9px">${ev.title}</div>`;
+                    
+                    const isGroup = state._jobFreq && state._jobFreq[jk] > 1;
+                    const confirmedGrupoId = ev.extended_props?.private?.grupo_id || null;
+                    const groupIcon = isGroup ? '<i class="fa-solid fa-users group-badge" title="Mismo trabajo"></i>' : '';
+                    const confirmedIcon = confirmedGrupoId ? '<i class="fa-solid fa-link group-confirmed-badge" title="Grupo confirmado"></i>' : '';
+                    block.innerHTML = `<div class="ev-title" style="font-size:9px">${ev.summary}</div>${groupIcon}${confirmedIcon}`;
+                    if (confirmedGrupoId) block.dataset.grupoId = confirmedGrupoId;
 
-                    block.setAttribute('draggable', 'true');
-                    block.addEventListener('dragstart', e => {
-                        e.dataTransfer.setData('application/json', JSON.stringify({
-                            type: 'move',
-                            eventId: ev.id,
-                            calendarId: ev.calendar_id || ev.calendarId || 'primary'
-                        }));
+                    // Hover: highlight por grupo_id confirmado (prioridad) o por jobKey
+                    block.addEventListener('mouseenter', () => {
+                        if (confirmedGrupoId) {
+                            document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.add('group-active'));
+                        } else {
+                            document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.add('group-active'));
+                        }
+                    });
+                    block.addEventListener('mouseleave', () => {
+                        if (confirmedGrupoId) {
+                            document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.remove('group-active'));
+                        } else {
+                            document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.remove('group-active'));
+                        }
                     });
 
-                    block.addEventListener('click', e => { e.stopPropagation(); App.selectEvent(ev); });
+                    if (ev._syncing) {
+                        block.setAttribute('draggable', 'false');
+                        block.classList.add('syncing');
+                        block.style.opacity = '0.5';
+                        block.innerHTML += '<div class="ev-sync-spinner"><i class="fa-solid fa-rotate fa-spin"></i></div>';
+                    } else {
+                        block.setAttribute('draggable', 'true');
+                        block.addEventListener('dragstart', e => {
+                            e.dataTransfer.setData('application/json', JSON.stringify({
+                                type: 'move',
+                                eventId: ev.google_event_id,
+                                calendarId: ev.calendar_id || 'primary'
+                            }));
+                        });
+                    }
+
+                    block.addEventListener('click', e => { 
+                        if (ev._syncing) return;
+                        e.stopPropagation(); 
+                        App.selectEvent(ev, e.ctrlKey || e.metaKey); 
+                    });
                     cell.appendChild(block);
                 });
             });
@@ -473,7 +642,22 @@ const Scheduler = (() => {
         const heightPct = totalCols > 1 ? (1 / totalCols) * 100 : 100;
 
         const block = document.createElement('div');
+        const jk = getJobKey(ev);
+        
         block.className = 'ev-block' + (state.soloOTs && !isOT(ev) ? ' dim' : '');
+        if (ev._isMultiDay) {
+            if (!ev._isFirstDay) block.classList.add('cont-prev');
+            if (!ev._isLastDay) block.classList.add('cont-next');
+        }
+        if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+            block.classList.add('cancelled-google');
+        }
+        
+        block.dataset.jobKey = jk;
+        if (window.App && App.isBatchMode && App.isBatchMode() && App.isEventSelected(ev.google_event_id)) {
+            block.classList.add("batch-selected");
+        }
+
         block.style.cssText = `
             left:${leftPct}%;
             width:${Math.max(widthPct, 1.5)}%;
@@ -481,23 +665,67 @@ const Scheduler = (() => {
             top:calc(${topPct}% + 4px);
             height:calc(${heightPct}% - 8px);
             bottom:unset;`;
-        block.innerHTML = `
-            <div class="ev-title">${ev.title}</div>
-            <div class="ev-time">${fmtHour(sh)}–${fmtHour(eh)}</div>`;
-        
-        // Habilitar arrastre para re-agendamiento
-        block.setAttribute('draggable', 'true');
-        block.addEventListener('dragstart', e => {
-            e.dataTransfer.setData('application/json', JSON.stringify({
-                type: 'move',
-                eventId: ev.id,
-                calendarId: ev.calendar_id || ev.calendarId || 'primary'
-            }));
-            block.classList.add('dragging');
-        });
-        block.addEventListener('dragend', () => block.classList.remove('dragging'));
+        const isGroup = state._jobFreq && state._jobFreq[jk] > 1;
+        const confirmedGrupoId = ev.extended_props?.private?.grupo_id || null;
+        const groupIcon = isGroup ? '<i class="fa-solid fa-users group-badge" title="Mismo trabajo"></i>' : '';
+        const confirmedIcon = confirmedGrupoId ? '<i class="fa-solid fa-link group-confirmed-badge" title="Grupo confirmado"></i>' : '';
+        if (confirmedGrupoId) block.dataset.grupoId = confirmedGrupoId;
 
-        block.addEventListener('click', e => { e.stopPropagation(); App.selectEvent(ev); });
+        block.innerHTML = `
+            <div class="ev-title">${ev.summary}</div>
+            <div class="ev-time">${fmtHour(sh)}–${fmtHour(eh)}</div>
+            ${groupIcon}${confirmedIcon}
+        `;
+
+        // Hover: highlight por grupo_id confirmado (prioridad) o por jobKey
+        block.addEventListener('mouseenter', () => {
+            if (confirmedGrupoId) {
+                document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.add('group-active'));
+            } else {
+                document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.add('group-active'));
+            }
+        });
+        block.addEventListener('mouseleave', () => {
+            if (confirmedGrupoId) {
+                document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.remove('group-active'));
+            } else {
+                document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.remove('group-active'));
+            }
+        });
+
+        
+        // Habilitar arrastre para re-agendamiento (si no está sincronizando)
+        if (ev._syncing) {
+            block.setAttribute('draggable', 'false');
+            block.classList.add('syncing');
+            block.style.opacity = '0.5';
+            block.style.cursor = 'wait';
+            block.innerHTML += '<div class="ev-sync-spinner"><i class="fa-solid fa-rotate fa-spin"></i></div>';
+        } else if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+            block.setAttribute('draggable', 'false');
+            block.title = "Evento eliminado en Google Calendar";
+        } else {
+            block.setAttribute('draggable', 'true');
+            block.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                    type: 'move',
+                    eventId: ev.google_event_id,
+                    calendarId: ev.calendar_id || 'primary'
+                }));
+                block.classList.add('dragging');
+            });
+            block.addEventListener('dragend', () => block.classList.remove('dragging'));
+        }
+
+        block.addEventListener('click', e => { 
+            if (ev._syncing) return;
+            e.stopPropagation(); 
+            if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+                App.toast('Este evento fue eliminado en Google. Pendiente de revisión.', 'warning');
+                return;
+            }
+            App.selectEvent(ev, e.ctrlKey || e.metaKey); 
+        });
         return block;
     }
 
@@ -507,12 +735,22 @@ const Scheduler = (() => {
 
     function createResourceCard(ev, color, techNombre) {
         const card = document.createElement('div');
-        card.className = 'res-card';
+        card.className = 'res-card' + (ev._syncing ? ' syncing' : '');
+        if (window.App && App.isBatchMode && App.isBatchMode() && App.isEventSelected(ev.google_event_id)) {
+            card.classList.add("batch-selected");
+        }
+        if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+            card.classList.add('cancelled-google');
+        }
+        if (ev._syncing) {
+            card.style.opacity = '0.6';
+            card.style.pointerEvents = 'none';
+        }
 
         const checkMultiDayConstraint = () => {
-             const isTimed = (ev.start || ev.Inicio || '').includes('T');
-             const d1 = ev.start || ev.Inicio;
-             const d2 = ev.end || ev.Fin;
+             const isTimed = (ev.inicio || '').includes('T');
+             const d1 = ev.inicio;
+             const d2 = ev.fin;
              if (!isTimed && d1 && d2 && d1 !== d2) {
                  App.toast('Evento multi-día (lectura). Por favor utiliza el botón de "Individualizar" abriendo los detalles antes de modificar sus recursos.', 'warning');
                  return true;
@@ -521,22 +759,26 @@ const Scheduler = (() => {
         };
 
         // 1. Evento
-        const otsStr = extractOTsFromTitle(ev.title).join(', ');
+        const otsStr = (ev.app_ots || []).join(', ');
         const evBox = document.createElement('div');
         evBox.className = 'res-rc-ev';
         evBox.innerHTML = `
-            <div class="res-rc-ev-title">${ev.title || 'Evento'}</div>
+            <div class="res-rc-ev-title">${ev.summary || 'Evento'}</div>
             ${otsStr ? `<div class="res-rc-ev-ots">OTs: ${otsStr}</div>` : ''}
             <div style="font-size:9px;color:var(--text-muted);margin-top:2px">${fmtHour(ev._sh)} - ${fmtHour(ev._eh)}</div>
         `;
         evBox.addEventListener('click', (e) => {
             e.stopPropagation();
-            App.selectEvent(ev); // Abrir panel derecho
+            if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+                App.toast('Este evento fue eliminado en Google. Pendiente de revisión.', 'warning');
+                return;
+            }
+            App.selectEvent(ev, e.ctrlKey || e.metaKey); // Abrir panel derecho o batch
         });
         card.appendChild(evBox);
 
         // 2. Patrones
-        const props = ev.extendedProperties?.private || {};
+        const props = ev.extended_props?.private || {};
         const isReq = (props.app_requiere_vehiculo === 'true');
         let pats = getEventPats(ev);
 
@@ -545,7 +787,7 @@ const Scheduler = (() => {
         let patConf = false;
         let patConfMsg = '';
         for (const p of pats) {
-            if (checkPatternConflict(p, expHoy, ev.id)) {
+            if (checkPatternConflict(p, expHoy, ev.google_event_id)) {
                 patConf = true;
                 patConfMsg = `Conflicto: El patrón '${p}' está bloqueado por otro técnico que no comparte OT.`;
                 break;
@@ -557,7 +799,7 @@ const Scheduler = (() => {
         patBox.innerHTML = `
             <div class="res-rc-pats-header" title="${patConfMsg}">
                 <div><i class="fa-solid fa-tools"></i> <b>${pats.length}</b> Pats ${patConf ? '<i class="fa-solid fa-triangle-exclamation"></i>':''}</div>
-                <i class="fa-solid fa-plus btn-pat-expand" style="cursor:pointer" title="Expandir/Agregar" data-id="${ev.id}"></i>
+                <i class="fa-solid fa-plus btn-pat-expand" style="cursor:pointer" title="Expandir/Agregar" data-id="${ev.google_event_id}"></i>
             </div>
             <div class="res-rc-pats-list" style="display:${state.expandPats ? 'flex' : 'none'}">
                 ${pats.map(p => `<div class="res-rc-pat-item"><span>${p}</span> <i class="fa-solid fa-xmark btn-del-pat" data-pat="${p}" title="Quitar"></i></div>`).join('')}
@@ -601,7 +843,8 @@ const Scheduler = (() => {
         // Check alerts
         let confStr = '';
         if (cv) {
-             const cfInfo = App.checkVehicleConflicts(cv, ev._dayStr, ev._sh, ev._eh, ev.id, techNombre);
+             const gid = (ev.extended_props?.private?.grupo_id) || null;
+             const cfInfo = App.checkVehicleConflicts(cv, ev._dayStr, ev._sh, ev._eh, ev.google_event_id, techNombre, gid);
              if (cfInfo) {
                  confStr = cfInfo;
                  vehBox.classList.add('conflict');
@@ -630,7 +873,7 @@ const Scheduler = (() => {
             
             // Para propagar a todo el día: el usuario dijo "se podría extender a todos los eventos del día" 
             const exp = getExpandedEvents(state.eventos);
-            const eventsDelDia = exp.filter(x => x.resourceId === techNombre && x._dayStr === ev._dayStr);
+            const eventsDelDia = exp.filter(x => x.tecnico_nombre === techNombre && x._dayStr === ev._dayStr);
             if (eventsDelDia.length > 1 && confirm(`¿Desea asignar el vehículo ${val||'Ninguno'} a TODOS los ${eventsDelDia.length} eventos de ${techNombre} de este día?`)) {
                  App.toast('Aplicando a todos los eventos...');
                  for (const x of eventsDelDia) {
@@ -648,8 +891,8 @@ const Scheduler = (() => {
     async function updateResourceMetadata(ev, partial, reqRefresh = true) {
         if(reqRefresh) App.toast('Guardando cambios...', 'info');
         try {
-            const calId = ev.calendarId || ev.calendar_id;
-            const props = ev.extendedProperties?.private || {};
+            const calId = ev.calendar_id;
+            const props = ev.extended_props?.private || {};
             // Si hay patrones omitidos en partial, re-enviar los actuales.
             let patsToSave = partial.patrones !== undefined ? partial.patrones : null;
             if (patsToSave === null) {
@@ -659,16 +902,16 @@ const Scheduler = (() => {
             if (!Array.isArray(patsToSave)) patsToSave = [];
 
             const bBody = {
-                 event_id: ev.id,
+                 event_id: ev.google_event_id,
                  calendar_id_origen: calId,
                  correo_destino: calId,
-                 nueva_fecha: ev.start ? ev.start.substring(0,10) : ev._dayStr, // no altera start/end reales, la API los mantiene si no van
+                 nueva_fecha: ev.inicio ? ev.inicio.substring(0,10) : ev._dayStr, // no altera start/end reales, la API los mantiene si no van
                  patrones: patsToSave,
                  vehiculo: partial.vehiculo !== undefined ? partial.vehiculo : props.app_vehiculo,
                  requiere_vehiculo: partial.requiere_vehiculo !== undefined ? partial.requiere_vehiculo : (props.app_requiere_vehiculo === 'true')
             };
 
-            const r = await fetch(`/api/eventos/${ev.id}/mover`, {
+            const r = await fetch(`/api/eventos/${ev.google_event_id}/mover`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(bBody)
@@ -679,7 +922,7 @@ const Scheduler = (() => {
                  App.refresh();
             }
         } catch(e) {
-            App.toast('Error: ' + e.message, 'error');
+            App.toast(e, 'error');
         }
     }
 
@@ -693,26 +936,27 @@ const Scheduler = (() => {
          const exp = getExpandedEvents(state.eventos).filter(e => e._dayStr === dateStr);
          
          exp.forEach(ev => {
-             const props = ev.extendedProperties?.private || {};
+             const props = ev.extended_props?.private || {};
              const cv = props.app_vehiculo || ev.app_vehiculo;
              const isReq = (props.app_requiere_vehiculo === 'true');
              
              if (isReq && !cv) vehReq = true;
              else if (cv) {
-                 const resId = ev.resourceId || ev['Técnico'];
-                 const cfo = App.checkVehicleConflicts(cv, dateStr, ev._sh, ev._eh, ev.id, resId);
+                 const resId = ev.tecnico_nombre || ev['Técnico'];
+                 const gid = (ev.extended_props?.private?.grupo_id) || null;
+                 const cfo = App.checkVehicleConflicts(cv, dateStr, ev._sh, ev._eh, ev.google_event_id, resId, gid);
                  if (cfo) {
                      vehConf = true;
-                     details.veh.push(`${cv}: ${ev.title} (${resId}) tiene conflicto.`);
+                     details.veh.push(`${cv}: ${ev.summary} (${resId}) tiene conflicto.`);
                  }
              }
 
              const evPats = getEventPats(ev);
              for (const p of evPats) {
-                 const conflictInfo = checkPatternConflict(p, exp, ev.id);
+                 const conflictInfo = checkPatternConflict(p, exp, ev.google_event_id);
                  if (conflictInfo === true) {
                      patConf = true;
-                     details.pat.push(`${p}: Usado en "${ev.title}" con conflicto de grupo.`);
+                     details.pat.push(`${p}: Usado en "${ev.summary}" con conflicto de grupo.`);
                  }
              }
          });
@@ -752,14 +996,14 @@ const Scheduler = (() => {
     function checkPatternConflict(patName, dayEvents, currentEvId) {
         if (!patName) return false;
         
-        const currentEv = dayEvents.find(e => e.id === currentEvId);
+        const currentEv = dayEvents.find(e => e.google_event_id === currentEvId);
         if (!currentEv) return false;
         
         const currentOTs = getEventOTs(currentEv);
         
         // Buscar otros eventos que usen el mismo patrón
         const othersUsingPat = dayEvents.filter(e => {
-            if (e.id === currentEvId) return false;
+            if (e.google_event_id === currentEvId) return false;
             const ePats = getEventPats(e);
             return ePats.includes(patName);
         });
@@ -782,18 +1026,19 @@ const Scheduler = (() => {
     }
 
     function getEventOTs(ev) {
-        const props = ev.extendedProperties?.private || {};
-        let ots = props.app_ots || ev.app_ots || '[]';
-        try { ots = typeof ots === 'string' ? JSON.parse(ots) : ots; } catch { ots = []; }
-        if (!Array.isArray(ots)) ots = [];
-        const fromTitle = extractOTsFromTitle(ev.title);
-        return Array.from(new Set([...ots, ...fromTitle]));
+        let ots = ev.app_ots || [];
+        if (typeof ots === 'string') {
+            try { ots = JSON.parse(ots); } catch { ots = []; }
+        }
+        return Array.isArray(ots) ? ots : [];
     }
 
     function getEventPats(ev) {
-        const props = ev.extendedProperties?.private || {};
-        let pats = props.app_patrones || ev.app_patrones || '[]';
-        try { pats = typeof pats === 'string' ? JSON.parse(pats) : pats; } catch { pats = []; }
+        const props = ev.extended_props?.private || {};
+        let pats = props.app_patrones || ev.app_patrones || [];
+        if (typeof pats === 'string') {
+            try { pats = JSON.parse(pats); } catch { pats = []; }
+        }
         return Array.isArray(pats) ? pats : [];
     }
 
@@ -851,7 +1096,7 @@ const Scheduler = (() => {
         
         try {
             const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
-            let hour = 7;
+            let hour = undefined;
             let targetDateStr = fmtDate(state.currentDate);
 
             // 1. Calcular Fecha (si estamos en vista semanal, buscar la celda)
@@ -877,7 +1122,7 @@ const Scheduler = (() => {
                 App.moveEvent(dragData.eventId, dragData.calendarId, tech.correo, targetDateStr, hour);
             } else {
                 // Caso: Crear evento rápido desde backlog
-                App.openQuickCreate(tech, parseAnyDate(targetDateStr), hour, dragData);
+                App.openQuickCreate(tech, parseAnyDate(targetDateStr), hour !== undefined ? hour : 7, dragData);
             }
         } catch (err) {
             console.error('Drop error:', err);
@@ -919,12 +1164,25 @@ const Scheduler = (() => {
     function setView(v) {
         state.view = v;
         document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(v === 'day' ? 'btn-view-day' : 'btn-view-week').classList.add('active');
+        const btn = document.getElementById(v === 'day' ? 'btn-view-day' : 'btn-view-week');
+        if (btn) btn.classList.add('active');
         render();
     }
 
-    return {
-        setState, render, assignColors, navigate, goToday, setView,
-        extractOTsFromTitle, toggleResourceMode
+    const api = {
+        setState,
+        render,
+        renderRows,
+        renderWeekRow,
+        renderDayRow,
+        assignColors,
+        navigate,
+        goToday,
+        setView,
+        toggleResourceMode
     };
+
+    console.log("[SCHEDULER] Engine loaded. Methods:", Object.keys(api).join(', '));
+    window.Scheduler = api;
+    return api;
 })();

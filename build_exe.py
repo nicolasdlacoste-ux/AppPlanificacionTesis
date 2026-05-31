@@ -27,6 +27,8 @@ def build():
         "--windowed", 
         "--name", "AkrimetPlanner",
         "--add-data", "webapp;webapp",
+        "--add-data", "credentials.json;.",
+        "--icon", "app_icon.ico",
         "--collect-all", "uvicorn",
         "--collect-all", "fastapi",
         "--collect-all", "googleapiclient",
@@ -42,9 +44,9 @@ def build():
         print("¡COMPILACIÓN EXITOSA!")
         print(f"El ejecutable se encuentra en: {os.path.join(os.getcwd(), 'dist', 'AkrimetPlanner.exe')}")
         
-        # 3. Copiar archivos de configuración necesarios al dist/
+        # 3. Copiar token persistente al dist/ (si existe, para que el dev mantenga la sesión)
         print("Copiando configuración al directorio dist...")
-        for f in ['credentials.json', 'token.json']:
+        for f in ['token.json']:
             if os.path.exists(f):
                 shutil.copy(f, "dist")
                 print(f"  - {f} copiado.")

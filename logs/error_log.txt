@@ -1,0 +1,24 @@
+[Fri May  8 22:15:57 2026] El servidor no inició a tiempo en puerto 61770
+[Sat May  9 17:13:57 2026] ERROR EN EL SERVIDOR: unexpected indent (data_manager.py, line 546)
+Traceback (most recent call last):
+  File "C:\Users\ndiaz_akrimet\Git Proyect\AppPlanificacion\launcher.py", line 33, in run_server
+    from api_server import app
+  File "C:\Users\ndiaz_akrimet\Git Proyect\AppPlanificacion\api_server.py", line 20, in <module>
+    from data_manager import DataManager
+  File "C:\Users\ndiaz_akrimet\Git Proyect\AppPlanificacion\data_manager.py", line 546
+    data.get('ubicacion', '') or (existing[6] if len(existing) > 6 else ''),
+IndentationError: unexpected indent
+[Sat May  9 17:14:11 2026] El servidor no inició a tiempo en puerto 64059
+[Mon May 11 07:48:03 2026] El servidor no inició a tiempo en puerto 52906
+[Mon May 11 15:07:09 2026] El servidor no inició a tiempo en puerto 54405
+[Tue May 12 12:38:11 2026] El servidor no inició a tiempo en puerto 49561
+[Wed May 13 15:11:24 2026] El servidor no inició a tiempo en puerto 54998
+[Wed May 13 20:05:20 2026] El servidor no inició a tiempo en puerto 56779
+[Sat May 16 12:38:46 2026] El servidor no inició a tiempo en puerto 65112
+[Sat May 16 19:16:36 2026] El servidor no inició a tiempo en puerto 52459
+[Thu May 21 12:10:08 2026] El servidor no inició a tiempo en puerto 51908
+[Fri May 22 20:28:00 2026] El servidor no inició a tiempo en puerto 59650
+[Sat May 23 13:38:42 2026] El servidor no inició a tiempo en puerto 52434
+[Mon May 25 20:11:36 2026] El servidor no inició a tiempo en puerto 61166
+[Tue May 26 11:20:16 2026] El servidor no inició a tiempo en puerto 51161
+[Tue May 26 13:40:09 2026] El servidor no inició a tiempo en puerto 57730

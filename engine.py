@@ -94,23 +94,33 @@ def buscar_bloque_libre(tech_events, nombres, date_key, horas_req, ignorar_no_ot
             
     return None, [], []
 
-def son_consecutivos(fechas, viaje):
+def son_consecutivos(fechas, viaje, workdays=None):
+    if workdays is None: return True # Fallback por seguridad
     for i in range(len(fechas) - 1):
         d1, d2 = fechas[i], fechas[i+1]
-        diff = (d2 - d1).days
-        if viaje:
-            if diff != 1: return False
-        else:
-            ok = (diff == 1) or (d1.weekday() == 4 and d2.weekday() == 0 and diff == 3)
-            if not ok: return False
+        try:
+            idx1 = workdays.index(d1)
+            idx2 = workdays.index(d2)
+            if viaje:
+                # Si hay viaje, deben ser adyacentes físicamente en el calendario sin importar si es día hábil
+                if (d2 - d1).days != 1: return False
+            else:
+                # Si no hay viaje, deben ser adyacentes en la lista de días laborables
+                if idx2 - idx1 != 1: return False
+        except ValueError:
+            return False # Alguna fecha no está en los workdays
     return True
 
 def buscar_disponibilidad(tech_events, tecnicos_info, n_tec, dias_nec, consecutivo, viaje, f_inicio, ventana, 
-                           ignorar_no_ots=False, n_resultados=3, patrones_requeridos=None, excluir_conflictos_pats=False, ots_objetivo=None):
+                           ignorar_no_ots=False, n_resultados=3, patrones_requeridos=None, excluir_conflictos_pats=False, ots_objetivo=None, holidays=None):
     """Lógica centralizada de búsqueda de disponibilidad con detección de patrones y filtro."""
+    if holidays is None: holidays = set()
     f_fin = f_inicio + datetime.timedelta(days=ventana)
-    workdays = [f_inicio + datetime.timedelta(days=i) for i in range((f_fin - f_inicio).days + 1) 
-                if (f_inicio + datetime.timedelta(days=i)).weekday() < 5]
+    workdays = []
+    for i in range((f_fin - f_inicio).days + 1):
+        d = f_inicio + datetime.timedelta(days=i)
+        if d.weekday() < 5 and d.strftime("%Y-%m-%d") not in holidays:
+            workdays.append(d)
 
     n_full = int(dias_nec)
     h_resto = (dias_nec - n_full) * 9.0
@@ -144,7 +154,7 @@ def buscar_disponibilidad(tech_events, tecnicos_info, n_tec, dias_nec, consecuti
             ventana_dias = dias_validos[i : i + n_total_dias]
             fechas_puras = [dv["date"] for dv in ventana_dias]
             
-            if consecutivo and not son_consecutivos(fechas_puras, viaje): continue
+            if consecutivo and not son_consecutivos(fechas_puras, viaje, workdays): continue
             
             full_count = sum(1 for dv in ventana_dias if dv["full"])
             if full_count < n_full: continue

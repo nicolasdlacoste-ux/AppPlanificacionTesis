@@ -12,7 +12,8 @@ const Backlog = (() => {
         _eventos = eventos || [];
         
         // Recolectar estados únicos para el filtro
-        const prevStatus = document.getElementById('ot-status-filter').value;
+        const elFilter = document.getElementById('ot-status-filter');
+        const prevStatus = elFilter ? elFilter.value : 'PENDIENTES';
         _allStatuses.clear();
         allOTs.forEach(o => { if (o.estado) _allStatuses.add(o.estado); });
         
@@ -22,6 +23,7 @@ const Backlog = (() => {
 
     function _updateStatusFilter(prevValue) {
         const select = document.getElementById('ot-status-filter');
+        if (!select) return;
         // Preservar las opciones fijas
         const fixedOptions = `
             <option value="PENDIENTES" ${prevValue==='PENDIENTES'?'selected':''}>Pendientes (Nuevas/Reprog.)</option>
@@ -37,8 +39,10 @@ const Backlog = (() => {
     }
 
     function _applyFilter() {
-        const query = (document.getElementById('ot-search').value || '').toLowerCase();
-        const statusFilter = document.getElementById('ot-status-filter').value;
+        const elSearch = document.getElementById('ot-search');
+        const query = (elSearch ? elSearch.value : '').toLowerCase();
+        const elFilter = document.getElementById('ot-status-filter');
+        const statusFilter = elFilter ? elFilter.value : 'TODAS';
 
         let filtered = allOTs;
 
@@ -54,24 +58,26 @@ const Backlog = (() => {
             filtered = filtered.filter(o =>
                 o.nro.toLowerCase().includes(query) ||
                 (o.cliente || '').toLowerCase().includes(query) ||
-                (o.trabajo || '').toLowerCase().includes(query)
+                (o.trabajo || '').toLowerCase().includes(query) ||
+                (o.asunto || '').toLowerCase().includes(query)
             );
         }
 
         const list = document.getElementById('ot-list');
-        list.innerHTML = '';
-        document.getElementById('ot-count').textContent = filtered.length;
+        if (list) list.innerHTML = '';
+        const elCount = document.getElementById('ot-count');
+        if (elCount) elCount.textContent = filtered.length;
 
         if (!filtered.length) {
-            list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Sin OTs pendientes</div>';
+            if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Sin OTs pendientes</div>';
             return;
         }
 
         filtered.forEach(ot => {
             // Detección de agenda (cross-check)
             const eventosAsociados = _eventos.filter(ev => {
-                const searchStr = (ev.title + ' ' + (ev.description || '')).toLowerCase();
-                const rawOts = ev.extendedProperties?.private?.app_ots;
+                const searchStr = ((ev.summary || '') + ' ' + (ev.descripcion || '')).toLowerCase();
+                const rawOts = ev.extended_props?.private?.app_ots;
                 let otsInProps = [];
                 if (rawOts) {
                     try {
@@ -101,7 +107,7 @@ const Backlog = (() => {
                     </div>
                 </div>
                 <div class="ot-cliente">${ot.cliente || '—'}</div>
-                <div class="ot-trabajo">${ot.trabajo || '—'}</div>`;
+                <div class="ot-trabajo">${ot.asunto || ot.trabajo || '—'}</div>`;
 
             // Click → OT Scheduler en panel derecho
             card.addEventListener('click', e => {
@@ -125,7 +131,7 @@ const Backlog = (() => {
                 card.style.opacity = '1';
             });
 
-            list.appendChild(card);
+            if (list) list.appendChild(card);
         });
     }
 
@@ -145,26 +151,31 @@ const Backlog = (() => {
     }
 
     function _showOTAgenda(ot, eventos) {
-        document.getElementById('modal-ot-agenda-title').textContent = `Agenda de OT ${ot.nro} — ${ot.cliente}`;
+        const elTitle = document.getElementById('modal-ot-agenda-title');
+        if (elTitle) elTitle.textContent = `Agenda de OT ${ot.nro} — ${ot.cliente}`;
         const tbody = document.getElementById('ot-agenda-tbody');
+        if (!tbody) return;
         tbody.innerHTML = '';
         
-        eventos.sort((a,b) => a.start.localeCompare(b.start)).forEach(ev => {
+        eventos.sort((a,b) => a.inicio.localeCompare(b.inicio)).forEach(ev => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${ev.start.substring(0,10)}</td>
-                <td><strong>${ev.resourceId || '—'}</strong></td>
-                <td>${ev.title}</td>
+                <td>${ev.inicio.substring(0,10)}</td>
+                <td><strong>${ev.tecnico_nombre || ev.calendar_id || '—'}</strong></td>
+                <td>${ev.summary}</td>
             `;
             tbody.appendChild(tr);
         });
         
-        document.getElementById('modal-ot-agenda').classList.remove('hidden');
+        const modal = document.getElementById('modal-ot-agenda');
+        if (modal) modal.classList.remove('hidden');
     }
 
     function init() {
-        document.getElementById('ot-search').addEventListener('input', _applyFilter);
-        document.getElementById('ot-status-filter').addEventListener('change', _applyFilter);
+        const elSearch = document.getElementById('ot-search');
+        if (elSearch) elSearch.addEventListener('input', _applyFilter);
+        const elFilter = document.getElementById('ot-status-filter');
+        if (elFilter) elFilter.addEventListener('change', _applyFilter);
     }
 
     return { render, init };

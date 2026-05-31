@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observatorio de Sincronización - Akrimet Planner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0f172a;
+            --bg-card: #1e293b;
+            --primary: #38bdf8;
+            --accent: #818cf8;
+            --text: #f1f5f9;
+            --text-dim: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-deep);
+            color: var(--text);
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 1rem;
+        }
+
+        h1 { font-family: 'Outfit', sans-serif; font-size: 1.8rem; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); }
+        .stat-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 2rem; font-weight: 700; margin-top: 0.5rem; }
+
+        .section-title { font-size: 1.2rem; margin-bottom: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #334155; }
+        th { background: #0f172a; font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; }
+        tr:hover { background: #334155; }
+
+        .badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .badge-error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+
+        .refresh-btn {
+            background: var(--primary);
+            color: var(--bg-deep);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .refresh-btn:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Sync Observatory</h1>
+        <button class="refresh-btn" onclick="refreshAll()">Refrescar Datos</button>
+    </header>
+
+    <div class="dashboard" id="dashboard">
+        <!-- Dashboard Stats -->
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <h2 class="section-title">Cola de Sincronización (Outbound)</h2>
+            <table id="queue-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Operación</th>
+                        <th>Estado</th>
+                        <th>Reintentos</th>
+                    </tr>
+                </thead>
+                <tbody id="queue-body"></tbody>
+            </table>
+        </div>
+        <div>
+            <h2 class="section-title">
+                <span>⚖ Cola de Arbitraje</span>
+                <span id="review-count-badge" style="background:rgba(245,158,11,.2);color:#f59e0b;
+                      border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;"></span>
+            </h2>
+            <div id="review-panel">
+                <p style="color:var(--text-dim);text-align:center;padding:20px;">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Últimas Decisiones de Reconciliación</h2>
+    <table id="logs-table">
+        <thead>
+            <tr>
+                <th>Tiempo</th>
+                <th>Evento ID</th>
+                <th>Acción</th>
+                <th>Detalle</th>
+            </tr>
+        </thead>
+        <tbody id="logs-body"></tbody>
+    </table>
+
+    <script>
+        const FIELD_LABELS = {inicio:'Inicio',fin:'Fin',summary:'Título',tecnico_nombre:'Técnico',descripcion:'Descripción',ubicacion:'Ubicación'};
+
+        async function fetchAPI(endpoint) {
+            try {
+                const res = await fetch(`/api/admin/${endpoint}`);
+                return await res.json();
+            } catch (e) { console.error(e); return null; }
+        }
+
+        async function refreshDashboard() {
+            const data = await fetchAPI('sync_health');
+            if (!data) return;
+            const dash = document.getElementById('dashboard');
+            dash.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Pendientes de Sync</div>
+                    <div class="stat-value">${data.sync_queue.pending}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Errores de Sync</div>
+                    <div class="stat-value" style="${data.sync_queue.failed > 0 ? 'color:var(--error)' : ''}">${data.sync_queue.failed}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Arbitraje Pendiente</div>
+                    <div class="stat-value" style="${data.conflict_management.pending_reviews > 0 ? 'color:var(--warning)' : ''}">${data.conflict_management.pending_reviews}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Calendarios</div>
+                    <div class="stat-value">${Object.keys(data.polling_health.calendars).length}</div>
+                </div>`;
+        }
+
+        async function refreshQueue() {
+            const items = await fetchAPI('sync_queue');
+            const body = document.getElementById('queue-body');
+            body.innerHTML = (items || []).map(i => `
+                <tr>
+                    <td>${i.event_id.substring(0,8)}…</td>
+                    <td><span class="badge badge-success">${i.operation}</span></td>
+                    <td><span class="badge ${i.status === 'FAILED' ? 'badge-error' : 'badge-warning'}">${i.status}</span></td>
+                    <td>${i.attempts || 0}</td>
+                </tr>`).join('') || '<tr><td colspan="4">No hay tareas pendientes</td></tr>';
+        }
+
+        async function refreshReviews() {
+            const reviews = await (await fetch('/api/review/pending')).json();
+            const panel = document.getElementById('review-panel');
+            const badge = document.getElementById('review-count-badge');
+
+            if (!reviews || reviews.length === 0) {
+                panel.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:20px;">✓ Sin conflictos pendientes</p>';
+                badge.textContent = '';
+                return;
+            }
+
+            badge.textContent = reviews.length + ' pendiente' + (reviews.length > 1 ? 's' : '');
+
+            panel.innerHTML = reviews.map(item => {
+                const isDelete = item.conflict_type === 'REMOTE_DELETE';
+                const id = item.review_id || '';
+                const evSummary = item.event_summary || item.event_id?.substring(0,14) + '…';
+                const headerColor = isDelete ? '#ef4444' : '#f59e0b';
+                const typeLabel = isDelete ? '⚠ ELIMINADO EN GOOGLE' : '✎ CAMBIO DE CAMPO';
+
+                const diff = item.diff || {};
+                const diffRows = Object.entries(diff).filter(([k]) => !k.startsWith('_')).map(([f, d]) => {
+                    const label = FIELD_LABELS[f] || f;
+                    return `<tr>
+                        <td style="color:var(--text-dim);font-size:11px;font-weight:600">${label}</td>
+                        <td style="color:#fca5a5;font-size:11px">${d.old || '—'}</td>
+                        <td style="color:var(--text-dim)">→</td>
+                        <td style="color:#6ee7b7;font-size:11px">${d.new || '—'}</td>
+                    </tr>`;
+                }).join('');
+
+                const diffTable = diffRows ? `
+                    <table style="width:100%;border-collapse:collapse;margin:8px 0;">
+                        <thead><tr>
+                            <th style="font-size:10px;color:var(--text-dim);text-align:left;padding:2px 4px">Campo</th>
+                            <th style="font-size:10px;color:#fca5a5;text-align:left;padding:2px 4px">Local</th>
+                            <th></th>
+                            <th style="font-size:10px;color:#6ee7b7;text-align:left;padding:2px 4px">Google</th>
+                        </tr></thead>
+                        <tbody>${diffRows}</tbody>
+                    </table>` : (isDelete ? '<p style="color:#f87171;font-size:11px">El evento fue eliminado en Google.</p>' : '');
+
+                return `
+                    <div id="admin-review-${id}" style="border:1px solid ${headerColor};border-radius:8px;margin-bottom:12px;overflow:hidden;background:var(--bg-card);">
+                        <div style="background:${isDelete ? 'rgba(239,68,68,.1)' : 'rgba(245,158,11,.08)'};
+                                    border-left:4px solid ${headerColor};padding:8px 14px;
+                                    display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <span style="color:${headerColor};font-weight:700;font-size:12px">${typeLabel}</span>
+                                <div style="font-size:13px;font-weight:600;margin-top:2px">${evSummary}</div>
+                                <div style="font-size:11px;color:var(--text-dim)">${item.tecnico_nombre || '—'} · ${item.calendar_id || '—'}</div>
+                            </div>
+                            <div style="font-size:10px;color:var(--text-dim)">${(item.detected_at || '').substring(0,16).replace('T',' ')}</div>
+                        </div>
+                        <div style="padding:10px 14px">${diffTable}</div>
+                        <div style="padding:8px 14px;border-top:1px solid #334155;display:flex;gap:8px;justify-content:flex-end">
+                            <button class="refresh-btn" style="background:#475569;font-size:12px;padding:.3rem .8rem"
+                                    onclick="adminDefer('${id}')">Posponer</button>
+                            <button class="refresh-btn" style="background:#ef4444;font-size:12px;padding:.3rem .8rem"
+                                    onclick="adminReject('${id}')">
+                                ${isDelete ? 'Restaurar en Google' : 'Rechazar / Revertir'}
+                            </button>
+                            <button class="refresh-btn" style="background:var(--success);font-size:12px;padding:.3rem .8rem"
+                                    onclick="adminAccept('${id}')">
+                                ${isDelete ? 'Confirmar Borrado' : 'Aplicar Cambio'}
+                            </button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        async function adminAccept(id) {
+            await fetch(`/api/review/${id}/accept`, {method:'POST'});
+            document.getElementById('admin-review-' + id)?.remove();
+            refreshDashboard();
+        }
+        async function adminReject(id) {
+            await fetch(`/api/review/${id}/reject`, {method:'POST'});
+            document.getElementById('admin-review-' + id)?.remove();
+        }
+        async function adminDefer(id) {
+            await fetch(`/api/review/${id}/defer`, {method:'POST'});
+            document.getElementById('admin-review-' + id)?.remove();
+        }
+
+        async function refreshLogs() {
+            const logs = await fetchAPI('reconciliation_logs');
+            const body = document.getElementById('logs-body');
+            body.innerHTML = (logs || []).map(l => `
+                <tr>
+                    <td style="font-size:.8rem">${(l.timestamp||'').substring(11,19)}</td>
+                    <td style="font-size:.8rem">${(l.event_id||'').substring(0,10)}…</td>
+                    <td><span class="badge ${l.event_type?.includes('ACCEPTED') ? 'badge-success' : l.event_type?.includes('REJECTED') ? 'badge-error' : 'badge-warning'}">${(l.event_type||'').split(':').pop()}</span></td>
+                    <td style="font-size:.8rem">${JSON.stringify(l.detail).substring(0,60)}…</td>
+                </tr>`).join('');
+        }
+
+        function refreshAll() {
+            refreshDashboard();
+            refreshQueue();
+            refreshReviews();
+            refreshLogs();
+        }
+
+        refreshAll();
+        setInterval(refreshAll, 30000);
+    </script>
+</body>
+</html>

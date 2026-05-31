@@ -50,3 +50,19 @@ Si detectas que tus secretos están en el historial de un repositorio remoto:
 
 ## 4. Estructura de Base de Datos
 La base de datos SQLite `planificacion.db` también está ignorada por Git para evitar conflictos de datos y proteger la información operativa de tus técnicos.
+
+---
+
+## 5. Identidad de Usuario
+
+Al iniciar la aplicación, el sistema detecta automáticamente la cuenta de Google autenticada y la muestra en el **chip de usuario** del encabezado (email + iniciales).
+
+- **Primera vez**: si no hay `token.json`, la próxima sincronización abrirá el navegador para pedir autorización.
+- **El perfil se cachéa** en la base de datos local para que el chip aparezca instantáneamente al reabrir la app.
+- **Desconectar sesión**: hover sobre el chip → aparece el botón 🚶 (salir). Confirmar elimina el `token.json`. La próxima sincronización pedirá login nuevamente.
+
+> [!TIP]
+> Para **cambiar de cuenta de Google**, simplemente usá el botón de desconexion del chip y luego pulsá "Sincronizar". El navegador abrirá el selector de cuentas de Google.
+
+> [!NOTE]
+> La aplicación es **mono-usuario**: un `token.json` por instalación. Si más de una persona necesita usar la app en la misma máquina, cada una deberá tener su propia carpeta con su propio ejecutable y sus propias credenciales.

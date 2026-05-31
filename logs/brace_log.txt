@@ -1,0 +1,1157 @@
+0001: 00 | // ════════════════════════════════════════
+0002: 00 | // SCHEDULER ENGINE — Akrimet Planner v2.0
+0003: 00 | // ════════════════════════════════════════
+0004: 00 | 
+0005: 01 | var Scheduler = (() => {
+0006: 01 |     const START_H = 7;
+0007: 01 |     const END_H = 18;
+0008: 01 |     const HOURS = END_H - START_H; // 11 horas de rango (07:
+0009: 01 | 
+0010: 01 |     // Paleta muted por técnico
+0011: 01 |     const TECH_COLORS = [
+0012: 01 |         '#3b82f6','#8b5cf6','#06b6d4','#10b981',
+0013: 01 |         '#f59e0b','#ec4899','#6366f1','#14b8a6',
+0014: 01 |         '#f97316','#a78bfa'
+0015: 01 |     ];
+0016: 01 |     let techColorMap = {};
+0017: 01 | 
+0018: 02 |     let state = {
+0019: 02 |         tecnicos: [],
+0020: 02 |         eventos: [],
+0021: 02 |         currentDate: new Date(),
+0022: 02 |         view: 'week', // Vista semanal por defecto
+0023: 02 |         mode: 'scheduler', // 'scheduler' | 'resources'
+0024: 02 |         expandPats: false,
+0025: 02 |         soloOTs: false,
+0026: 02 |         holidays: {},
+0027: 01 |     };
+0028: 01 | 
+0029: 01 |     const norm = s => s ? s.normalize('NFD').replace(/[\u030
+0030: 02 |     const fmtDate = d => {
+0031: 02 |         // Use local date to avoid UTC timezone shift issues
+0032: 02 |         const y = d.getFullYear();
+0033: 02 |         const m = String(d.getMonth()+1).padStart(2,'0');
+0034: 02 |         const day = String(d.getDate()).padStart(2,'0');
+0035: 02 |         return `${y}-${m}-${day}`;
+0036: 01 |     };
+0037: 01 | 
+0038: 02 |     const getWeekStart = d => {
+0039: 02 |         const day = new Date(d.getFullYear(), d.getMonth(), 
+0040: 02 |         const dow = (day.getDay() + 6) % 7; // 0=lunes
+0041: 02 |         day.setDate(day.getDate() - dow);
+0042: 02 |         return day;
+0043: 01 |     };
+0044: 01 | 
+0045: 01 | 
+0046: 01 |     // Parsea fechas de Google ISO (con T) o Base de Datos (
+0047: 02 |     function parseAnyDate(s) {
+0048: 03 |         if (!s) {
+0049: 03 |             console.warn("[DIAGNOSTIC] parseAnyDate: input i
+0050: 03 |             return null;
+0051: 02 |         }
+0052: 02 |         if (s instanceof Date) return s;
+0053: 02 |         // Si tiene 'T', es ISO de Google. Si no, intentamos
+0054: 03 |         if (s.includes('T')) {
+0055: 03 |             return new Date(s.replace(/([+-]\d{2}:\d{2}|Z)$/
+0056: 02 |         }
+0057: 02 |         // Formato DB: split por espacio
+0058: 02 |         const parts = s.split(' ');
+0059: 02 |         const dateParts = parts[0].split('-');
+0060: 02 |         if (dateParts.length < 3) return null;
+0061: 02 |         const y = parseInt(dateParts[0]);
+0062: 02 |         const m = parseInt(dateParts[1]) - 1;
+0063: 02 |         const d = parseInt(dateParts[2]);
+0064: 03 |         if (parts.length > 1) {
+0065: 03 |             const timeParts = parts[1].split(':');
+0066: 03 |             return new Date(y, m, d, parseInt(timeParts[0]),
+0067: 02 |         }
+0068: 02 |         // Solo fecha
+0069: 02 |         return new Date(y, m, d, 12, 0, 0); // Noon for all-
+0070: 01 |     }
+0071: 01 | 
+0072: 02 |     function shouldRenderEvent(ev) {
+0073: 02 |         if (!ev) return false;
+0074: 02 |         // Ocultar eventos cancelados en Google aceptados po
+0075: 03 |         if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+0076: 03 |             return false;
+0077: 02 |         }
+0078: 02 |         return true;
+0079: 01 |     }
+0080: 01 | 
+0081: 01 |     // Explota eventos multi-día en segmentos diarios
+0082: 02 |     function getExpandedEvents(events) {
+0083: 03 |         if (!events || events.length === 0) {
+0084: 03 |             console.log("[DIAGNOSTIC] getExpandedEvents: no 
+0085: 02 |         }
+0086: 02 |         const expanded = [];
+0087: 03 |         events.forEach(ev => {
+0088: 03 |             if (!shouldRenderEvent(ev)) return;
+0089: 03 |             
+0090: 04 |             console.log("[DIAGNOSTIC] Expanding event:", {
+0091: 04 |                 id: ev.google_event_id,
+0092: 04 |                 summary: ev.summary,
+0093: 04 |                 inicio: ev.inicio,
+0094: 04 |                 fin: ev.fin,
+0095: 04 |                 tecnico_nombre: ev.tecnico_nombre
+0096: 03 |             });
+0097: 03 |             // [CANONICAL_MIGRATION] ev.start/ev.end -> ev.i
+0098: 03 |             const evStartStr = (ev.inicio || '');
+0099: 03 |             const evEndStr = (ev.fin || '');
+0100: 03 |             
+0101: 03 |             let dStart = parseAnyDate(evStartStr);
+0102: 03 |             let dEnd = parseAnyDate(evEndStr);
+0103: 03 |             
+0104: 03 |             if (!dStart || !dEnd) return;
+0105: 03 | 
+0106: 03 |             // Detección robusta de All-day
+0107: 03 |             const isTimed = evStartStr.includes('T') || evSt
+0108: 03 |             const isAllDay = !isTimed;
+0109: 03 | 
+0110: 03 |             let current = new Date(dStart.getFullYear(), dSt
+0111: 03 |             const endLimit = new Date(dEnd.getFullYear(), dE
+0112: 03 |             
+0113: 03 |             // Lógica de límites Google vs Locales
+0114: 03 |             const isInclusive = isTimed || (dEnd.getTime() =
+0115: 03 | 
+0116: 04 |             while (isInclusive ? (current <= endLimit) : (cu
+0117: 04 |                 const dayStr = fmtDate(current);
+0118: 04 |                 const isFirstDay = fmtDate(current) === fmtD
+0119: 04 |                 const isLastDay = isInclusive ? (fmtDate(cur
+0120: 04 | 
+0121: 04 |                 let sh = 7, eh = 16;
+0122: 04 |                 if (isFirstDay && isTimed) sh = dStart.getHo
+0123: 04 |                 if (isLastDay && isTimed) eh = dEnd.getHours
+0124: 04 |                 if (!isFirstDay && !isLastDay) { sh = 7; eh 
+0125: 04 |                 if (isAllDay) { sh = 7; eh = 16; }
+0126: 04 | 
+0127: 05 |                 expanded.push({
+0128: 05 |                     ...ev,
+0129: 05 |                     _dayStr: dayStr,
+0130: 05 |                     _sh: sh,
+0131: 05 |                     _eh: eh,
+0132: 05 |                     _isFirstDay: isFirstDay,
+0133: 05 |                     _isLastDay: isLastDay,
+0134: 05 |                     _isMultiDay: (dEnd.getTime() - dStart.ge
+0135: 04 |                 });
+0136: 04 |                 current.setDate(current.getDate() + 1);
+0137: 03 |             }
+0138: 02 |         });
+0139: 02 |         return expanded;
+0140: 01 |     }
+0141: 01 | 
+0142: 02 |     function isOT(ev) {
+0143: 02 |         // [OT_NORMALIZATION] Clasificación centralizada en 
+0144: 02 |         // El frontend solo consume el campo canónico app_ot
+0145: 02 |         const appOts = ev.app_ots || [];
+0146: 02 |         const isReserva = /RESERVA/i.test(ev.summary || '');
+0147: 02 |         
+0148: 02 |         const result = appOts.length > 0 || isReserva;
+0149: 02 | 
+0150: 03 |         if (state.soloOTs) {
+0151: 04 |             console.log(`[OT_NORMALIZATION_UI] Event ${ev.id
+0152: 04 |                 appOts,
+0153: 04 |                 isReserva,
+0154: 04 |                 result
+0155: 03 |             });
+0156: 02 |         }
+0157: 02 |         return result;
+0158: 01 |     }
+0159: 01 | 
+0160: 02 |     function getJobKey(ev) {
+0161: 02 |         const ots = ev.app_ots || [];
+0162: 02 |         const base = ots.length ? ots.slice().sort().join('-
+0163: 02 |         // Usamos día + horas para que solo resalte los que 
+0164: 02 |         return `${base}_${ev._dayStr}_${ev._sh.toFixed(2)}_$
+0165: 01 |     }
+0166: 01 | 
+0167: 02 |     function assignColors(tecnicos) {
+0168: 02 |         techColorMap = {};
+0169: 03 |         tecnicos.forEach((t, i) => {
+0170: 03 |             techColorMap[t.nombre] = TECH_COLORS[i % TECH_CO
+0171: 02 |         });
+0172: 01 |     }
+0173: 01 | 
+0174: 02 |     function setState(partial) {
+0175: 02 |         console.log("[SCHEDULER] setState:", Object.keys(par
+0176: 03 |         if (partial.eventos) {
+0177: 03 |             console.log(`[DIAGNOSTIC] setState: Recibidos ${
+0178: 03 |             if (partial.eventos.length > 0) console.log("[DI
+0179: 02 |         }
+0180: 02 |         if (partial.tecnicos) console.log(`[SCHEDULER] Recib
+0181: 02 |         
+0182: 02 |         // Merge partial state, ensuring holidays is always 
+0183: 02 |         Object.assign(state, partial);
+0184: 02 |         if (!state.holidays) state.holidays = {};
+0185: 01 |     }
+0186: 01 | 
+0187: 02 |     function toggleResourceMode() {
+0188: 02 |         state.mode = state.mode === 'resources' ? 'scheduler
+0189: 02 |         render();
+0190: 02 |         return state.mode === 'resources';
+0191: 01 |     }
+0192: 01 | 
+0193: 01 |     // ─────────────────────────────────────
+0194: 01 |     // RENDERING
+0195: 01 |     // ─────────────────────────────────────
+0196: 01 | 
+0197: 02 |     function render() {
+0198: 02 |         console.log("[SCHEDULER] Iniciando render ciclo comp
+0199: 02 |         const scrollArea = document.getElementById('schedule
+0200: 02 |         const sTop = scrollArea ? scrollArea.scrollTop : 0;
+0201: 02 |         const sLeft = scrollArea ? scrollArea.scrollLeft : 0
+0202: 02 | 
+0203: 03 |         try {
+0204: 03 |             renderTechLabels();
+0205: 03 |             renderHeader();
+0206: 03 |             renderRows();
+0207: 03 |             updateDateLabel();
+0208: 03 |             console.log("[SCHEDULER] Render finalizado con é
+0209: 03 |         } catch (err) {
+0210: 03 |             console.error("[SCHEDULER] Error fatal durante e
+0211: 02 |         }
+0212: 02 | 
+0213: 03 |         if (scrollArea) {
+0214: 03 |             scrollArea.scrollTop = sTop;
+0215: 03 |             scrollArea.scrollLeft = sLeft;
+0216: 02 |         }
+0217: 01 |     }
+0218: 01 | 
+0219: 02 |     function renderTechLabels() {
+0220: 02 |         const col = document.getElementById('tech-labels-col
+0221: 02 |         if (!col) return;
+0222: 02 |         col.innerHTML = '<div class="tech-label-spacer"></di
+0223: 03 |         state.tecnicos.forEach(t => {
+0224: 03 |             const color = techColorMap[t.nombre] || '#64748b
+0225: 03 |             const fallbackInits = t.nombre.split(' ').filter
+0226: 03 |             const displayInits = t.iniciales || fallbackInit
+0227: 03 |             
+0228: 03 |             const cell = document.createElement('div');
+0229: 03 |             cell.className = 'tech-label-cell';
+0230: 03 |             cell.innerHTML = `
+0231: 03 |                 <div class="tech-label-name">
+0232: 03 |                     <span class="tech-color-dot" style="back
+0233: 03 |                 </div>
+0234: 03 |                 <div class="tech-label-init">${displayInits}
+0235: 03 |             col.appendChild(cell);
+0236: 02 |         });
+0237: 01 |     }
+0238: 01 | 
+0239: 02 |     function renderHeader() {
+0240: 02 |         const row = document.getElementById('time-header-row
+0241: 02 |         if (!row) return;
+0242: 02 |         row.innerHTML = '';
+0243: 02 | 
+0244: 03 |         if (state.mode === 'resources' && state.view === 'da
+0245: 03 |              const dateStr = fmtDate(state.currentDate);
+0246: 03 |              const isToday = dateStr === fmtDate(new Date())
+0247: 03 |              const cell = document.createElement('div');
+0248: 03 |              cell.className = 'time-header-cell day-view-cel
+0249: 03 |              cell.style.flexDirection = 'column';
+0250: 03 |              cell.style.gap = '4px';
+0251: 03 |              
+0252: 03 |              const isHolidayName = state.holidays ? state.ho
+0253: 03 | 
+0254: 03 |              const label = document.createElement('span');
+0255: 03 |              label.textContent = state.currentDate.toLocaleD
+0256: 03 |              if (isToday) label.style.color = 'var(--accent)
+0257: 04 |              if (isHolidayName) {
+0258: 04 |                  label.innerHTML += ` <span style="font-size
+0259: 04 |                  cell.title = isHolidayName;
+0260: 03 |              }
+0261: 03 |              cell.appendChild(label);
+0262: 03 |              
+0263: 03 |              const alerts = calcDayAlerts(dateStr);
+0264: 03 |              const aDiv = document.createElement('div');
+0265: 03 |              aDiv.style.display = 'flex'; aDiv.style.gap = '
+0266: 03 |              
+0267: 04 |              if (alerts.patConf) {
+0268: 04 |                 const i = document.createElement('i');
+0269: 04 |                 i.className = 'fa-solid fa-triangle-exclamat
+0270: 04 |                 i.addEventListener('mouseenter', e => showTo
+0271: 04 |                 i.addEventListener('mouseleave', hideTooltip
+0272: 04 |                 aDiv.appendChild(i);
+0273: 03 |              }
+0274: 04 |              if (alerts.vehConf) {
+0275: 04 |                 const i = document.createElement('i');
+0276: 04 |                 i.className = 'fa-solid fa-truck-fast'; i.st
+0277: 04 |                 i.addEventListener('mouseenter', e => showTo
+0278: 04 |                 i.addEventListener('mouseleave', hideTooltip
+0279: 04 |                 aDiv.appendChild(i);
+0280: 03 |              }
+0281: 04 |              if (alerts.vehReq) {
+0282: 04 |                 const i = document.createElement('i');
+0283: 04 |                 i.className = 'fa-solid fa-key'; i.style.col
+0284: 04 |                 i.addEventListener('mouseenter', e => showTo
+0285: 04 |                 i.addEventListener('mouseleave', hideTooltip
+0286: 04 |                 aDiv.appendChild(i);
+0287: 03 |              }
+0288: 03 |              
+0289: 03 |              cell.appendChild(aDiv);
+0290: 03 |              row.appendChild(cell);
+0291: 03 |              return;
+0292: 02 |         }
+0293: 02 | 
+0294: 03 |         if (state.view === 'day') {
+0295: 03 |             // Day view: distribute equally across full widt
+0296: 04 |             for (let h = START_H; h < END_H; h++) {
+0297: 04 |                 const cell = document.createElement('div');
+0298: 04 |                 cell.className = 'time-header-cell day-view-
+0299: 04 |                 cell.textContent = `${String(h).padStart(2,'
+0300: 04 |                 row.appendChild(cell);
+0301: 03 |             }
+0302: 03 |             // Add end label
+0303: 03 |             const endCell = document.createElement('div');
+0304: 03 |             endCell.className = 'time-header-cell day-view-c
+0305: 03 |             endCell.textContent = `${String(END_H).padStart(
+0306: 03 |             row.appendChild(endCell);
+0307: 03 |         } else {
+0308: 03 |             // Week view: 5 normal cols + 2 half-width weeke
+0309: 03 |             // Using CSS grid defined in renderWeekLayout()
+0310: 03 |             renderWeekLayout(row, false);
+0311: 02 |         }
+0312: 01 |     }
+0313: 01 | 
+0314: 02 |     function renderWeekLayout(container, isRow) {
+0315: 02 |         const ws = getWeekStart(state.currentDate);
+0316: 02 |         const todayStr = fmtDate(new Date());
+0317: 02 | 
+0318: 03 |         for (let i = 0; i < 7; i++) {
+0319: 03 |             const d = new Date(ws.getFullYear(), ws.getMonth
+0320: 03 |             const isWeekend = d.getDay() === 0 || d.getDay()
+0321: 03 |             const dateStr = fmtDate(d);
+0322: 03 |             const isToday = dateStr === todayStr;
+0323: 03 |             const holidayName = state.holidays ? state.holid
+0324: 03 |             const cell = document.createElement('div');
+0325: 03 | 
+0326: 04 |             if (isRow) {
+0327: 04 |                 cell.className = 'day-cell' + (isWeekend ? '
+0328: 04 |                 cell.dataset.dow = i;
+0329: 04 |                 cell.dataset.date = dateStr;
+0330: 04 |             } else {
+0331: 04 |                 cell.className = 'time-header-cell week-day-
+0332: 04 |                     (isWeekend ? ' weekend' : '') + (isToday
+0333: 05 |                 if (holidayName) {
+0334: 05 |                     cell.title = holidayName;
+0335: 04 |                 }
+0336: 04 |                 
+0337: 04 |                 const alerts = calcDayAlerts(fmtDate(d));
+0338: 04 |                 const aDiv = document.createElement('div');
+0339: 04 |                 aDiv.style.display = 'flex'; aDiv.style.gap 
+0340: 04 | 
+0341: 05 |                 if (alerts.patConf) {
+0342: 05 |                     const i = document.createElement('i');
+0343: 05 |                     i.className = 'fa-solid fa-triangle-excl
+0344: 05 |                     i.addEventListener('mouseenter', e => sh
+0345: 05 |                     i.addEventListener('mouseleave', hideToo
+0346: 05 |                     aDiv.appendChild(i);
+0347: 04 |                 }
+0348: 05 |                 if (alerts.vehConf) {
+0349: 05 |                     const i = document.createElement('i');
+0350: 05 |                     i.className = 'fa-solid fa-truck-fast'; 
+0351: 05 |                     i.addEventListener('mouseenter', e => sh
+0352: 05 |                     i.addEventListener('mouseleave', hideToo
+0353: 05 |                     aDiv.appendChild(i);
+0354: 04 |                 }
+0355: 05 |                 if (alerts.vehReq) {
+0356: 05 |                     const i = document.createElement('i');
+0357: 05 |                     i.className = 'fa-solid fa-key'; i.style
+0358: 05 |                     i.addEventListener('mouseenter', e => sh
+0359: 05 |                     i.addEventListener('mouseleave', hideToo
+0360: 05 |                     aDiv.appendChild(i);
+0361: 04 |                 }
+0362: 04 | 
+0363: 04 |                 let dayLabelHTML = `
+0364: 04 |                     <span class="wh-day">${d.toLocaleDateStr
+0365: 04 |                     <span class="wh-date">${d.getDate()}/${d
+0366: 05 |                 if (holidayName) {
+0367: 05 |                     dayLabelHTML += `<div style="font-size: 
+0368: 04 |                 }
+0369: 04 |                 cell.innerHTML = dayLabelHTML;
+0370: 04 |                 cell.appendChild(aDiv);
+0371: 03 |             }
+0372: 03 |             container.appendChild(cell);
+0373: 02 |         }
+0374: 01 |     }
+0375: 01 | 
+0376: 02 |     function renderRows() {
+0377: 02 |         console.log(`[SCHEDULER] renderRows: Dibujando filas
+0378: 02 |         const container = document.getElementById('scheduler
+0379: 03 |         if (!container) {
+0380: 03 |             console.error("[SCHEDULER] Error: No se encontró
+0381: 03 |             return;
+0382: 02 |         }
+0383: 02 |         container.innerHTML = '';
+0384: 02 | 
+0385: 02 |         // Apply week-grid or day-grid class to scroll area
+0386: 02 |         const scrollArea = document.getElementById('schedule
+0387: 02 |         const wrapper = document.getElementById('scheduler-w
+0388: 02 |         
+0389: 03 |         if (wrapper) {
+0390: 03 |             if (state.mode === 'resources') wrapper.classLis
+0391: 03 |             else wrapper.classList.remove('res-mode');
+0392: 02 |         }
+0393: 02 | 
+0394: 03 |         if (scrollArea) {
+0395: 04 |             if (state.view === 'week') {
+0396: 04 |                 scrollArea.classList.add('week-mode');
+0397: 04 |                 scrollArea.classList.remove('day-mode');
+0398: 04 |             } else {
+0399: 04 |                 scrollArea.classList.add('day-mode');
+0400: 04 |                 scrollArea.classList.remove('week-mode');
+0401: 03 |             }
+0402: 02 |         }
+0403: 02 | 
+0404: 02 |         // Pre-calcular frecuencia de técnicos por trabajo p
+0405: 02 |         const expandedAll = getExpandedEvents(state.eventos)
+0406: 02 |         const jobFreq = {};
+0407: 03 |         expandedAll.forEach(ev => {
+0408: 03 |             const jk = getJobKey(ev);
+0409: 03 |             jobFreq[jk] = (jobFreq[jk] || 0) + 1;
+0410: 02 |         });
+0411: 02 |         state._jobFreq = jobFreq;
+0412: 02 | 
+0413: 03 |         state.tecnicos.forEach(t => {
+0414: 03 |             const row = document.createElement('div');
+0415: 03 |             row.className = 'scheduler-row';
+0416: 03 |             row.dataset.tech = t.nombre;
+0417: 03 | 
+0418: 04 |             if (state.view === 'day') {
+0419: 04 |                 renderDayRow(row, t);
+0420: 04 |             } else {
+0421: 04 |                 renderWeekRow(row, t);
+0422: 03 |             }
+0423: 03 | 
+0424: 03 |             row.addEventListener('dragover', e => { e.preven
+0425: 04 |             row.addEventListener('dragleave', e => {
+0426: 04 |                 if (!row.contains(e.relatedTarget)) row.clas
+0427: 03 |             });
+0428: 03 |             row.addEventListener('drop', e => handleDrop(e, 
+0429: 03 |             row.addEventListener('dblclick', e => handleDblC
+0430: 03 |             container.appendChild(row);
+0431: 02 |         });
+0432: 02 | 
+0433: 02 |         // Sincronizar altura de columna de técnicos cuando 
+0434: 03 |         if (state.mode === 'resources') {
+0435: 03 |             const labels = document.querySelectorAll('.tech-
+0436: 04 |             const observer = new ResizeObserver(entries => {
+0437: 05 |                 entries.forEach(entry => {
+0438: 05 |                     const row = entry.target;
+0439: 05 |                     const idx = Array.from(container.childre
+0440: 05 |                     if (labels[idx]) labels[idx].style.heigh
+0441: 04 |                 });
+0442: 03 |             });
+0443: 04 |             container.querySelectorAll('.scheduler-row').for
+0444: 04 |                 observer.observe(row);
+0445: 04 |                 const idx = Array.from(container.children).i
+0446: 04 |                 if (labels[idx]) labels[idx].style.height = 
+0447: 03 |             });
+0448: 03 |         } else {
+0449: 03 |             document.querySelectorAll('.tech-label-cell').fo
+0450: 02 |         }
+0451: 01 |     }
+0452: 01 | 
+0453: 02 |     function renderDayRow(row, tech) {
+0454: 02 |         const color = techColorMap[tech.nombre] || '#64748b'
+0455: 02 |         const dateStr = fmtDate(state.currentDate);
+0456: 02 | 
+0457: 02 |         // Filter events for today + this tech using expande
+0458: 02 |         const expanded = getExpandedEvents(state.eventos);
+0459: 02 |         console.log(`[DIAGNOSTIC] renderDayRow (${tech.nombr
+0460: 03 |         let eventsToday = expanded.filter(ev => {
+0461: 03 |             // [CANONICAL_MIGRATION] ev.tecnico_nombre
+0462: 03 |             const evTech = ev.tecnico_nombre;
+0463: 03 |             if (!evTech) console.warn("[DIAGNOSTIC] Event mi
+0464: 03 |             if (norm(evTech) !== norm(tech.nombre)) return f
+0465: 03 |             return ev._dayStr === dateStr;
+0466: 02 |         });
+0467: 02 |         console.log(`[DIAGNOSTIC] renderDayRow (${tech.nombr
+0468: 02 |         
+0469: 02 |         if (state.soloOTs) eventsToday = eventsToday.filter(
+0470: 02 | 
+0471: 03 |         if (state.mode === 'resources') {
+0472: 04 |             eventsToday.forEach(ev => {
+0473: 04 |                 row.appendChild(createResourceCard(ev, color
+0474: 03 |             });
+0475: 03 |             return;
+0476: 02 |         }
+0477: 02 | 
+0478: 02 |         const groups = getOverlapGroups(eventsToday);
+0479: 03 |         groups.forEach(group => {
+0480: 04 |             group.forEach((ev, colIdx) => {
+0481: 04 |                 const block = createDayBlock(ev, color, colI
+0482: 04 |                 if (block) row.appendChild(block);
+0483: 03 |             });
+0484: 02 |         });
+0485: 01 |     }
+0486: 01 | 
+0487: 02 |     function renderWeekRow(row, tech) {
+0488: 02 |         const color = techColorMap[tech.nombre] || '#64748b'
+0489: 02 |         const ws = getWeekStart(state.currentDate);
+0490: 02 | 
+0491: 02 |         // Build day cells
+0492: 02 |         renderWeekLayout(row, true);
+0493: 02 | 
+0494: 02 |         const expanded = getExpandedEvents(state.eventos);
+0495: 02 |         
+0496: 03 |         let weekEvs = expanded.filter(ev => {
+0497: 03 |             // [CANONICAL_MIGRATION] ev.tecnico_nombre
+0498: 03 |             const evTech = ev.tecnico_nombre || '';
+0499: 03 |             if (!evTech) console.warn("[DIAGNOSTIC] renderWe
+0500: 03 |             if (norm(evTech) !== norm(tech.nombre)) return f
+0501: 03 |             
+0502: 03 |             const d = parseAnyDate(ev._dayStr);
+0503: 03 |             const weEnd = new Date(ws.getFullYear(), ws.getM
+0504: 03 |             const match = d >= ws && d <= weEnd;
+0505: 03 |             return match;
+0506: 02 |         });
+0507: 02 | 
+0508: 02 |         console.log(`[DIAGNOSTIC] renderWeekRow (${tech.nomb
+0509: 03 |         if (weekEvs.length > 0) {
+0510: 03 |             console.log(`[SCHEDULER] Row ${tech.nombre}: Enc
+0511: 02 |         }
+0512: 02 |         if (state.soloOTs) weekEvs = weekEvs.filter(ev => is
+0513: 02 | 
+0514: 02 |         const byDay = {};
+0515: 03 |         weekEvs.forEach(ev => {
+0516: 03 |             if (!byDay[ev._dayStr]) byDay[ev._dayStr] = [];
+0517: 03 |             byDay[ev._dayStr].push(ev);
+0518: 02 |         });
+0519: 02 | 
+0520: 03 |         Object.entries(byDay).forEach(([dateStr, evs]) => {
+0521: 03 |             const d = parseAnyDate(dateStr);
+0522: 03 |             if (!d) return;
+0523: 03 |             const dow = (d.getDay() + 6) % 7;
+0524: 03 |             const cell = row.querySelector(`[data-dow="${dow
+0525: 03 |             if (!cell) return;
+0526: 03 | 
+0527: 04 |             if (state.mode === 'resources') {
+0528: 05 |                 evs.forEach(ev => {
+0529: 05 |                     cell.appendChild(createResourceCard(ev, 
+0530: 04 |                 });
+0531: 04 |                 return;
+0532: 03 |             }
+0533: 03 | 
+0534: 03 |             cell.style.position = 'relative';
+0535: 03 |             
+0536: 03 |             // Línea de tiempo horizontal (X=Tiempo), Apilam
+0537: 03 |             const groups = getOverlapGroups(evs);
+0538: 04 |             groups.forEach(group => {
+0539: 05 |                 group.forEach((ev, colIdx) => {
+0540: 05 |                     let sh = ev._sh;
+0541: 05 |                     let eh = ev._eh;
+0542: 05 | 
+0543: 05 |                     // Excepción: Si cae fuera de horario, f
+0544: 05 |                     if (sh >= END_H) { sh = 16; eh = 18; }
+0545: 05 |                     else if (eh <= START_H) { sh = 7; eh = 9
+0546: 05 | 
+0547: 05 |                     const clampSh = Math.max(sh, START_H);
+0548: 05 |                     const clampEh = Math.min(eh, END_H);
+0549: 05 |                     
+0550: 05 |                     const leftPct = ((clampSh - START_H) / H
+0551: 05 |                     const widthPct = Math.max(((clampEh - cl
+0552: 05 |                     const topPct = (colIdx / group.length) *
+0553: 05 |                     const heightPct = (1 / group.length) * 1
+0554: 05 | 
+0555: 05 |                     const block = document.createElement('di
+0556: 05 |                     const jk = getJobKey(ev);
+0557: 05 |                     
+0558: 05 |                     block.className = 'ev-block week-ev-bloc
+0559: 06 |                     if (ev._isMultiDay) {
+0560: 06 |                         if (!ev._isFirstDay) block.classList
+0561: 06 |                         if (!ev._isLastDay) block.classList.
+0562: 05 |                     }
+0563: 04 |                     }
+0564: 04 |                     
+0565: 04 |                     block.dataset.jobKey = jk;
+0566: 04 | 
+0567: 04 |                     block.style.cssText = `
+0568: 04 |                         background:${color}dd;
+0569: 04 |                         left:${leftPct}%;
+0570: 04 |                         width:calc(${widthPct}% - 1px);
+0571: 04 |                         top:calc(${topPct}% + 1px);
+0572: 04 |                         height:calc(${heightPct}% - 2px);
+0573: 04 |                     `;
+0574: 04 |                     
+0575: 04 |                     const isGroup = state._jobFreq && state.
+0576: 04 |                     const groupIcon = isGroup ? '<i class="f
+0577: 04 |                     block.innerHTML = `<div class="ev-title"
+0578: 04 | 
+0579: 04 |                     // Sync hover effect
+0580: 05 |                     block.addEventListener('mouseenter', () 
+0581: 05 |                         document.querySelectorAll(`.ev-block
+0582: 04 |                     });
+0583: 05 |                     block.addEventListener('mouseleave', () 
+0584: 05 |                         document.querySelectorAll(`.ev-block
+0585: 04 |                     });
+0586: 04 | 
+0587: 05 |                     if (ev._syncing) {
+0588: 05 |                         block.setAttribute('draggable', 'fal
+0589: 05 |                         block.classList.add('syncing');
+0590: 05 |                         block.style.opacity = '0.5';
+0591: 05 |                         block.innerHTML += '<div class="ev-s
+0592: 05 |                     } else {
+0593: 05 |                         block.setAttribute('draggable', 'tru
+0594: 06 |                         block.addEventListener('dragstart', 
+0595: 07 |                             e.dataTransfer.setData('applicat
+0596: 07 |                                 type: 'move',
+0597: 07 |                                 eventId: ev.google_event_id,
+0598: 07 |                                 calendarId: ev.calendar_id |
+0599: 06 |                             }));
+0600: 05 |                         });
+0601: 04 |                     }
+0602: 04 | 
+0603: 05 |                     block.addEventListener('click', e => { 
+0604: 05 |                         if (ev._syncing) return;
+0605: 05 |                         e.stopPropagation(); 
+0606: 05 |                         App.selectEvent(ev); 
+0607: 04 |                     });
+0608: 04 |                     cell.appendChild(block);
+0609: 03 |                 });
+0610: 02 |             });
+0611: 01 |         });
+0612: 00 |     }
+0613: 00 | 
+0614: 01 |     function createDayBlock(ev, color, colIdx, totalCols) {
+0615: 01 |         // Usar valores pre-calculados por getExpandedEvents
+0616: 01 |         let sh = ev._sh;
+0617: 01 |         let eh = ev._eh;
+0618: 01 | 
+0619: 01 |         // Excepción: Si cae fuera de horario, forzar visibi
+0620: 01 |         if (sh >= END_H) { sh = 16; eh = 18; }
+0621: 01 |         else if (eh <= START_H) { sh = 7; eh = 9; }
+0622: 01 |         
+0623: 01 |         const clampSh = Math.max(sh, START_H);
+0624: 01 |         const clampEh = Math.min(eh, END_H);
+0625: 01 |         const leftPct = ((clampSh - START_H) / HOURS) * 100;
+0626: 01 |         const widthPct = ((clampEh - clampSh) / HOURS) * 100
+0627: 01 |         const topPct = totalCols > 1 ? (colIdx / totalCols) 
+0628: 01 |         const heightPct = totalCols > 1 ? (1 / totalCols) * 
+0629: 01 | 
+0630: 01 |         const block = document.createElement('div');
+0631: 01 |         const jk = getJobKey(ev);
+0632: 01 |         
+0633: 01 |         block.className = 'ev-block' + (state.soloOTs && !is
+0634: 02 |         if (ev._isMultiDay) {
+0635: 02 |             if (!ev._isFirstDay) block.classList.add('cont-p
+0636: 02 |             if (!ev._isLastDay) block.classList.add('cont-ne
+0637: 01 |         }
+0638: 02 |         if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+0639: 02 |             block.classList.add('cancelled-google');
+0640: 01 |         }
+0641: 01 |         
+0642: 01 |         block.dataset.jobKey = jk;
+0643: 01 | 
+0644: 01 |         block.style.cssText = `
+0645: 01 |             left:${leftPct}%;
+0646: 01 |             width:${Math.max(widthPct, 1.5)}%;
+0647: 01 |             background:${color}dd;
+0648: 01 |             top:calc(${topPct}% + 4px);
+0649: 01 |             height:calc(${heightPct}% - 8px);
+0650: 01 |             bottom:unset;`;
+0651: 01 |         const isGroup = state._jobFreq && state._jobFreq[jk]
+0652: 01 |         const groupIcon = isGroup ? '<i class="fa-solid fa-u
+0653: 01 | 
+0654: 01 |         block.innerHTML = `
+0655: 01 |             <div class="ev-title">${ev.summary}</div>
+0656: 01 |             <div class="ev-time">${fmtHour(sh)}–${fmtHour(eh
+0657: 01 |             ${groupIcon}
+0658: 01 |         `;
+0659: 01 | 
+0660: 01 |         // Sync hover effect
+0661: 02 |         block.addEventListener('mouseenter', () => {
+0662: 02 |             document.querySelectorAll(`.ev-block[data-job-ke
+0663: 01 |         });
+0664: 02 |         block.addEventListener('mouseleave', () => {
+0665: 02 |             document.querySelectorAll(`.ev-block[data-job-ke
+0666: 01 |         });
+0667: 01 |         
+0668: 01 |         // Habilitar arrastre para re-agendamiento (si no es
+0669: 02 |         if (ev._syncing) {
+0670: 02 |             block.setAttribute('draggable', 'false');
+0671: 02 |             block.classList.add('syncing');
+0672: 02 |             block.style.opacity = '0.5';
+0673: 02 |             block.style.cursor = 'wait';
+0674: 02 |             block.innerHTML += '<div class="ev-sync-spinner"
+0675: 02 |         } else if (ev.sync_state === 'CANCELLED_IN_GOOGLE') 
+0676: 02 |             block.setAttribute('draggable', 'false');
+0677: 02 |             block.title = "Evento eliminado en Google Calend
+0678: 02 |         } else {
+0679: 02 |             block.setAttribute('draggable', 'true');
+0680: 03 |             block.addEventListener('dragstart', e => {
+0681: 04 |                 e.dataTransfer.setData('application/json', J
+0682: 04 |                     type: 'move',
+0683: 04 |                     eventId: ev.google_event_id,
+0684: 04 |                     calendarId: ev.calendar_id || 'primary'
+0685: 03 |                 }));
+0686: 03 |                 block.classList.add('dragging');
+0687: 02 |             });
+0688: 02 |             block.addEventListener('dragend', () => block.cl
+0689: 01 |         }
+0690: 01 | 
+0691: 02 |         block.addEventListener('click', e => { 
+0692: 02 |             if (ev._syncing) return;
+0693: 02 |             e.stopPropagation(); 
+0694: 03 |             if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+0695: 03 |                 App.toast('Este evento fue eliminado en Goog
+0696: 03 |                 return;
+0697: 02 |             }
+0698: 02 |             App.selectEvent(ev); 
+0699: 01 |         });
+0700: 01 |         return block;
+0701: 00 |     }
+0702: 00 | 
+0703: 00 |     // ─────────────────────────────────────
+0704: 00 |     // RESOURCES CARDS
+0705: 00 |     // ─────────────────────────────────────
+0706: 00 | 
+0707: 01 |     function createResourceCard(ev, color, techNombre) {
+0708: 01 |         const card = document.createElement('div');
+0709: 01 |         card.className = 'res-card' + (ev._syncing ? ' synci
+0710: 02 |         if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+0711: 02 |             card.classList.add('cancelled-google');
+0712: 01 |         }
+0713: 02 |         if (ev._syncing) {
+0714: 02 |             card.style.opacity = '0.6';
+0715: 02 |             card.style.pointerEvents = 'none';
+0716: 01 |         }
+0717: 01 | 
+0718: 02 |         const checkMultiDayConstraint = () => {
+0719: 02 |              const isTimed = (ev.inicio || '').includes('T')
+0720: 02 |              const d1 = ev.inicio;
+0721: 02 |              const d2 = ev.fin;
+0722: 03 |              if (!isTimed && d1 && d2 && d1 !== d2) {
+0723: 03 |                  App.toast('Evento multi-día (lectura). Por 
+0724: 03 |                  return true;
+0725: 02 |              }
+0726: 02 |              return false;
+0727: 01 |         };
+0728: 01 | 
+0729: 01 |         // 1. Evento
+0730: 01 |         const otsStr = (ev.app_ots || []).join(', ');
+0731: 01 |         const evBox = document.createElement('div');
+0732: 01 |         evBox.className = 'res-rc-ev';
+0733: 01 |         evBox.innerHTML = `
+0734: 01 |             <div class="res-rc-ev-title">${ev.summary || 'Ev
+0735: 01 |             ${otsStr ? `<div class="res-rc-ev-ots">OTs: ${ot
+0736: 01 |             <div style="font-size:9px;color:var(--text-muted
+0737: 01 |         `;
+0738: 02 |         evBox.addEventListener('click', (e) => {
+0739: 02 |             e.stopPropagation();
+0740: 03 |             if (ev.sync_state === 'CANCELLED_IN_GOOGLE') {
+0741: 03 |                 App.toast('Este evento fue eliminado en Goog
+0742: 03 |                 return;
+0743: 02 |             }
+0744: 02 |             App.selectEvent(ev); // Abrir panel derecho
+0745: 01 |         });
+0746: 01 |         card.appendChild(evBox);
+0747: 01 | 
+0748: 01 |         // 2. Patrones
+0749: 01 |         const props = ev.extended_props?.private || {};
+0750: 01 |         const isReq = (props.app_requiere_vehiculo === 'true
+0751: 01 |         let pats = getEventPats(ev);
+0752: 01 | 
+0753: 01 |         // Validar conflictos de patrones (Día completo)
+0754: 01 |         const expHoy = getExpandedEvents(state.eventos).filt
+0755: 01 |         let patConf = false;
+0756: 01 |         let patConfMsg = '';
+0757: 02 |         for (const p of pats) {
+0758: 03 |             if (checkPatternConflict(p, expHoy, ev.google_ev
+0759: 03 |                 patConf = true;
+0760: 03 |                 patConfMsg = `Conflicto: El patrón '${p}' es
+0761: 03 |                 break;
+0762: 02 |             }
+0763: 01 |         }
+0764: 01 | 
+0765: 01 |         const patBox = document.createElement('div');
+0766: 01 |         patBox.className = 'res-rc-pats' + (patConf ? ' conf
+0767: 01 |         patBox.innerHTML = `
+0768: 01 |             <div class="res-rc-pats-header" title="${patConf
+0769: 01 |                 <div><i class="fa-solid fa-tools"></i> <b>${
+0770: 01 |                 <i class="fa-solid fa-plus btn-pat-expand" s
+0771: 01 |             </div>
+0772: 01 |             <div class="res-rc-pats-list" style="display:${s
+0773: 01 |                 ${pats.map(p => `<div class="res-rc-pat-item
+0774: 01 |                 <button class="btn-secondary btn-add-pat" st
+0775: 01 |             </div>
+0776: 01 |         `;
+0777: 01 |         card.appendChild(patBox);
+0778: 01 | 
+0779: 02 |         patBox.querySelector('.btn-pat-expand').addEventList
+0780: 02 |             e.stopPropagation();
+0781: 02 |             const list = patBox.querySelector('.res-rc-pats-
+0782: 02 |             list.style.display = list.style.display === 'non
+0783: 01 |         });
+0784: 01 | 
+0785: 02 |         patBox.querySelectorAll('.btn-del-pat').forEach(b =>
+0786: 03 |              b.addEventListener('click', async e => {
+0787: 03 |                  e.stopPropagation();
+0788: 03 |                  if (checkMultiDayConstraint()) return;
+0789: 03 |                  const p = b.dataset.pat;
+0790: 04 |                  if (confirm(`Quitar ${p} del evento?`)) {
+0791: 04 |                      await updateResourceMetadata(ev, { patr
+0792: 03 |                  }
+0793: 02 |              });
+0794: 01 |         });
+0795: 01 | 
+0796: 02 |         patBox.querySelector('.btn-add-pat').addEventListene
+0797: 02 |              e.stopPropagation();
+0798: 02 |              if (checkMultiDayConstraint()) return;
+0799: 03 |              App.openPatronModal(pats, async (newPats) => {
+0800: 03 |                  await updateResourceMetadata(ev, { patrones
+0801: 02 |              });
+0802: 01 |         });
+0803: 01 | 
+0804: 01 |         // 3. Vehículos
+0805: 01 |         const vehBox = document.createElement('div');
+0806: 01 |         vehBox.className = 'res-rc-veh';
+0807: 01 |         
+0808: 01 |         let cv = props.app_vehiculo || ev.app_vehiculo || ''
+0809: 01 |         const vehiculos = App.getVehiculos() || [];
+0810: 01 |         
+0811: 01 |         // Check alerts
+0812: 01 |         let confStr = '';
+0813: 02 |         if (cv) {
+0814: 02 |              const gid = (ev.extended_props?.private?.grupo_
+0815: 02 |              const cfInfo = App.checkVehicleConflicts(cv, ev
+0816: 03 |              if (cfInfo) {
+0817: 03 |                  confStr = cfInfo;
+0818: 03 |                  vehBox.classList.add('conflict');
+0819: 02 |              }
+0820: 02 |         } else if (isReq) {
+0821: 02 |              confStr = 'Requiere vehículo pero no tiene asig
+0822: 02 |              vehBox.classList.add('conflict');
+0823: 01 |         }
+0824: 01 | 
+0825: 01 |         let selHtml = `<select class="res-rc-veh-sel" title=
+0826: 01 |             <option value="">(Sin vehículo${isReq? ' - Req.'
+0827: 01 |             ${vehiculos.map(v => `<option value="${v.nombre}
+0828: 01 |         </select>`;
+0829: 01 |         
+0830: 01 |         vehBox.innerHTML = `<i class="fa-solid fa-truck-fast
+0831: 01 |         card.appendChild(vehBox);
+0832: 01 | 
+0833: 01 |         const selEl = vehBox.querySelector('select');
+0834: 01 |         selEl.addEventListener('click', e => e.stopPropagati
+0835: 02 |         selEl.addEventListener('change', async e => {
+0836: 02 |             const val = e.target.value;
+0837: 03 |             if (checkMultiDayConstraint()) {
+0838: 03 |                  selEl.value = cv; // Revertir selector
+0839: 03 |                  return;
+0840: 02 |             }
+0841: 02 |             
+0842: 02 |             // Para propagar a todo el día: el usuario dijo 
+0843: 02 |             const exp = getExpandedEvents(state.eventos);
+0844: 02 |             const eventsDelDia = exp.filter(x => x.tecnico_n
+0845: 03 |             if (eventsDelDia.length > 1 && confirm(`¿Desea a
+0846: 03 |                  App.toast('Aplicando a todos los eventos...
+0847: 04 |                  for (const x of eventsDelDia) {
+0848: 04 |                      await updateResourceMetadata(x, { vehic
+0849: 03 |                  }
+0850: 03 |                  App.refresh();
+0851: 03 |             } else {
+0852: 03 |                  await updateResourceMetadata(ev, { vehiculo
+0853: 02 |             }
+0854: 01 |         });
+0855: 01 | 
+0856: 01 |         return card;
+0857: 00 |     }
+0858: 00 | 
+0859: 01 |     async function updateResourceMetadata(ev, partial, reqRe
+0860: 01 |         if(reqRefresh) App.toast('Guardando cambios...', 'in
+0861: 02 |         try {
+0862: 02 |             const calId = ev.calendar_id;
+0863: 02 |             const props = ev.extended_props?.private || {};
+0864: 02 |             // Si hay patrones omitidos en partial, re-envia
+0865: 02 |             let patsToSave = partial.patrones !== undefined 
+0866: 03 |             if (patsToSave === null) {
+0867: 03 |                 const ep = props.app_patrones || ev.app_patr
+0868: 03 |                 patsToSave = typeof ep === 'string' ? JSON.p
+0869: 02 |             }
+0870: 02 |             if (!Array.isArray(patsToSave)) patsToSave = [];
+0871: 02 | 
+0872: 03 |             const bBody = {
+0873: 03 |                  event_id: ev.google_event_id,
+0874: 03 |                  calendar_id_origen: calId,
+0875: 03 |                  correo_destino: calId,
+0876: 03 |                  nueva_fecha: ev.inicio ? ev.inicio.substrin
+0877: 03 |                  patrones: patsToSave,
+0878: 03 |                  vehiculo: partial.vehiculo !== undefined ? 
+0879: 03 |                  requiere_vehiculo: partial.requiere_vehicul
+0880: 02 |             };
+0881: 02 | 
+0882: 03 |             const r = await fetch(`/api/eventos/${ev.google_
+0883: 03 |                 method: 'PATCH',
+0884: 03 |                 headers: { 'Content-Type': 'application/json
+0885: 03 |                 body: JSON.stringify(bBody)
+0886: 02 |             });
+0887: 02 |             if (!r.ok) throw new Error(await r.text());
+0888: 03 |             if (reqRefresh) {
+0889: 03 |                  App.toast('Cambios guardados ✓', 'success')
+0890: 03 |                  App.refresh();
+0891: 02 |             }
+0892: 02 |         } catch(e) {
+0893: 02 |             App.toast(e, 'error');
+0894: 01 |         }
+0895: 00 |     }
+0896: 00 | 
+0897: 00 |     // ─────────────────────────────────────
+0898: 00 |     // HELPERS
+0899: 00 |     // ─────────────────────────────────────
+0900: 00 | 
+0901: 01 |     function calcDayAlerts(dateStr) {
+0902: 01 |          let patConf = false, vehConf = false, vehReq = fals
+0903: 01 |          let details = { pat: [], veh: [] };
+0904: 01 |          const exp = getExpandedEvents(state.eventos).filter
+0905: 01 |          
+0906: 02 |          exp.forEach(ev => {
+0907: 02 |              const props = ev.extended_props?.private || {};
+0908: 02 |              const cv = props.app_vehiculo || ev.app_vehicul
+0909: 02 |              const isReq = (props.app_requiere_vehiculo === 
+0910: 02 |              
+0911: 02 |              if (isReq && !cv) vehReq = true;
+0912: 03 |              else if (cv) {
+0913: 03 |                  const resId = ev.tecnico_nombre || ev['Técn
+0914: 03 |                  const gid = (ev.extended_props?.private?.gr
+0915: 03 |                  const cfo = App.checkVehicleConflicts(cv, d
+0916: 04 |                  if (cfo) {
+0917: 04 |                      vehConf = true;
+0918: 04 |                      details.veh.push(`${cv}: ${ev.summary} 
+0919: 03 |                  }
+0920: 02 |              }
+0921: 02 | 
+0922: 02 |              const evPats = getEventPats(ev);
+0923: 03 |              for (const p of evPats) {
+0924: 03 |                  const conflictInfo = checkPatternConflict(p
+0925: 04 |                  if (conflictInfo === true) {
+0926: 04 |                      patConf = true;
+0927: 04 |                      details.pat.push(`${p}: Usado en "${ev.
+0928: 03 |                  }
+0929: 02 |              }
+0930: 01 |          });
+0931: 01 | 
+0932: 01 |          // De-duplicate details
+0933: 01 |          details.pat = [...new Set(details.pat)];
+0934: 01 |          details.veh = [...new Set(details.veh)];
+0935: 01 | 
+0936: 01 |          return { patConf, vehConf, vehReq, details };
+0937: 00 |     }
+0938: 00 | 
+0939: 01 |     function showTooltip(e, title, items) {
+0940: 01 |         const tt = document.getElementById('alert-tooltip');
+0941: 01 |         if (!tt || !items.length) return;
+0942: 01 |         
+0943: 01 |         tt.innerHTML = `<div class="tooltip-header">${title}
+0944: 02 |         items.forEach(it => {
+0945: 02 |             tt.innerHTML += `<div class="tooltip-item"><i cl
+0946: 01 |         });
+0947: 01 |         
+0948: 01 |         tt.classList.remove('hidden');
+0949: 01 |         const rect = e.target.getBoundingClientRect();
+0950: 01 |         tt.style.left = (rect.left) + 'px';
+0951: 01 |         tt.style.top = (rect.bottom + 5) + 'px';
+0952: 01 |         
+0953: 01 |         // Ajustar si se sale por la derecha
+0954: 02 |         if (rect.left + 250 > window.innerWidth) {
+0955: 02 |             tt.style.left = (window.innerWidth - 260) + 'px'
+0956: 01 |         }
+0957: 00 |     }
+0958: 00 | 
+0959: 01 |     function hideTooltip() {
+0960: 01 |         const tt = document.getElementById('alert-tooltip');
+0961: 01 |         if (tt) tt.classList.add('hidden');
+0962: 00 |     }
+0963: 00 | 
+0964: 01 |     function checkPatternConflict(patName, dayEvents, curren
+0965: 01 |         if (!patName) return false;
+0966: 01 |         
+0967: 01 |         const currentEv = dayEvents.find(e => e.google_event
+0968: 01 |         if (!currentEv) return false;
+0969: 01 |         
+0970: 01 |         const currentOTs = getEventOTs(currentEv);
+0971: 01 |         
+0972: 01 |         // Buscar otros eventos que usen el mismo patrón
+0973: 02 |         const othersUsingPat = dayEvents.filter(e => {
+0974: 02 |             if (e.google_event_id === currentEvId) return fa
+0975: 02 |             const ePats = getEventPats(e);
+0976: 02 |             return ePats.includes(patName);
+0977: 01 |         });
+0978: 01 |         
+0979: 01 |         if (othersUsingPat.length === 0) return false;
+0980: 01 |         
+0981: 01 |         // Si hay otros, verificar si TODOS comparten al men
+0982: 01 |         // (Lógica de Grupos: si comparten OT, están en el m
+0983: 01 |         // Nota: Para simplificar, si el otro evento no comp
+0984: 02 |         for (const other of othersUsingPat) {
+0985: 02 |             const otherOTs = getEventOTs(other);
+0986: 02 |             const common = currentOTs.filter(ot => otherOTs.
+0987: 03 |             if (common.length === 0) {
+0988: 03 |                  // No hay OT en común -> Conflicto de día c
+0989: 03 |                  return true;
+0990: 02 |             }
+0991: 01 |         }
+0992: 01 |         
+0993: 01 |         return false;
+0994: 00 |     }
+0995: 00 | 
+0996: 01 |     function getEventOTs(ev) {
+0997: 01 |         let ots = ev.app_ots || [];
+0998: 02 |         if (typeof ots === 'string') {
+0999: 02 |             try { ots = JSON.parse(ots); } catch { ots = [];
+1000: 01 |         }
+1001: 01 |         return Array.isArray(ots) ? ots : [];
+1002: 00 |     }
+1003: 00 | 
+1004: 01 |     function getEventPats(ev) {
+1005: 01 |         const props = ev.extended_props?.private || {};
+1006: 01 |         let pats = props.app_patrones || ev.app_patrones || 
+1007: 02 |         if (typeof pats === 'string') {
+1008: 02 |             try { pats = JSON.parse(pats); } catch { pats = 
+1009: 01 |         }
+1010: 01 |         return Array.isArray(pats) ? pats : [];
+1011: 00 |     }
+1012: 00 | 
+1013: 01 |     function fmtHour(h) {
+1014: 01 |         const hh = Math.floor(h);
+1015: 01 |         const mm = Math.round((h - hh) * 60);
+1016: 01 |         return `${String(hh).padStart(2,'0')}:${String(mm).p
+1017: 00 |     }
+1018: 00 | 
+1019: 01 |     function getOverlapGroups(events) {
+1020: 01 |         if (!events.length) return [];
+1021: 01 | 
+1022: 01 |         const sorted = [...events].sort((a, b) => a._sh - b.
+1023: 01 |         const groups = [];
+1024: 01 |         let curGroup = [];
+1025: 01 |         let groupEndH = null;
+1026: 01 | 
+1027: 02 |         sorted.forEach(ev => {
+1028: 02 |             const evSh = ev._sh;
+1029: 02 |             const evEh = ev._eh;
+1030: 03 |             if (curGroup.length === 0 || evSh < groupEndH) {
+1031: 03 |                 curGroup.push(ev);
+1032: 03 |                 groupEndH = groupEndH !== null ? Math.max(gr
+1033: 03 |             } else {
+1034: 03 |                 groups.push(curGroup);
+1035: 03 |                 curGroup = [ev];
+1036: 03 |                 groupEndH = evEh;
+1037: 02 |             }
+1038: 01 |         });
+1039: 01 |         if (curGroup.length) groups.push(curGroup);
+1040: 01 |         return groups;
+1041: 00 |     }
+1042: 00 | 
+1043: 01 |     function updateDateLabel() {
+1044: 01 |         const label = document.getElementById('current-date-
+1045: 01 |         if (!label) return;
+1046: 02 |         if (state.view === 'day') {
+1047: 03 |             label.textContent = state.currentDate.toLocaleDa
+1048: 03 |                 weekday:'long', day:'numeric', month:'long',
+1049: 02 |             }).toUpperCase();
+1050: 02 |         } else {
+1051: 02 |             const ws = getWeekStart(state.currentDate);
+1052: 02 |             const we = new Date(ws.getFullYear(), ws.getMont
+1053: 02 |             label.textContent = `Sem. ${ws.getDate()}/${ws.g
+1054: 01 |         }
+1055: 00 |     }
+1056: 00 | 
+1057: 00 |     // ─────────────────────────────────────
+1058: 00 |     // DRAG & DROP
+1059: 00 |     // ─────────────────────────────────────
+1060: 00 | 
+1061: 01 |     function handleDrop(e, tech) {
+1062: 01 |         e.preventDefault();
+1063: 01 |         document.querySelectorAll('.scheduler-row').forEach(
+1064: 01 |         
+1065: 02 |         try {
+1066: 02 |             const dragData = JSON.parse(e.dataTransfer.getDa
+1067: 02 |             let hour = undefined;
+1068: 02 |             let targetDateStr = fmtDate(state.currentDate);
+1069: 02 | 
+1070: 02 |             // 1. Calcular Fecha (si estamos en vista semana
+1071: 03 |             if (state.view === 'week') {
+1072: 03 |                 const cell = e.target.closest('.day-cell');
+1073: 04 |                 if (cell && cell.dataset.date) {
+1074: 04 |                     targetDateStr = cell.dataset.date;
+1075: 03 |                 }
+1076: 02 |             }
+1077: 02 | 
+1078: 02 |             // 2. Calcular Hora (si estamos en vista día)
+1079: 03 |             if (state.view === 'day') {
+1080: 03 |                 const scrollArea = document.getElementById('
+1081: 03 |                 const contentLeft = scrollArea.getBoundingCl
+1082: 03 |                 const relX = e.clientX - contentLeft + scrol
+1083: 03 |                 const totalW = scrollArea.scrollWidth;
+1084: 03 |                 const pct = Math.max(0, Math.min(1, relX / t
+1085: 03 |                 hour = Math.floor((START_H + pct * HOURS) * 
+1086: 02 |             }
+1087: 02 | 
+1088: 03 |             if (dragData.type === 'move') {
+1089: 03 |                 // Caso: Mover evento existente
+1090: 03 |                 App.moveEvent(dragData.eventId, dragData.cal
+1091: 03 |             } else {
+1092: 03 |                 // Caso: Crear evento rápido desde backlog
+1093: 03 |                 App.openQuickCreate(tech, parseAnyDate(targe
+1094: 02 |             }
+1095: 02 |         } catch (err) {
+1096: 02 |             console.error('Drop error:', err);
+1097: 01 |         }
+1098: 00 |     }
+1099: 00 | 
+1100: 01 |     function handleDblClick(e, tech) {
+1101: 01 |         let hour = 7;
+1102: 02 |         if (state.view === 'day') {
+1103: 02 |             const scrollArea = document.getElementById('sche
+1104: 02 |             const contentLeft = scrollArea.getBoundingClient
+1105: 02 |             const relX = e.clientX - contentLeft + scrollAre
+1106: 02 |             const totalW = scrollArea.scrollWidth;
+1107: 02 |             const pct = Math.max(0, relX / totalW);
+1108: 02 |             hour = Math.floor((START_H + pct * HOURS) * 2) /
+1109: 01 |         }
+1110: 01 |         App.openQuickCreate(tech, state.currentDate, hour, n
+1111: 00 |     }
+1112: 00 | 
+1113: 00 |     // ─────────────────────────────────────
+1114: 00 |     // NAVIGATION
+1115: 00 |     // ─────────────────────────────────────
+1116: 00 | 
+1117: 01 |     function navigate(delta) {
+1118: 01 |         const d = state.currentDate;
+1119: 02 |         if (state.view === 'day') {
+1120: 02 |             state.currentDate = new Date(d.getFullYear(), d.
+1121: 02 |         } else {
+1122: 02 |             state.currentDate = new Date(d.getFullYear(), d.
+1123: 01 |         }
+1124: 01 |         render();
+1125: 00 |     }
+1126: 00 | 
+1127: 01 |     function goToday() {
+1128: 01 |         state.currentDate = new Date();
+1129: 01 |         render();
+1130: 00 |     }
+1131: 00 | 
+1132: 01 |     function setView(v) {
+1133: 01 |         state.view = v;
+1134: 01 |         document.querySelectorAll('.view-btn').forEach(b => 
+1135: 01 |         const btn = document.getElementById(v === 'day' ? 'b
+1136: 01 |         if (btn) btn.classList.add('active');
+1137: 01 |         render();
+1138: 00 |     }
+1139: 00 | 
+1140: 01 |     const api = {
+1141: 01 |         setState,
+1142: 01 |         render,
+1143: 01 |         renderRows,
+1144: 01 |         renderWeekRow,
+1145: 01 |         renderDayRow,
+1146: 01 |         assignColors,
+1147: 01 |         navigate,
+1148: 01 |         goToday,
+1149: 01 |         setView,
+1150: 01 |         toggleResourceMode
+1151: 00 |     };
+1152: 00 | 
+1153: 00 |     console.log("[SCHEDULER] Engine loaded. Methods:", Objec
+1154: 00 |     window.Scheduler = api;
+1155: 00 |     return api;
+1156: -1 | })();
+1157: -1 | 
