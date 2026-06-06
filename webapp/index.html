@@ -523,7 +523,9 @@
             <!-- Contenido de la tarjeta seleccionada -->
         </div>
         <div class="modal-footer">
+            <button id="ts-btn-copy" class="btn-primary hidden" style="background:#10b981; border-color:#10b981;"><i class="fa-solid fa-copy"></i> Copiar Imagen</button>
             <button id="ts-btn-print" class="btn-primary hidden"><i class="fa-solid fa-print"></i> Imprimir</button>
+            <button id="ts-btn-whatsapp" class="btn-primary hidden" style="background:#25D366; border-color:#25D366;"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
             <button class="btn-secondary modal-close" data-modal="modal-tarjeta-salida">Cerrar</button>
         </div>
     </div>
@@ -576,6 +578,7 @@
             <button class="tab-btn" data-tab="tab-seguridad">Seguridad</button>
             <button class="tab-btn" data-tab="tab-tecnicos">Técnicos</button>
             <button class="tab-btn" data-tab="tab-feriados">Feriados</button>
+            <button class="tab-btn" data-tab="tab-sync-rules">Reglas de Sincronización</button>
         </div>
         <div class="modal-body" style="padding:20px; max-height:450px; overflow-y:auto;">
             <!-- PESTAÑA: GENERAL -->
@@ -661,9 +664,47 @@
                     <i class="fa-brands fa-google"></i> Importar de Google Calendar (AR)
                 </button>
             </div>
+            <!-- PESTAÑA: REGLAS DE SINCRONIZACIÓN -->
+            <div id="tab-sync-rules" class="config-tab-content hidden">
+                <div class="section-title">Reglas de Ruteo para Polling/Drift</div>
+                <p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Define cómo el sistema debe manejar automáticamente las anomalías detectadas en la bandeja de revisión.</p>
+                
+                <div class="param-grid" style="grid-template-columns: 2fr 1fr;">
+                    <label style="font-weight:bold;">Creación Externa (REMOTE_CREATE)</label>
+                    <select id="cfg-rule-remote-create" class="param-input">
+                        <option value="INBOX">Bandeja de Revisión</option>
+                        <option value="AUTO_APPLY">Auto-Aplicar</option>
+                        <option value="IGNORE">Ignorar</option>
+                    </select>
+
+                    <label style="font-weight:bold;">Cambios Críticos (Título, Fechas, Técnico)</label>
+                    <select id="cfg-rule-field-change" class="param-input">
+                        <option value="INBOX">Bandeja de Revisión</option>
+                        <option value="AUTO_APPLY">Auto-Aplicar</option>
+                        <option value="IGNORE">Ignorar</option>
+                    </select>
+
+                    <label style="font-weight:bold;">Cambios No Críticos (Descripción, etc)</label>
+                    <select id="cfg-rule-field-change-safe" class="param-input">
+                        <option value="INBOX">Bandeja de Revisión</option>
+                        <option value="AUTO_APPLY" selected>Auto-Aplicar</option>
+                        <option value="IGNORE">Ignorar</option>
+                    </select>
+
+                    <label style="font-weight:bold;">Eliminaciones y Huérfanos (REMOTE_DELETE)</label>
+                    <select id="cfg-rule-remote-delete" class="param-input">
+                        <option value="INBOX">Bandeja de Revisión</option>
+                        <option value="AUTO_APPLY">Auto-Aplicar</option>
+                        <option value="IGNORE">Ignorar</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div class="modal-footer">
             <span id="config-status-msg" style="font-size:11px; margin-right:auto;"></span>
+            <button class="btn-secondary" id="btn-apply-rules-retroactive" style="margin-right: 10px;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Aplicar a Pendientes
+            </button>
             <button class="btn-primary" id="btn-save-config">Guardar Cambios</button>
         </div>
     </div>
@@ -758,5 +799,6 @@
 <script src="config.js?v=2.1"></script>
 <script src="poll.js?v=2.1"></script>
 <script src="app.js?v=2.1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
 </html>

@@ -50,6 +50,9 @@ const ConfigMenu = (() => {
         // Guardar
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) btnSaveConfig.addEventListener('click', saveConfig);
+
+        const btnApplyRetroactive = document.getElementById('btn-apply-rules-retroactive');
+        if (btnApplyRetroactive) btnApplyRetroactive.addEventListener('click', applyRetroactiveRules);
     }
 
     async function openModal() {
@@ -89,6 +92,19 @@ const ConfigMenu = (() => {
             
             if (!currentConfig.holidays) currentConfig.holidays = {};
             
+            try {
+                const routeRes = await fetch('/api/config/poll-routing');
+                if (routeRes.ok) {
+                    const routing = await routeRes.json();
+                    document.getElementById('cfg-rule-remote-create').value = routing.REMOTE_CREATE || 'INBOX';
+                    document.getElementById('cfg-rule-field-change').value = routing.FIELD_CHANGE || 'INBOX';
+                    document.getElementById('cfg-rule-field-change-safe').value = routing.FIELD_CHANGE_SAFE || 'AUTO_APPLY';
+                    document.getElementById('cfg-rule-remote-delete').value = routing.REMOTE_DELETE || 'INBOX';
+                }
+            } catch (err) {
+                console.error("Error loading poll routing config:", err);
+            }
+
             renderServices();
             renderUsers();
             renderHolidays();
@@ -410,25 +426,28 @@ const ConfigMenu = (() => {
             currentConfig.sync_days_past = parseInt(document.getElementById('cfg-sync-past').value) || 30;
             currentConfig.sync_days_future = parseInt(document.getElementById('cfg-sync-future').value) || 180;
             
-            // Recolectar técnicos
-            currentConfig.technicians = {};
-            document.querySelectorAll('#cfg-tecnicos-tbody tr').forEach(tr => {
-                const chk = tr.querySelector('.tech-chk');
-                if (!chk) return;
-                const id = chk.dataset.id;
-                const alias = tr.querySelector('.tech-alias').value.trim();
-                const ini = tr.querySelector('.tech-ini').value.trim();
-                const service = tr.querySelector('.tech-service').value;
-                const sort = parseInt(tr.querySelector('.tech-sort').value) || 0;
+            // Recolectar técnicos (solo si la tabla cargó con éxito y tiene elementos configurables)
+            const techCheckboxes = document.querySelectorAll('#cfg-tecnicos-tbody .tech-chk');
+            if (techCheckboxes.length > 0) {
+                currentConfig.technicians = {};
+                techCheckboxes.forEach(chk => {
+                    const tr = chk.closest('tr');
+                    if (!tr) return;
+                    const id = chk.dataset.id;
+                    const alias = tr.querySelector('.tech-alias').value.trim();
+                    const ini = tr.querySelector('.tech-ini').value.trim();
+                    const service = tr.querySelector('.tech-service').value;
+                    const sort = parseInt(tr.querySelector('.tech-sort').value) || 0;
 
-                currentConfig.technicians[id] = {
-                    enabled: chk.checked,
-                    alias: alias || tr.querySelector('.tech-alias').placeholder,
-                    iniciales: ini.toUpperCase(),
-                    service: service,
-                    sort_order: sort
-                };
-            });
+                    currentConfig.technicians[id] = {
+                        enabled: chk.checked,
+                        alias: alias || tr.querySelector('.tech-alias').placeholder,
+                        iniciales: ini.toUpperCase(),
+                        service: service,
+                        sort_order: sort
+                    };
+                });
+            }
 
             const payload = {
                 config: currentConfig
@@ -452,7 +471,26 @@ const ConfigMenu = (() => {
 
             if (!res.ok) {
                 const errData = await res.json();
-                throw new Error(errData.detail || "Error al guardar configuración");
+                const errDetail = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : errData.detail;
+                throw new Error(errDetail || "Error al guardar configuración");
+            }
+            
+            // Guardar reglas de ruteo
+            const routePayload = {
+                REMOTE_CREATE: document.getElementById('cfg-rule-remote-create').value,
+                FIELD_CHANGE: document.getElementById('cfg-rule-field-change').value,
+                FIELD_CHANGE_SAFE: document.getElementById('cfg-rule-field-change-safe').value,
+                REMOTE_DELETE: document.getElementById('cfg-rule-remote-delete').value
+            };
+            const resRoute = await fetch('/api/config/poll-routing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(routePayload)
+            });
+            if (!resRoute.ok) {
+                const errData = await resRoute.json();
+                const errDetail = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : errData.detail;
+                throw new Error(errDetail || "Error al guardar las reglas de sincronización");
             }
 
             statusMsg.textContent = 'Guardado con éxito.';
@@ -480,12 +518,53 @@ const ConfigMenu = (() => {
         }
     }
 
+    async function applyRetroactiveRules() {
+        const btn = document.getElementById('btn-apply-rules-retroactive');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Aplicando...';
+        }
+        try {
+            await saveConfig();
+            
+            const res = await fetch('/api/config/poll-routing/apply-retroactive', {
+                method: 'POST'
+            });
+            
+            if (!res.ok) throw new Error('Error al aplicar reglas');
+            
+            const data = await res.json();
+            
+            const toastContainer = document.getElementById('toast-container');
+            if (toastContainer) {
+                const toast = document.createElement('div');
+                toast.className = 'toast success';
+                toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> Reglas aplicadas. Aceptados: ${data.applied}, Ignorados: ${data.ignored}`;
+                toastContainer.appendChild(toast);
+                setTimeout(() => toast.remove(), 4000);
+            }
+            
+            if (window.PollManager) {
+                window.PollManager.fetchPendingReviews();
+            }
+            
+        } catch (e) {
+            alert(e.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Aplicar a Pendientes';
+            }
+        }
+    }
+
     // Exponer públicamente
     return {
         init,
         removeService,
         removeUser,
         removeHoliday,
-        triggerRefresh
+        triggerRefresh,
+        applyRetroactiveRules
     };
 })();

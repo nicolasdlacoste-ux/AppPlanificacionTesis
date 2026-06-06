@@ -3,15 +3,21 @@ import datetime
 from typing import Dict, List, Any, Optional
 
 
-class SyncObservatoryService:
+class DriftManagerService:
     """
-    [SYNC_OBSERVATORY]
-    Servicio de observabilidad operacional para el pipeline de sincronización.
-    Centraliza métricas de salud, trazabilidad de decisiones y detección de drift.
+    [DRIFT_MANAGER]
+    Servicio de detección de inconsistencias entre SQLite y Google Calendar.
+    También centraliza métricas de salud y trazabilidad.
     """
 
     def __init__(self, db):
         self.db = db
+        # Instanciar el factory the google service o pasarlo en __init__
+        self.google_service_factory = None
+        self._analysis_running = False
+
+    def set_google_factory(self, factory):
+        self.google_service_factory = factory
 
     def get_dashboard_snapshot(self) -> Dict[str, Any]:
         """Retorna un snapshot de métricas de salud del sistema."""
@@ -87,6 +93,272 @@ class SyncObservatoryService:
         return timeline
 
     # ── Drift ─────────────────────────────────────────────────────────────────
+
+    def run_drift_analysis(self):
+        """
+        Ejecuta el análisis asíncrono cruzando SQLite contra Google Calendar.
+        """
+        if self._analysis_running:
+            return
+        
+        import threading
+        t = threading.Thread(target=self._run_drift_analysis_sync, daemon=True)
+        t.start()
+
+    def _run_drift_analysis_sync(self):
+        self._analysis_running = True
+        try:
+            print("[DRIFT_MANAGER] Iniciando análisis de drift...")
+            now = datetime.datetime.utcnow()
+            
+            # Mismas constantes que poll_manager.py
+            from poll_manager import POLL_WINDOW_DAYS_BACK, POLL_WINDOW_DAYS_FWD
+            time_min = (now - datetime.timedelta(days=POLL_WINDOW_DAYS_BACK)).isoformat() + "Z"
+            time_max = (now + datetime.timedelta(days=POLL_WINDOW_DAYS_FWD)).isoformat()  + "Z"
+
+            if not self.google_service_factory:
+                print("[DRIFT_MANAGER] Error: google_service_factory no configurado.")
+                return
+
+            svc = self.google_service_factory()
+            
+            # Obtener calendarios activos
+            calendars = self.db.obtener_tecnicos()
+            
+            detected_drifts = []
+            
+            for cal in calendars:
+                cal_id = cal.get("correo")
+                if not cal_id:
+                    continue
+                
+                # Fetch eventos de Google
+                params = dict(
+                    calendarId=cal_id,
+                    timeMin=time_min,
+                    timeMax=time_max,
+                    maxResults=2500,
+                    singleEvents=True,
+                    orderBy="startTime",
+                    showDeleted=False
+                )
+                try:
+                    result = svc.events().list(**params).execute()
+                    google_events = result.get("items", [])
+                    
+                    import base64
+                    def normalize_google_id(gid: str) -> str:
+                        if not gid: return gid
+                        try:
+                            # Add padding
+                            padded = gid + "=" * ((4 - len(gid) % 4) % 4)
+                            decoded = base64.b64decode(padded).decode('utf-8')
+                            if ' ' in decoded and '@' in decoded:
+                                return decoded.split(' ')[0]
+                        except Exception:
+                            pass
+                        return gid
+                    
+                    remote_ids = {normalize_google_id(g_ev.get("id")): g_ev for g_ev in google_events}
+                    
+                    # 1. Huérfanos Remotos (Calendar > SQL)
+                    with self.db._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT google_event_id FROM eventos WHERE calendar_id = ? AND google_event_id IS NOT NULL", (cal_id,))
+                        local_gids = {normalize_google_id(r[0]) for r in cursor.fetchall()}
+                        
+                        cursor.execute("SELECT remote_snapshot FROM poll_review_queue WHERE status='PENDING'")
+                        review_queue_items = cursor.fetchall()
+                        review_gids = set()
+                        for r in review_queue_items:
+                            snap = r[0]
+                            if snap:
+                                try:
+                                    s_json = json.loads(snap)
+                                    if isinstance(s_json, dict) and "id" in s_json:
+                                        review_gids.add(normalize_google_id(s_json["id"]))
+                                except Exception:
+                                    pass
+
+                    for gid, g_ev in remote_ids.items():
+                        if gid not in local_gids and gid not in review_gids:
+                            detected_drifts.append({
+                                "drift_category": "REMOTE_ORPHAN",
+                                "event_id": gid,
+                                "calendar_id": cal_id,
+                                "details": {
+                                    "original_google_id": g_ev.get("id"),
+                                    "summary": g_ev.get("summary", "Sin título"),
+                                    "inicio": g_ev.get("start", {}).get("dateTime", g_ev.get("start", {}).get("date")),
+                                    "status": g_ev.get("status"),
+                                    "full_g_ev": g_ev
+                                }
+                            })
+                            
+                    # 2. Huérfanos Locales (SQL > Calendar)
+                    with self.db._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            SELECT id, google_event_id, summary, inicio 
+                            FROM eventos 
+                            WHERE calendar_id = ? 
+                              AND google_event_id IS NOT NULL 
+                              AND google_event_id NOT LIKE 'local_%'
+                              AND sync_status NOT IN ('CANCELLED_IN_GOOGLE', 'PENDING')
+                              AND inicio >= ? AND inicio <= ?
+                        """, (cal_id, time_min, time_max))
+                        
+                        local_events_window = cursor.fetchall()
+                        
+                        for ev_id, gid, summary, inicio in local_events_window:
+                            if normalize_google_id(gid) not in remote_ids:
+                                detected_drifts.append({
+                                    "drift_category": "LOCAL_ORPHAN",
+                                    "event_id": ev_id,
+                                    "calendar_id": cal_id,
+                                    "details": {
+                                        "google_event_id": gid,
+                                        "summary": summary,
+                                        "inicio": inicio
+                                    }
+                                })
+                            else:
+                                # [PROPERTY_MISMATCH] Detectar cambios de propiedades (título, fechas)
+                                norm_gid = normalize_google_id(gid)
+                                g_ev = remote_ids[norm_gid]
+                                g_summary = g_ev.get("summary", "")
+                                g_start = g_ev.get("start", {}).get("dateTime", g_ev.get("start", {}).get("date", ""))
+                                
+                                is_drift_likely = False
+                                if summary != g_summary and not (summary == "Sin título" and not g_summary):
+                                    is_drift_likely = True
+                                elif str(g_start)[:16] != str(inicio)[:16] and not (str(g_start)[:10] == str(inicio)[:10] and len(g_start) < 12):
+                                    is_drift_likely = True
+                                    
+                                if is_drift_likely and norm_gid not in review_gids:
+                                    from utils import EventAdapter
+                                    from poll_manager import _compute_diff
+                                    local_ev = self.db.get_evento_dict(ev_id)
+                                    if local_ev:
+                                        g_mapped = EventAdapter.google_to_canonical(g_ev, cal_id, local_ev.get("tecnico_nombre", "-"))
+                                        diff = _compute_diff(local_ev, g_mapped)
+                                        
+                                        # Filtrar diffs que son puramente "metadata" o seguros no-críticos si se desea,
+                                        # pero _process_incoming_event ya hace esto. Si hay diff, es un drift potencial.
+                                        if diff:
+                                            detected_drifts.append({
+                                                "drift_category": "PROPERTY_MISMATCH",
+                                                "event_id": norm_gid,
+                                                "calendar_id": cal_id,
+                                                "details": {
+                                                    "local_calendar_id": cal_id,
+                                                    "remote_calendar_id": cal_id,
+                                                    "summary": summary,
+                                                    "inicio": inicio,
+                                                    "original_google_id": gid,
+                                                    "full_g_ev": g_ev
+                                                }
+                                            })
+                except Exception as e:
+                    print(f"[DRIFT_MANAGER] Error al consultar calendario {cal_id}: {e}")
+                    
+            # Detectar Desfasados (Mismatch de Asignación)
+            event_id_to_drifts = {}
+            for d in detected_drifts:
+                if d["drift_category"] == "LOCAL_ORPHAN":
+                    gid = normalize_google_id(d["details"].get("google_event_id"))
+                else:
+                    gid = d["event_id"]
+                if not gid: continue
+                
+                if gid not in event_id_to_drifts:
+                    event_id_to_drifts[gid] = []
+                event_id_to_drifts[gid].append(d)
+                
+            final_drifts = []
+            for gid, drifts in event_id_to_drifts.items():
+                local_drifts = [d for d in drifts if d["drift_category"] == "LOCAL_ORPHAN"]
+                remote_drifts = [d for d in drifts if d["drift_category"] == "REMOTE_ORPHAN"]
+                
+                if local_drifts and remote_drifts:
+                    l_d = local_drifts[0]
+                    r_d = remote_drifts[0]
+                    final_drifts.append({
+                        "drift_category": "CALENDAR_MISMATCH",
+                        "event_id": gid,
+                        "calendar_id": l_d["calendar_id"],
+                        "details": {
+                            "local_calendar_id": l_d["calendar_id"],
+                            "remote_calendar_id": r_d["calendar_id"],
+                            "summary": r_d["details"].get("summary", l_d["details"].get("summary")),
+                            "inicio": r_d["details"].get("inicio", l_d["details"].get("inicio")),
+                            "original_google_id": r_d["details"].get("original_google_id"),
+                            "full_g_ev": r_d["details"].get("full_g_ev")
+                        }
+                    })
+                else:
+                    final_drifts.extend(drifts)
+                    
+            detected_drifts = final_drifts
+
+            # Inyectar anomalías en el motor transaccional (PollManager)
+            from poll_manager import PollingManager
+            poll_mgr = PollingManager(self.db, self.google_service_factory)
+            now_str = datetime.datetime.utcnow().isoformat() + "Z"
+            
+            for d in detected_drifts:
+                cat = d["drift_category"]
+                details = d["details"]
+                cal_id = d["calendar_id"]
+                tec_nombre = details.get("tecnico_nombre", "-")
+                
+                if cat in ("REMOTE_ORPHAN", "CALENDAR_MISMATCH", "PROPERTY_MISMATCH"):
+                    # Eventos que existen en Google pero no están (o están desfasados) localmente.
+                    g_ev = details.get("full_g_ev")
+                    if g_ev:
+                        try:
+                            # Re-rutear el evento forzando su calendar_id actual
+                            # Para CALENDAR_MISMATCH, details["remote_calendar_id"] tiene el calendario real
+                            real_cal_id = details.get("remote_calendar_id", cal_id)
+                            poll_mgr._process_incoming_event(g_ev, real_cal_id, tec_nombre)
+                        except Exception as e:
+                            print(f"[DRIFT_MANAGER] Error inyectando {cat} {d['event_id']} al poll_mgr: {e}")
+                
+                elif cat == "LOCAL_ORPHAN":
+                    # Evento local que desapareció de Google
+                    # Simulamos una eliminación remota
+                    g_id = details.get("original_google_id") or d["event_id"]
+                    g_ev = {"id": g_id, "status": "cancelled", "updated": now_str}
+                    try:
+                        poll_mgr._process_incoming_event(g_ev, cal_id, tec_nombre)
+                    except Exception as e:
+                        print(f"[DRIFT_MANAGER] Error inyectando LOCAL_ORPHAN {d['event_id']} al poll_mgr: {e}")
+
+            # Ya no almacenamos los orphans y mismatches en drift_events. 
+            # (Corruptos y Duplicados se manejan en otro lado)
+            with self.db._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM drift_events WHERE drift_category IN ('LOCAL_ORPHAN', 'REMOTE_ORPHAN', 'CALENDAR_MISMATCH')")
+                conn.commit()
+
+            print(f"[DRIFT_MANAGER] Análisis completado. {len(detected_drifts)} drifts inyectados al Inbox.")
+
+            # [AUTO_HEAL] Sanar automáticamente grupos PARTIAL con antigüedad > 2h
+            try:
+                from group_repair import auto_heal_partial_operations
+                heal_result = auto_heal_partial_operations(self.db, max_age_hours=2)
+                if heal_result.get("healed", 0) > 0:
+                    print(f"[DRIFT_MANAGER] AUTO_HEAL: {heal_result['healed']} operaciones de grupo sanadas, "
+                          f"{heal_result.get('failed', 0)} fallidas.")
+            except Exception as heal_err:
+                print(f"[DRIFT_MANAGER] AUTO_HEAL error (no crítico): {heal_err}")
+
+        except Exception as e:
+            print(f"[DRIFT_MANAGER] Error general: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            self._analysis_running = False
 
     def get_drift_report(self) -> Dict[str, Any]:
         """[LEGACY] Alias a get_full_drift_report para retrocompatibilidad."""

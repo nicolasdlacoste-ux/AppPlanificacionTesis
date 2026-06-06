@@ -374,6 +374,46 @@ class SyncWorker:
             self._log("google_recreate_required", {"status": "inserted_new"}, 
                      event_id=original_id, calendar_id=calendar_id, tag="LOGICAL_MOVE")
         else:
+            # [ETAG_GUARD] Verificar que Google no tenga una versión más nueva
+            # antes de hacer PATCH. Evita race condition Last-Write-Wins.
+            try:
+                remote_meta = svc_cal.events().get(
+                    calendarId=calendar_id,
+                    eventId=google_id,
+                    fields="updated"
+                ).execute()
+                remote_updated = remote_meta.get("updated", "")
+                # Leer updated_at local desde la DB para comparar
+                local_updated_at = ""
+                try:
+                    with self.db._get_connection() as conn_check:
+                        row_check = conn_check.execute(
+                            "SELECT updated_at FROM eventos WHERE id = ? OR google_event_id = ? LIMIT 1",
+                            (original_id, google_id)
+                        ).fetchone()
+                        if row_check:
+                            local_updated_at = row_check[0] or ""
+                except Exception:
+                    pass
+
+                if remote_updated and local_updated_at and remote_updated > local_updated_at:
+                    # Google tiene versión más nueva → abortar outbound
+                    self.db.update_queue_status(queue_id, "DONE")
+                    self._log("OUTBOUND_SKIPPED_STALE", {
+                        "reason": "Google has newer version",
+                        "google_updated": remote_updated,
+                        "local_updated_at": local_updated_at,
+                        "google_id": google_id
+                    }, event_id=original_id, calendar_id=calendar_id, tag="ETAG_GUARD")
+                    print(f"[ETAG_GUARD] UPDATE abortado para {google_id}: "
+                          f"Google updated={remote_updated} > local={local_updated_at}")
+                    return  # PollingManager bajará el diff en el próximo ciclo
+            except googleapiclient.errors.HttpError as e:
+                if e.status_code != 404:
+                    self._log("ETAG_GUARD_ERROR", {"error": str(e)}, event_id=original_id)
+            except Exception as e:
+                self._log("ETAG_GUARD_ERROR", {"error": str(e)}, event_id=original_id)
+
             try:
                 res = svc_cal.events().patch(
                     calendarId=calendar_id,

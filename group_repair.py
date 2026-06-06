@@ -379,6 +379,99 @@ def repair_all_groups(db, temporal_strategy: str = "majority",
         "total_actions":   total_actions,
         "total_errors":    total_errors,
         "dry_run":         dry_run,
-        "strategy":        temporal_strategy,
+        "status":          temporal_strategy,
         "results":         results
+    }
+
+
+def auto_heal_partial_operations(db, max_age_hours: int = 2) -> dict:
+    """
+    [AUTO_HEAL] Detecta operaciones de grupo PARTIAL con antigüedad > max_age_hours
+    y las sana automáticamente usando repair_group().
+
+    Se invoca desde DriftManagerService._run_drift_analysis_sync() al final de
+    cada ciclo de análisis, asegurando que los grupos parciales no se acumulen.
+
+    Retorna un resumen de cuántas operaciones fueron sanadas, cuántas fallaron, etc.
+    """
+    now = datetime.datetime.utcnow()
+    now_iso = now.isoformat() + "Z"
+    cutoff = (now - datetime.timedelta(hours=max_age_hours)).isoformat() + "Z"
+
+    healed       = []
+    failed       = []
+    skipped_new  = []
+
+    try:
+        db.ensure_group_operations_table()
+        pending_ops = db.get_pending_group_operations(limit=100)
+    except Exception as e:
+        return {"error": str(e), "healed": 0, "failed": 0}
+
+    partial_ops = [o for o in pending_ops if o.get("status") == "PARTIAL"]
+
+    for op in partial_ops:
+        started_at = op.get("started_at") or op.get("created_at", "")
+        group_id   = op.get("group_id") or op.get("grupo_id")
+        op_id      = op.get("operation_id")
+
+        if not group_id:
+            continue
+
+        # Solo sanar operaciones con suficiente antigüedad
+        if started_at and started_at > cutoff:
+            skipped_new.append({"operation_id": op_id, "group_id": group_id, "started_at": started_at})
+            continue
+
+        try:
+            db.log_trace(group_id, "AUTO_HEAL_START", {
+                "operation_id": op_id,
+                "started_at": started_at,
+                "max_age_hours": max_age_hours
+            }, tag="GROUP_AUTO_HEAL")
+
+            repair_result = repair_group(db, group_id, temporal_strategy="majority", dry_run=False)
+
+            # Marcar la operación como HEALED en el journal
+            try:
+                with db._get_connection() as conn:
+                    conn.execute(
+                        """UPDATE group_operation_journal
+                               SET status = 'HEALED', detail = json_patch(COALESCE(detail, '{}'),
+                                   json_object('healed_at', ?, 'heal_actions', ?))
+                             WHERE operation_id = ?""",
+                        (now_iso, len(repair_result.get("actions_taken", [])), op_id)
+                    )
+                    conn.commit()
+            except Exception:
+                pass  # Si el update del journal falla, no bloquear
+
+            healed.append({
+                "operation_id": op_id,
+                "group_id": group_id,
+                "actions_taken": len(repair_result.get("actions_taken", [])),
+                "errors": len(repair_result.get("errors", []))
+            })
+
+            db.log_trace(group_id, "AUTO_HEAL_COMPLETE", {
+                "operation_id": op_id,
+                "actions_taken": repair_result.get("actions_taken"),
+                "errors": repair_result.get("errors")
+            }, tag="GROUP_AUTO_HEAL")
+
+        except Exception as e:
+            failed.append({"operation_id": op_id, "group_id": group_id, "error": str(e)})
+            db.log_trace(group_id, "AUTO_HEAL_FAILED", {
+                "operation_id": op_id,
+                "error": str(e)
+            }, tag="GROUP_AUTO_HEAL")
+
+    return {
+        "timestamp": now_iso,
+        "max_age_hours": max_age_hours,
+        "partial_found": len(partial_ops),
+        "skipped_too_new": len(skipped_new),
+        "healed": len(healed),
+        "failed": len(failed),
+        "details": {"healed": healed, "failed": failed, "skipped": skipped_new}
     }

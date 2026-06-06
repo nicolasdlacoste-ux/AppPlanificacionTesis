@@ -217,6 +217,24 @@ def detect_group_membership(db, event_id: str) -> dict:
             except Exception:
                 pass
 
+    # Estrategia 4: Búsqueda de hermanos implícitos por google_event_id
+    if not grupo:
+        local = db.find_by_google_event_id(event_id) or db.get_evento_dict(event_id)
+        if local:
+            gid = local.get("google_event_id")
+            if gid:
+                with db._get_connection() as conn:
+                    rows = conn.execute("SELECT id FROM eventos WHERE google_event_id = ?", (gid,)).fetchall()
+                if len(rows) > 1:
+                    event_ids = [r[0] for r in rows]
+                    grupo_id = f"impl_{gid}"
+                    return {
+                        "is_grouped": True,
+                        "group_id": grupo_id,
+                        "member_count": len(event_ids),
+                        "member_event_ids": event_ids
+                    }
+
     if not grupo:
         return {"is_grouped": False, "group_id": None,
                 "member_count": 0, "member_event_ids": []}
@@ -438,7 +456,7 @@ class PollingManager:
             return "ignored"
 
         # 0.5 Buscar evento local tempranamente para protecciones de race condition
-        local = self.db.find_by_google_event_id(gid)
+        local = self.db.find_by_google_event_id(gid, calendar_id)
         if local:
             try:
                 local_ext = json.loads(local.get("extended_props") or "{}")
@@ -797,7 +815,7 @@ class PollingManager:
         - Aceptar → evento marcado como CANCELLED_IN_GOOGLE
         - Rechazar → evento restaurado en Google (CREATE outbound)
         """
-        local = self.db.find_by_google_event_id(event_id)
+        local = self.db.find_by_google_event_id(event_id, calendar_id)
         if local:
             # Capturar snapshot local antes de encolar
             local_snapshot = {
@@ -821,6 +839,18 @@ class PollingManager:
                 recommended_action="REVIEW_DELETE",
                 g_updated=g_updated,
             )
+            
+            # Auto-arbitraje de reasignaciones (Case 1)
+            with self.db._get_connection() as conn:
+                active_siblings = conn.execute(
+                    "SELECT id FROM eventos WHERE google_event_id = ? AND calendar_id != ? AND sync_status != 'CANCELLED_IN_GOOGLE'", 
+                    (event_id, calendar_id)
+                ).fetchall()
+                
+            if len(active_siblings) > 0:
+                self.db.accept_review(review_id)
+                _poll_log(self.db, "POLL_INBOUND_TRACE", "AUTO_ARBITRATED_DELETE", {"event_id": local["id"], "reason": "sibling_exists"})
+                
             _poll_log(self.db, "POLL_INBOUND_TRACE", "DELETE_DETECTED",
                       {
                           "cycle_id": self._current_cycle_id,

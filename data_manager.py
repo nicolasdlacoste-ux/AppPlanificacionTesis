@@ -5,6 +5,7 @@ import datetime
 import threading
 from pathlib import Path
 import utils
+import time
 
 class VersionConflictError(Exception):
     """
@@ -21,7 +22,12 @@ class DataManager:
     def __init__(self, db_path="planificacion.db"):
         self.db_path = db_path
         self._lock = threading.RLock()
+        self.last_mutation_time = time.time()
         self._init_db()
+
+    def bump_mutation_time(self):
+        """Actualiza el timestamp global de mutación para notificar al frontend."""
+        self.last_mutation_time = time.time()
 
     def _get_connection(self):
         return sqlite3.connect(self.db_path)
@@ -205,15 +211,24 @@ class DataManager:
             # Tabla Grupos
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS grupos (
-                    grupo_id   TEXT PRIMARY KEY,
-                    ot_nro     TEXT NOT NULL,
-                    fecha      TEXT NOT NULL,
-                    event_ids  TEXT,
+                    grupo_id      TEXT PRIMARY KEY,
+                    ot_nro        TEXT NOT NULL,
+                    fecha         TEXT NOT NULL,
+                    event_ids     TEXT,
                     tecnico_nombres TEXT,
-                    patrones   TEXT,
-                    vehiculo   TEXT
+                    calendar_ids  TEXT,
+                    patrones      TEXT,
+                    vehiculo      TEXT,
+                    group_version INTEGER DEFAULT 0
                 )
             ''')
+            # Auto-migración: agregar group_version o calendar_ids si la tabla ya existía
+            cursor.execute("PRAGMA table_info(grupos)")
+            grupos_cols = [c[1] for c in cursor.fetchall()]
+            if 'group_version' not in grupos_cols:
+                cursor.execute("ALTER TABLE grupos ADD COLUMN group_version INTEGER DEFAULT 0")
+            if 'calendar_ids' not in grupos_cols:
+                cursor.execute("ALTER TABLE grupos ADD COLUMN calendar_ids TEXT")
 
             # Tabla Group Operation Journal (tracking forense de operaciones grupales atómicas)
             cursor.execute('''
@@ -249,6 +264,18 @@ class DataManager:
                     last_error TEXT
                 )
             ''')
+            
+            # Tabla Drift Events (para el Drift Manager UI)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS drift_events (
+                    drift_id       TEXT PRIMARY KEY,
+                    event_id       TEXT,
+                    calendar_id    TEXT,
+                    drift_category TEXT,
+                    details_json   TEXT,
+                    detected_at    TEXT
+                )
+            ''')
 
             conn.commit()
 
@@ -276,11 +303,18 @@ class DataManager:
             cursor.execute("DELETE FROM eventos")
             for e in eventos_list:
                 props = json.dumps(e.get('extendedProperties', {}))
+                tecnico = e.get('tecnico') or e.get('Técnico')
+                evento = e.get('evento') or e.get('Evento')
+                inicio = e.get('inicio') or e.get('Inicio')
+                fin = e.get('fin') or e.get('Fin')
+                ubicacion = e.get('ubicacion') or e.get('Ubicación')
+                descripcion = e.get('descripcion') or e.get('Descripción')
+
                 cursor.execute('''
                     INSERT OR REPLACE INTO eventos (id, calendar_id, tecnico_nombre, summary, inicio, fin, ubicacion, descripcion, extended_props)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (e.get('id'), e.get('calendar_id'), e.get('Técnico'), e.get('Evento'), 
-                      e.get('Inicio'), e.get('Fin'), e.get('Ubicación'), e.get('Descripción'), props))
+                ''', (e.get('id'), e.get('calendar_id'), tecnico, evento, 
+                      inicio, fin, ubicacion, descripcion, props))
             conn.commit()
 
     def actualizar_evento_individual(self, event_id, calendar_id, data, base_version=None, pending_sync=1, sync_status='PENDING', sync_state=None, origin='local'):
@@ -413,6 +447,7 @@ class DataManager:
                 actual_calendar_id
             ))
             conn.commit()
+            self.bump_mutation_time()
             rows_affected = cursor.rowcount
 
         # ── 5. TRAZAS POST-COMMIT ─────────────────────────────────────────────
@@ -500,6 +535,7 @@ class DataManager:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM eventos WHERE id = ?", (event_id,))
             conn.commit()
+            self.bump_mutation_time()
 
     def obtener_eventos_dict(self):
         """Retorna todos los eventos de la DB mapeados a diccionarios."""
@@ -631,14 +667,15 @@ class DataManager:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT OR REPLACE INTO grupos 
-                (grupo_id, ot_nro, fecha, event_ids, tecnico_nombres, patrones, vehiculo)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (grupo_id, ot_nro, fecha, event_ids, tecnico_nombres, calendar_ids, patrones, vehiculo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 grupo_id,
                 grupo_data.get('ot_nro'),
                 grupo_data.get('fecha'),
                 json.dumps(grupo_data.get('event_ids', [])),
                 json.dumps(grupo_data.get('tecnico_nombres', [])),
+                json.dumps(grupo_data.get('calendar_ids', [])),
                 json.dumps(grupo_data.get('patrones', [])),
                 grupo_data.get('vehiculo')
             ))
@@ -656,7 +693,7 @@ class DataManager:
         """Retorna todos los grupos de una fecha específica."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM grupos WHERE fecha = ?", (fecha,))
+            cursor.execute("SELECT grupo_id, ot_nro, fecha, event_ids, tecnico_nombres, calendar_ids, patrones, vehiculo FROM grupos WHERE fecha = ?", (fecha,))
             rows = cursor.fetchall()
             grupos = []
             for r in rows:
@@ -666,17 +703,31 @@ class DataManager:
                     "fecha": r[2],
                     "event_ids": json.loads(r[3]) if r[3] else [],
                     "tecnico_nombres": json.loads(r[4]) if r[4] else [],
-                    "patrones": json.loads(r[5]) if r[5] else [],
-                    "vehiculo": r[6]
+                    "calendar_ids": json.loads(r[5]) if r[5] else [],
+                    "patrones": json.loads(r[6]) if r[6] else [],
+                    "vehiculo": r[7]
                 })
             return grupos
 
     def obtener_grupo_de_evento(self, event_id):
         """Busca si un evento pertenece a algún grupo."""
+        # [FASE 6 - BUG 1&2 FIX] Resolver evento para buscar por ambos IDs (local_xxx y google_event_id)
+        ev = self.resolve_event(event_id)
+        search_ids = [event_id]
+        if ev:
+            if ev.get("id") and ev["id"] not in search_ids:
+                search_ids.append(ev["id"])
+            if ev.get("google_event_id") and ev["google_event_id"] not in search_ids:
+                search_ids.append(ev["google_event_id"])
+
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM grupos WHERE event_ids LIKE ?", (f'%"{event_id}"%',))
-            row = cursor.fetchone()
+            row = None
+            for sid in search_ids:
+                cursor.execute("SELECT grupo_id, ot_nro, fecha, event_ids, tecnico_nombres, calendar_ids, patrones, vehiculo FROM grupos WHERE event_ids LIKE ?", (f'%"{sid}"%',))
+                row = cursor.fetchone()
+                if row:
+                    break
             if row:
                 return {
                     "grupo_id": row[0],
@@ -722,19 +773,53 @@ class DataManager:
 
 
     def get_app_config(self) -> dict:
-        """Retorna la configuración global de la aplicación."""
+        """Retorna la configuración global de la aplicación (aplanada y limpia)."""
         import json
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT clave, valor FROM metadatos")
-            rows = cursor.fetchall()
-            config = {}
-            for k, v in rows:
+        config = {
+            "sync_days_past": 30,
+            "sync_days_future": 180,
+            "services": [],
+            "technicians": {},
+            "authorized_users": [],
+            "holidays": {},
+            "pin": "2302"
+        }
+        
+        # 1. Intentar cargar desde el JSON principal ('config' o 'app_config')
+        cfg_val = self.get_metadato("config")
+        if not cfg_val:
+            cfg_val = self.get_metadato("app_config")
+            
+        if cfg_val:
+            try:
+                loaded = json.loads(cfg_val)
+                # Resolver posible anidación histórica
+                while isinstance(loaded, dict) and "config" in loaded and isinstance(loaded["config"], dict):
+                    loaded = loaded["config"]
+                if isinstance(loaded, dict):
+                    if "app_config" in loaded and isinstance(loaded["app_config"], dict):
+                        config.update(loaded["app_config"])
+                    config.update(loaded)
+            except Exception as e:
+                print(f"[DataManager] Error parsing config JSON: {e}")
+                
+        # Asegurar limpieza de claves administrativas/internas devueltas en la configuración de la app
+        config.pop("config", None)
+        config.pop("app_config", None)
+        config.pop("user_profile", None)
+        config.pop("poll_routing_config", None)
+        config.pop("last_sync", None)
+        
+        # 2. Overrides individuales si existen en la tabla metadatos
+        for k in ["pin", "authorized_users", "holidays"]:
+            val = self.get_metadato(k)
+            if val:
                 try:
-                    config[k] = json.loads(v) if v and (v.startswith('[') or v.startswith('{')) else v
+                    config[k] = json.loads(val)
                 except:
-                    config[k] = v
-            return config
+                    config[k] = val
+                    
+        return config
 
     def log_trace(self, event_id: str, step: str, detail: dict, calendar_id: str = None, tag: str = None):
         """Registra una traza de mutación en poll_log (usado por api_server para tracking de cambios)."""
@@ -922,11 +1007,14 @@ class DataManager:
             """, (calendar_id, error_msg))
             conn.commit()
 
-    def find_by_google_event_id(self, gid: str) -> dict:
-        """Busca un evento por su ID de Google."""
+    def find_by_google_event_id(self, gid: str, calendar_id: str = None) -> dict:
+        """Busca un evento por su ID de Google, opcionalmente filtrando por calendar_id."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM eventos WHERE google_event_id = ?", (gid,))
+            if calendar_id:
+                cursor.execute("SELECT * FROM eventos WHERE google_event_id = ? AND calendar_id = ?", (gid, calendar_id))
+            else:
+                cursor.execute("SELECT * FROM eventos WHERE google_event_id = ?", (gid,))
             row = cursor.fetchone()
             if not row: return None
             # Mapeo manual a dict basado en el esquema
@@ -949,6 +1037,7 @@ class DataManager:
                 cursor.execute("UPDATE eventos SET extended_props = ?, updated_at = ? WHERE id = ?", 
                                (json.dumps(merged), datetime.datetime.utcnow().isoformat() + "Z", event_id))
                 conn.commit()
+                self.bump_mutation_time()
 
     def apply_poll_safe_changes(self, event_id: str, safe_diff: dict):
         """Aplica cambios marcados como seguros en el poll."""
@@ -966,6 +1055,7 @@ class DataManager:
                 cursor = conn.cursor()
                 cursor.execute(f"UPDATE eventos SET {', '.join(updates)}, updated_at = ? WHERE id = ?", params)
                 conn.commit()
+                self.bump_mutation_time()
 
     def enqueue_review(self, event_id: str, calendar_id: str, diff: dict,
                         conflict_type: str = "FIELD_CHANGE",
@@ -974,6 +1064,18 @@ class DataManager:
                         remote_snapshot: dict = None,
                         recommended_action: str = None,
                         g_updated: str = None):
+        # [OCC] Capturar versión del evento en el momento de detección del conflicto
+        # para poder verificar stale arbitration en accept_review().
+        if local_snapshot is None:
+            local_snapshot = {}
+        try:
+            current_ev = self.get_evento_dict(event_id)
+            if current_ev and isinstance(local_snapshot, dict):
+                local_snapshot = dict(local_snapshot)  # copia para no mutar el arg
+                local_snapshot["_version_at_detection"] = current_ev.get("version", 1)
+                local_snapshot["_updated_at_detection"] = current_ev.get("updated_at")
+        except Exception:
+            pass
         """
         [ARBITRATION] Encola un cambio crítico para revisión humana.
         Genera un UUID único por review para arbitraje individual.
@@ -1017,9 +1119,9 @@ class DataManager:
                 # [DEDUPLICACIÓN] Evitar reviews redundantes
                 cursor.execute("""
                     SELECT status FROM poll_review_queue 
-                    WHERE google_event_id = ? 
+                    WHERE google_event_id = ? AND calendar_id = ?
                     ORDER BY detected_at DESC LIMIT 1
-                """, (gid,))
+                """, (gid, calendar_id))
                 existing = cursor.fetchone()
                 if existing:
                     status = existing[0]
@@ -1033,9 +1135,9 @@ class DataManager:
                 if g_updated:
                     cursor.execute("""
                         SELECT resolved_at FROM poll_review_queue
-                        WHERE google_event_id = ? AND status IN ('ACCEPTED', 'REJECTED')
+                        WHERE google_event_id = ? AND calendar_id = ? AND status IN ('ACCEPTED', 'REJECTED')
                         ORDER BY resolved_at DESC LIMIT 1
-                    """, (gid,))
+                    """, (gid, calendar_id))
                     wm_row = cursor.fetchone()
                     if wm_row and wm_row[0]:
                         resolved_at = wm_row[0]
@@ -1120,6 +1222,10 @@ class DataManager:
                 result.append(d)
             return result
 
+    # [METADATA_SHIELD] Claves de metadatos estructurales que NUNCA deben ser
+    # sobreescritas por Google si vienen vacías/nulas en un evento ya existente.
+    _PROTECTED_METADATA_KEYS = ("grupo_id", "app_ots", "app_patrones", "app_vehiculo", "app_requiere_vehiculo")
+
     def accept_review(self, review_id: str) -> dict:
         """
         [REVIEW_ACCEPTED] Aplica el snapshot remoto al evento local.
@@ -1127,6 +1233,10 @@ class DataManager:
 
         [INBOUND_FIX] Ahora lanza ValueError explícito si la mutación SQLite no ocurre,
         en lugar de retornar false-200 al operador.
+        [OCC] Verifica que el evento no haya mutado desde que el conflicto fue detectado
+        (con grace period de 30 segundos para ignorar actualizaciones internas menores).
+        [METADATA_SHIELD] Preserva claves estructurales (grupo_id, app_ots, etc.) si
+        Google las envió vacías al momento del arbitraje.
         """
         row = self.get_review_by_id(review_id)
         if not row:
@@ -1149,6 +1259,61 @@ class DataManager:
         # 1. Obtener versión antes para trazabilidad
         current  = self.get_evento_dict(event_id)
         v_before = current.get("version", 1) if current else 0
+
+        # [OCC] Verificar que el evento no haya mutado desde la detección del conflicto.
+        # Grace period de 30 segundos para ignorar actualizaciones internas menores
+        # (ej. last_synced_at actualizado por un ciclo de sync en segundo plano).
+        OCC_GRACE_SECONDS = 30
+        if current and conflict_type not in ("REMOTE_DELETE", "REMOTE_CREATE"):
+            try:
+                local_snapshot_raw = row.get("local_snapshot")
+                while isinstance(local_snapshot_raw, str):
+                    try:
+                        local_snapshot_raw = json.loads(local_snapshot_raw)
+                    except Exception:
+                        break
+                if isinstance(local_snapshot_raw, dict):
+                    updated_at_detection = local_snapshot_raw.get("_updated_at_detection")
+                    current_updated_at   = current.get("updated_at")
+                    if updated_at_detection and current_updated_at:
+                        dt_detection = datetime.datetime.fromisoformat(
+                            updated_at_detection.replace("Z", "+00:00")
+                        ).replace(tzinfo=None)
+                        dt_current = datetime.datetime.fromisoformat(
+                            current_updated_at.replace("Z", "+00:00")
+                        ).replace(tzinfo=None)
+                        delta_seconds = (dt_current - dt_detection).total_seconds()
+                        if delta_seconds > OCC_GRACE_SECONDS:
+                            self.log_trace(event_id, "STALE_REVIEW_BLOCKED", {
+                                "review_id": review_id,
+                                "updated_at_detection": updated_at_detection,
+                                "current_updated_at": current_updated_at,
+                                "delta_seconds": round(delta_seconds, 1),
+                                "grace_seconds": OCC_GRACE_SECONDS
+                            }, calendar_id=calendar_id, tag="OCC_GUARD")
+                            raise ValueError(
+                                f"STALE_REVIEW: El evento '{event_id}' fue modificado "
+                                f"{round(delta_seconds)}s después de que se detectó este conflicto. "
+                                f"Refrescá el Inbox para ver el estado actualizado."
+                            )
+            except ValueError:
+                raise  # Re-lanzar el STALE_REVIEW
+            except Exception:
+                pass  # Si el chequeo OCC falla por cualquier motivo, NO bloquear el flujo
+
+        # [METADATA_SHIELD] Capturar campos protegidos del evento local ANTES de
+        # construir data_to_apply para reinyectarlos si Google los trajo vacíos.
+        protected_values = {}
+        if current:
+            try:
+                ext_local = json.loads(current.get("extended_props") or "{}")
+                priv_local = ext_local.get("private", {})
+                for key in self._PROTECTED_METADATA_KEYS:
+                    val = priv_local.get(key)
+                    if val not in (None, "", "null", "[]"):
+                        protected_values[key] = val
+            except Exception:
+                pass
 
         # [FORENSICS] Snapshot Before
         grupo = self.obtener_grupo_de_evento(event_id)
@@ -1175,6 +1340,31 @@ class DataManager:
                 if field.startswith("_"): continue
                 if isinstance(d, dict) and "new" in d:
                     data_to_apply[field] = d["new"]
+
+        # [METADATA_SHIELD] Reinyectar campos protegidos si data_to_apply trae extended_props
+        # con las claves vacías o ausentes (pérdida silenciosa por app de terceros en Google).
+        if protected_values and "extended_props" in data_to_apply:
+            shield_applied = []
+            try:
+                ext_new = data_to_apply["extended_props"]
+                if isinstance(ext_new, str):
+                    ext_new = json.loads(ext_new)
+                if isinstance(ext_new, dict):
+                    priv_new = ext_new.setdefault("private", {})
+                    for key, val in protected_values.items():
+                        incoming = priv_new.get(key)
+                        if incoming in (None, "", "null", "[]"):
+                            priv_new[key] = val
+                            shield_applied.append(key)
+                    data_to_apply["extended_props"] = ext_new
+                    if shield_applied:
+                        self.log_trace(event_id, "METADATA_SHIELD_APPLIED", {
+                            "review_id": review_id,
+                            "shielded_keys": shield_applied,
+                            "values": {k: protected_values[k] for k in shield_applied}
+                        }, calendar_id=calendar_id, tag="METADATA_SHIELD")
+            except Exception:
+                pass  # El blindaje nunca debe romper el flujo
 
         # [ARBITRATION_TRACE:APPLY_START]
         self.log_trace(event_id, "APPLY_START", {
@@ -1231,6 +1421,12 @@ class DataManager:
                 
             tec_nombre = local_snap.get("tecnico") or row.get("tecnico_nombre") or calendar_id
             
+            # Resolver nombre humano si es un email o calendar_id (requerido para el frontend)
+            for t in self.obtener_tecnicos():
+                if t.get("correo") == tec_nombre:
+                    tec_nombre = t.get("nombre")
+                    break
+            
             mapped = EventAdapter.google_to_canonical(g_ev, calendar_id, tec_nombre)
             params = EventAdapter.canonical_to_sqlite_params(mapped)
             
@@ -1256,30 +1452,63 @@ class DataManager:
             
             new_ver = 1
         else:
-            # 2. Aplicar vía pipeline oficial (pending_sync=0: aceptamos lo que ya está en Google)
-            new_ver = self.actualizar_evento_individual(
-                event_id, calendar_id,
-                data=data_to_apply,
-                pending_sync=0,
-                sync_status='SUCCESS',
-                sync_state=sync_state_to_apply,
-                origin='review_accept'
-            )
+            # 2. Aplicar vía pipeline oficial o grupal
+            is_group_drift = (conflict_type and conflict_type.startswith("GROUP_")) or (grupo is not None)
+            
+            if is_group_drift and grupo:
+                from group_operations import GroupOperationContext
+                
+                # Para operaciones de arbitraje, usamos el grupo id pero no hay un origin exacto
+                ctx = GroupOperationContext("arbitration_accept", grupo["grupo_id"], "polling_review", event_id)
+                ctx.load_group(self)
+                ctx.build_arbitration_plan(data_to_apply, sync_state_to_apply)
+                
+                # Ejecutar mutación grupal
+                with DataManager.group_transaction_static(self.db_path) as conn:
+                    ctx.execute_mutation_phase(conn)
+                ctx.execute_post_commit_phase(self)
+                
+                # En arbitraje, todos los miembros se actualizan juntos
+                new_ver = v_before + 1 # Retornamos algo distinto a None para evitar FAIL_FAST
+                
+                self.log_trace(event_id, "GROUP_ARBITRATION_APPLIED", {
+                    "review_id": review_id,
+                    "grupo_id": grupo["grupo_id"],
+                    "conflict_type": conflict_type,
+                    "members_updated": len(ctx.mutation_plan)
+                }, calendar_id=calendar_id, tag="ARBITRATION_TRACE")
+            else:
+                # 2. Aplicar vía pipeline oficial (pending_sync=0: aceptamos lo que ya está en Google)
+                new_ver = self.actualizar_evento_individual(
+                    event_id, calendar_id,
+                    data=data_to_apply,
+                    pending_sync=0,
+                    sync_status='SUCCESS',
+                    sync_state=sync_state_to_apply,
+                    origin='review_accept'
+                )
 
         # [INBOUND_FIX] Si la mutación no ocurrió, lanzar error en lugar de false-200
         if new_ver is None:
-            # [FAIL_FAST] Persistir el fallo antes de lanzar
-            self.log_trace(event_id, "ACCEPT_FAILED", {
-                "review_id": review_id,
-                "conflict_type": conflict_type,
-                "calendar_id": calendar_id,
-                "reason": "actualizar_evento_individual retornó None — lookup miss en todos los fallbacks"
-            }, calendar_id=calendar_id, tag="ARBITRATION_APPLIED")
-            raise ValueError(
-                f"[ARBITRATION] Accept review falló: evento '{event_id}' no encontrado en SQLite "
-                f"(ningún fallback de lookup tuvo éxito). Review: {review_id}. "
-                f"Verificar calendar_id mismatch o event_id obsoleto."
-            )
+            if conflict_type == "REMOTE_DELETE":
+                # [DRIFT_RELAXED] Si Google eliminó el evento y localmente no existe, ya estamos sincronizados
+                self.log_trace(event_id, "DELETE_ACCEPTED_MISSING", {
+                    "review_id": review_id,
+                    "reason": "Evento no encontrado localmente, pero era un REMOTE_DELETE. Se considera resuelto."
+                }, calendar_id=calendar_id, tag="ARBITRATION_APPLIED")
+            else:
+                # [FAIL_FAST] Persistir el fallo antes de lanzar
+                self.log_trace(event_id, "ACCEPT_FAILED", {
+                    "review_id": review_id,
+                    "conflict_type": conflict_type,
+                    "calendar_id": calendar_id,
+                    "reason": "actualizar_evento_individual retornó None — lookup miss en todos los fallbacks"
+                }, calendar_id=calendar_id, tag="ARBITRATION_APPLIED")
+                raise ValueError(
+                    f"[ARBITRATION] Accept review falló: evento '{event_id}' no encontrado en SQLite "
+                    f"(ningún fallback de lookup tuvo éxito). Review: {review_id}. "
+                    f"Verificar calendar_id mismatch o event_id obsoleto."
+                )
 
         # 3. Marcar review como ACCEPTED
         with self._lock:
@@ -1369,12 +1598,12 @@ class DataManager:
                 priv = ext.get("private") or {}
                 tec_nombre = priv.get("tecnico_nombre") or calendar_id
 
-                # Encolar delete outbound para eliminarlo de Google Calendar
-                self.enqueue_sync(event_id, calendar_id, tec_nombre, "DELETE", origin='review_reject')
-
+                # Encolar delete outbound y rechazar review de forma atómica
                 with self._lock:
                     with self._get_connection() as conn:
-                        conn.execute(
+                        cursor = conn.cursor()
+                        self.enqueue_sync(event_id, calendar_id, tec_nombre, "DELETE", origin='review_reject', _cursor=cursor)
+                        cursor.execute(
                             "UPDATE poll_review_queue SET status='REJECTED', resolved_at=? WHERE review_id=?",
                             (now, review_id)
                         )
@@ -1393,14 +1622,26 @@ class DataManager:
         tec_nombre = current.get("tecnico_nombre", "")
         v_before = current.get("version", 1)
 
-        # 2. Encolar sync outbound vía pipeline oficial
+        # 2. Encolar sync outbound vía pipeline oficial Y marcar el review en una misma transacción
         operation = "CREATE" if conflict_type == "REMOTE_DELETE" else "UPDATE"
-        self.enqueue_sync(event_id, calendar_id, tec_nombre, operation, origin='review_reject')
-
-        # 3. Marcar review como REJECTED
+        
         with self._lock:
             with self._get_connection() as conn:
-                conn.execute(
+                cursor = conn.cursor()
+                
+                is_group_drift = (conflict_type and conflict_type.startswith("GROUP_"))
+                if is_group_drift:
+                    grupo = self.obtener_grupo_de_evento(event_id)
+                    if grupo:
+                        for eid in grupo.get("event_ids", []):
+                            mem = self.get_evento_dict(eid)
+                            if mem:
+                                self.enqueue_sync(eid, mem.get("calendar_id", ""), mem.get("tecnico_nombre", ""), operation, origin='review_reject_group', _cursor=cursor)
+                else:
+                    self.enqueue_sync(event_id, calendar_id, tec_nombre, operation, origin='review_reject', _cursor=cursor)
+
+                # 3. Marcar review como REJECTED
+                cursor.execute(
                     "UPDATE poll_review_queue SET status='REJECTED', resolved_at=? WHERE review_id=?",
                     (now, review_id)
                 )
@@ -1513,21 +1754,28 @@ class DataManager:
             row = cursor.fetchone()
             return row[0] if row else 0
 
-    def enqueue_sync(self, event_id: str, calendar_id: str, tecnico: str, operation: str, origin: str = 'api', original_calendar_id: str = None):
+    def enqueue_sync(self, event_id: str, calendar_id: str, tecnico: str, operation: str, origin: str = 'api', original_calendar_id: str = None, _cursor=None):
         import uuid
         import datetime
         if operation == "INSERT":
             operation = "CREATE"
         queue_id = str(uuid.uuid4())
-        now = datetime.datetime.now().isoformat()
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        
+        def _do_insert(c):
+            c.execute("""
                 INSERT INTO sync_queue 
                 (queue_id, event_id, calendar_id, tecnico, operation, created_at, status, original_calendar_id, mutation_context)
                 VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
             """, (queue_id, event_id, calendar_id, tecnico, operation, now, original_calendar_id, origin))
-            conn.commit()
+
+        if _cursor:
+            _do_insert(_cursor)
+        else:
+            with self._get_connection() as conn:
+                c = conn.cursor()
+                _do_insert(c)
+                conn.commit()
 
     def get_metadato(self, clave: str) -> str:
         with self._get_connection() as conn:
@@ -1597,16 +1845,68 @@ class DataManager:
             cursor.execute("SELECT * FROM grupos WHERE grupo_id = ?", (grupo_id,))
             row = cursor.fetchone()
             if row:
+                cols = [d[0] for d in cursor.description]
+                d = dict(zip(cols, row))
                 return {
-                    "grupo_id": row[0],
-                    "ot_nro": row[1],
-                    "fecha": row[2],
-                    "event_ids": json.loads(row[3]) if row[3] else [],
-                    "tecnico_nombres": json.loads(row[4]) if row[4] else [],
-                    "patrones": json.loads(row[5]) if row[5] else [],
-                    "vehiculo": row[6]
+                    "grupo_id":       d.get("grupo_id"),
+                    "ot_nro":         d.get("ot_nro"),
+                    "fecha":          d.get("fecha"),
+                    "event_ids":      json.loads(d["event_ids"]) if d.get("event_ids") else [],
+                    "tecnico_nombres": json.loads(d["tecnico_nombres"]) if d.get("tecnico_nombres") else [],
+                    "patrones":       json.loads(d["patrones"]) if d.get("patrones") else [],
+                    "vehiculo":       d.get("vehiculo"),
+                    "group_version":  d.get("group_version", 0) or 0,
                 }
             return None
+
+    @staticmethod
+    def group_transaction_static(db_path: str):
+        """Context manager de transacción grupal (uso interno de GroupOperationContext)."""
+        from contextlib import contextmanager
+        import sqlite3 as _sqlite3
+
+        @contextmanager
+        def _tx():
+            conn = _sqlite3.connect(db_path, isolation_level=None, timeout=10)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield conn
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+            finally:
+                conn.close()
+
+        return _tx()
+
+    def write_group_journal(
+        self,
+        operation_id: str,
+        operation_type: str,
+        grupo_id: str,
+        initiated_by: str,
+        started_at: str,
+        expected_members: int,
+        status: str = "COMPLETED",
+        detail: str = None,
+    ):
+        """Registra una entrada en group_operation_journal para tracking forense."""
+        completed_at = datetime.datetime.utcnow().isoformat() + "Z"
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO group_operation_journal
+                    (operation_id, operation_type, group_id, initiated_by,
+                     started_at, completed_at, status, expected_members, detail)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (operation_id, operation_type, grupo_id, initiated_by,
+                 started_at, completed_at, status, expected_members, detail),
+            )
+            conn.commit()
+            self.bump_mutation_time()
 
     def vincular_evento_a_grupo(self, event_id: str, grupo_id: str):
         with self._get_connection() as conn:

@@ -252,18 +252,20 @@ const RightPanel = (() => {
             if (grupo && grupo.grupo_id) {
                 // Guardar referencia completa en el evento actual
                 if (currentEvent) currentEvent._grupo = grupo;
-                currentEvent._grupo_tecs = grupo.tecnico_nombres;
+                currentEvent._grupo_tecs = grupo.calendar_ids || grupo.tecnico_nombres;
 
-                tecDiv.innerHTML = grupo.tecnico_nombres.map((name, i) => {
+                tecDiv.innerHTML = (grupo.calendar_ids || grupo.tecnico_nombres || []).map((idOrName, i) => {
                     const eid = grupo.event_ids[i];
                     const isSelf = eid === currentEvent.google_event_id;
-                    const tecMail = (window._tecnicos || []).find(t => t.nombre === name)?.correo;
+                    const techObj = (window._tecnicos || []).find(t => t.correo === idOrName || t.nombre === idOrName);
+                    const name = techObj ? techObj.nombre : idOrName;
+                    const tecMail = techObj ? techObj.correo : null;
                     
                     return `
                     <div class="tec-group-item">
-                        <span class="tag ${isSelf ? 'self' : ''}">${name}</span>
+                        <span class="tag ${isSelf ? 'self' : 'other'}" ${!isSelf ? `onclick="window.App.flashEvent('${eid}')"` : ''} title="${tecMail||name}">${name}</span>
                         ${tecMail ? `<button class="btn-remove-tech" 
-                            onclick="if(confirm('\u00bfQuitar a ${name} de este grupo? Se eliminar\u00e1 su evento de Google Calendar.')) App.quitarTecnicoDeGrupo('${eid}', '${tecMail}')" 
+                            onclick="if(confirm('¿Quitar a ${name} de este grupo? Se eliminará su evento de Google Calendar.')) App.quitarTecnicoDeGrupo('${eid}', '${tecMail}')" 
                             title="Quitar del grupo"><i class="fa-solid fa-xmark"></i></button>` : ''}
                     </div>`;
                 }).join('');
@@ -429,9 +431,10 @@ const RightPanel = (() => {
         // Mostrar miembros del grupo
         const membersDiv = document.getElementById('modal-group-members');
         if (membersDiv) {
-            membersDiv.innerHTML = (grupo.tecnico_nombres || []).map(n =>
-                `<span class="tag" style="background:var(--surface-alt);font-size:11px;">${n}</span>`
-            ).join('');
+            membersDiv.innerHTML = (grupo.calendar_ids || grupo.tecnico_nombres || []).map(idOrName => {
+                const name = ((window._tecnicos || []).find(t => t.correo === idOrName || t.nombre === idOrName) || {}).nombre || idOrName;
+                return `<span class="tag" style="background:var(--surface-alt);font-size:11px;">${name}</span>`;
+            }).join(' ');
         }
 
         const modal = document.getElementById('modal-group-action');
@@ -548,7 +551,9 @@ const RightPanel = (() => {
             const origStart = parseHour(currentEvent.inicio);
             const origEnd   = parseHour(currentEvent.fin);
 
-            const cambioTecnico = correoDest && correoDest !== oldCalId;
+            const correoDestL = correoDest ? correoDest.toLowerCase() : '';
+            const oldCalIdL = oldCalId ? oldCalId.toLowerCase() : '';
+            const cambioTecnico = correoDestL && correoDestL !== oldCalIdL;
             const cambioFechaHora = (newDate !== origDate) ||
                 Math.abs(hStartF - origStart) > 0.01 ||
                 Math.abs(hEndF   - origEnd)   > 0.01;
@@ -583,6 +588,7 @@ const RightPanel = (() => {
 
             async function _doMove(endpoint) {
                 btn.disabled = true;
+                let _apiSuccess = false;  // [BUG1-FIX] Track if API call succeeded
                 if (currentEvent) {
                     currentEvent._syncing = true;
                     const gid = currentEvent.extended_props?.private?.grupo_id || currentEvent._grupo?.grupo_id;
@@ -615,14 +621,6 @@ const RightPanel = (() => {
                         status: r.status
                     }, currentEvent.calendar_id);
 
-                    // [EVENT_MOVE] local_update_success
-                    App.logTrace(currentEvent.google_event_id || currentEvent.id, "local_update_success", {
-                        old_tecnico: currentEvent.tecnico_nombre,
-                        new_tecnico: techName,
-                        new_calendar: correoDest,
-                        mutation_type: "UPDATE"
-                    }, currentEvent.calendar_id, "EVENT_MOVE");
-
                     if (!r.ok) {
                         const errText = await r.text();
                         let errMsg = errText;
@@ -632,31 +630,46 @@ const RightPanel = (() => {
                         } catch(_) {}
                         throw new Error(errMsg);
                     }
+
                     const rData = await r.json();
+                    _apiSuccess = true;
                     App.toast('Evento actualizado ✓', 'success');
                     setEditMode(false);
-                    
-                    const newId = rData.event_id || currentEvent.id;
-                    if (newId !== currentEvent.id) {
-                        App.removeSingleEvent(currentEvent.id);
-                    }
-                    // Update local memory
-                    App.refreshSingleEvent({
-                        ...currentEvent,
-                        summary: newTitulo,
-                        calendar_id: correoDest,
-                        tecnico_nombre: techName,
-                        inicio: `${newDate}T${_ph(hStartF)}-03:00`,
-                        fin:   `${newDate}T${_ph(hEndF)}-03:00`,
-                        descripcion: _formatDescriptionLocal(newDesc, editPatrones, selVehiculo),
-                        ubicacion: newDireccion,
-                        extended_props: { ...(currentEvent.extended_props || {}), private: newPrivate },
-                        _syncing: false
-                    });
-                    
-                    if (esDeGrupo) {
+
+                    // [BUG1-FIX] Aplicar cambios desde el servidor, no desde el objeto stale.
+                    // Si el response incluye group_snapshot (operaciones grupales), usarlo.
+                    // Si no, actualizar el evento individual con los datos que conocemos + los del server.
+                    if (rData.group_snapshot) {
+                        App.applyGroupSnapshot(rData.group_snapshot);
+                        // Auto-refresh grupal para capturar cualquier cambio residual
                         await App.refreshEvents();
+                    } else {
+                        const newId = rData.event_id || currentEvent.id;
+                        if (newId !== currentEvent.id) {
+                            App.removeSingleEvent(currentEvent.id);
+                        }
+                        App.refreshSingleEvent({
+                            ...currentEvent,
+                            summary: newTitulo,
+                            calendar_id: correoDest,
+                            tecnico_nombre: techName,
+                            inicio: `${newDate}T${_ph(hStartF)}-03:00`,
+                            fin:   `${newDate}T${_ph(hEndF)}-03:00`,
+                            descripcion: _formatDescriptionLocal(newDesc, editPatrones, selVehiculo),
+                            ubicacion: newDireccion,
+                            extended_props: { ...(currentEvent.extended_props || {}), private: newPrivate },
+                            _syncing: false
+                        });
+                        if (esDeGrupo) {
+                            await App.refreshEvents();
+                        }
                     }
+
+                    App.logTrace(currentEvent.google_event_id || currentEvent.id, "frontend_state_updated", {
+                        event_id: currentEvent.google_event_id,
+                        used_snapshot: !!rData.group_snapshot
+                    }, currentEvent.calendar_id, "EVENT_MOVE");
+
                 } catch (e) {
                     App.toast(e, 'error');
                 } finally {
@@ -665,20 +678,18 @@ const RightPanel = (() => {
                     try {
                         if (currentEvent) {
                             const gid = currentEvent.extended_props?.private?.grupo_id || currentEvent._grupo?.grupo_id;
+                            // [BUG1-FIX] Solo limpiar flags. NO llamar refreshSingleEvent con currentEvent (datos stale).
+                            // El refresh visual ya fue hecho en el try block exitoso.
                             if (gid) App.setGroupSyncing(gid, false);
-                            
-                            // Limpiar flag en el objeto original y en el de la lista global
                             currentEvent._syncing = false;
-                            const evInList = App.getEventos().find(e => e.google_event_id === currentEvent.google_event_id);
-                            if (evInList) evInList._syncing = false;
-                            
-                            // [EVENT_MOVE] frontend_state_updated
-                            App.logTrace(currentEvent.google_event_id || currentEvent.id, "frontend_state_updated", {
-                                event_id: currentEvent.google_event_id
-                            }, currentEvent.calendar_id, "EVENT_MOVE");
-                            
-                            // Forzar un render para asegurar que desaparezca el estado 'syncing' visualmente
-                            App.refreshSingleEvent(evInList || currentEvent);
+                            if (!_apiSuccess) {
+                                // Solo si falló la API: limpiar el flag de syncing sin actualizar datos
+                                const evInList = App.getEventos().find(e => e.google_event_id === currentEvent.google_event_id);
+                                if (evInList) {
+                                    evInList._syncing = false;
+                                    App.refreshSingleEvent(evInList);
+                                }
+                            }
                         }
                     } catch (err) { console.error(err); }
                 }
@@ -686,6 +697,7 @@ const RightPanel = (() => {
 
             async function _doMoveGrupo() {
                 btn.disabled = true;
+                let _apiSuccess = false;  // [BUG1-FIX]
                 if (currentEvent) {
                     currentEvent._syncing = true;
                     const gid = currentEvent.extended_props?.private?.grupo_id || currentEvent._grupo?.grupo_id;
@@ -707,9 +719,18 @@ const RightPanel = (() => {
                         } catch(_) {}
                         throw new Error(errMsg);
                     }
+                    const rData = await r.json();
+                    _apiSuccess = true;
                     const count = (grupo && grupo.tecnico_nombres) ? grupo.tecnico_nombres.length : '?';
                     App.toast(`Grupo actualizado ✓ (${count} eventos)`, 'success');
                     setEditMode(false);
+
+                    // [BUG1-FIX + AUTO-REFRESH] Aplicar snapshot y hacer refresh completo.
+                    // El snapshot aplica inmediatamente (sin esperar /api/eventos completo).
+                    if (rData.group_snapshot) {
+                        App.applyGroupSnapshot(rData.group_snapshot);
+                    }
+                    // Refresh completo para capturar títulos actualizados y cualquier cambio residual
                     await App.refreshEvents();
                 } catch (e) {
                     App.toast(e, 'error');
@@ -719,11 +740,9 @@ const RightPanel = (() => {
                     try {
                         if (currentEvent) {
                             const gid = currentEvent.extended_props?.private?.grupo_id || currentEvent._grupo?.grupo_id;
+                            // [BUG1-FIX] Solo limpiar flags. NO refreshSingleEvent con datos stale.
                             if (gid) App.setGroupSyncing(gid, false);
-                            if (currentEvent._syncing) {
-                                delete currentEvent._syncing;
-                                App.refreshSingleEvent(currentEvent);
-                            }
+                            currentEvent._syncing = false;
                         }
                     } catch (err) { console.error(err); }
                 }
@@ -733,6 +752,8 @@ const RightPanel = (() => {
             const cambioDia = newDate !== origDate;
             if (esDeGrupo && cambioTecnico && cambioDia) {
                 App.toast('No se puede cambiar fecha y técnico a la vez en un evento de grupo.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar';
                 return;
             }
             // Cambio de técnico: solo el miembro editado (aunque cambie la hora el mismo día).
@@ -1035,7 +1056,7 @@ const RightPanel = (() => {
                     if (eventPayload?.google_event_id) {
                         createdEvents.push(eventPayload);
                         resultsByDate[fdata.date].ids.push(eventPayload.google_event_id);
-                        resultsByDate[fdata.date].names.push(tec.nombre);
+                        resultsByDate[fdata.date].names.push(techInfo.correo);
                     }
                 }
             }

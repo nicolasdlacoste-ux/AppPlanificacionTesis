@@ -104,8 +104,17 @@ var Scheduler = (() => {
             if (!dStart || !dEnd) return;
 
             // Detección robusta de All-day
-            const isTimed = evStartStr.includes('T') || evStartStr.includes(':') || evStartStr.length > 10;
-            const isAllDay = !isTimed;
+            const hasTimeSignature = evStartStr.includes('T') || evStartStr.includes(':') || evStartStr.length > 10;
+            const isFunctionallyAllDay = dStart.getHours() === 0 && dStart.getMinutes() === 0 && dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getTime() > dStart.getTime();
+            
+            const isTimed = hasTimeSignature && !isFunctionallyAllDay;
+            const isAllDay = !hasTimeSignature || isFunctionallyAllDay;
+
+            // PREVENIR SPILLOVER: Si es un evento temporizado que termina exactamente a las 00:00:00,
+            // retrocedemos el dEnd 1 segundo para que lógicamente pertenezca al día anterior.
+            if (isTimed && dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0 && dEnd.getTime() > dStart.getTime()) {
+                dEnd = new Date(dEnd.getTime() - 1000);
+            }
 
             let current = new Date(dStart.getFullYear(), dStart.getMonth(), dStart.getDate(), 12, 0, 0);
             const endLimit = new Date(dEnd.getFullYear(), dEnd.getMonth(), dEnd.getDate(), 12, 0, 0);
@@ -124,11 +133,17 @@ var Scheduler = (() => {
                 if (!isFirstDay && !isLastDay) { sh = 7; eh = 16; }
                 if (isAllDay) { sh = 7; eh = 16; }
 
+                // Aplicar clamping para alinear superposiciones desde la raíz
+                if (sh >= END_H) { sh = 16; eh = 18; }
+                else if (eh <= START_H) { sh = 7; eh = 9; }
+                const clampSh = Math.max(sh, START_H);
+                const clampEh = Math.min(eh, END_H);
+
                 expanded.push({
                     ...ev,
                     _dayStr: dayStr,
-                    _sh: sh,
-                    _eh: eh,
+                    _sh: clampSh,
+                    _eh: clampEh,
                     _isFirstDay: isFirstDay,
                     _isLastDay: isLastDay,
                     _isMultiDay: (dEnd.getTime() - dStart.getTime()) > 86400000
@@ -459,10 +474,9 @@ var Scheduler = (() => {
         const expanded = getExpandedEvents(state.eventos);
         console.log(`[DIAGNOSTIC] renderDayRow (${tech.nombre}): expanded count = ${expanded.length}`);
         let eventsToday = expanded.filter(ev => {
-            // [CANONICAL_MIGRATION] ev.tecnico_nombre
-            const evTech = ev.tecnico_nombre;
-            if (!evTech) console.warn("[DIAGNOSTIC] Event missing tech info:", ev);
-            if (norm(evTech) !== norm(tech.nombre)) return false;
+            // [CANONICAL_MIGRATION] match by calendar_id (fallback to nombre)
+            const matchesTech = (ev.calendar_id && ev.calendar_id === tech.correo) || (!ev.calendar_id && ev.tecnico_nombre === tech.nombre);
+            if (!matchesTech) return false;
             return ev._dayStr === dateStr;
         });
         console.log(`[DIAGNOSTIC] renderDayRow (${tech.nombre}): filtered count = ${eventsToday.length}`);
@@ -495,13 +509,12 @@ var Scheduler = (() => {
         const expanded = getExpandedEvents(state.eventos);
         
         let weekEvs = expanded.filter(ev => {
-            // [CANONICAL_MIGRATION] ev.tecnico_nombre
-            const evTech = ev.tecnico_nombre || '';
-            if (!evTech) console.warn("[DIAGNOSTIC] renderWeekRow: Event missing tech info:", ev);
-            if (norm(evTech) !== norm(tech.nombre)) return false;
+            // [CANONICAL_MIGRATION] match by calendar_id (fallback to nombre)
+            const matchesTech = (ev.calendar_id && ev.calendar_id === tech.correo) || (!ev.calendar_id && ev.tecnico_nombre === tech.nombre);
+            if (!matchesTech) return false;
             
             const d = parseAnyDate(ev._dayStr);
-            const weEnd = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7, 23, 59, 59);
+            const weEnd = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6, 23, 59, 59);
             const match = d >= ws && d <= weEnd;
             return match;
         });
@@ -538,18 +551,8 @@ var Scheduler = (() => {
             const groups = getOverlapGroups(evs);
             groups.forEach(group => {
                 group.forEach((ev, colIdx) => {
-                    let sh = ev._sh;
-                    let eh = ev._eh;
-
-                    // Excepción: Si cae fuera de horario, forzar visibilidad en los extremos
-                    if (sh >= END_H) { sh = 16; eh = 18; }
-                    else if (eh <= START_H) { sh = 7; eh = 9; }
-
-                    const clampSh = Math.max(sh, START_H);
-                    const clampEh = Math.min(eh, END_H);
-                    
-                    const leftPct = ((clampSh - START_H) / HOURS) * 100;
-                    const widthPct = Math.max(((clampEh - clampSh) / HOURS) * 100, 2); 
+                    const leftPct = ((ev._sh - START_H) / HOURS) * 100;
+                    const widthPct = Math.max(((ev._eh - ev._sh) / HOURS) * 100, 2); 
                     const topPct = (colIdx / group.length) * 100;
                     const heightPct = (1 / group.length) * 100;
 
@@ -627,17 +630,8 @@ var Scheduler = (() => {
 
     function createDayBlock(ev, color, colIdx, totalCols) {
         // Usar valores pre-calculados por getExpandedEvents
-        let sh = ev._sh;
-        let eh = ev._eh;
-
-        // Excepción: Si cae fuera de horario, forzar visibilidad en los extremos
-        if (sh >= END_H) { sh = 16; eh = 18; }
-        else if (eh <= START_H) { sh = 7; eh = 9; }
-        
-        const clampSh = Math.max(sh, START_H);
-        const clampEh = Math.min(eh, END_H);
-        const leftPct = ((clampSh - START_H) / HOURS) * 100;
-        const widthPct = ((clampEh - clampSh) / HOURS) * 100;
+        const leftPct = ((ev._sh - START_H) / HOURS) * 100;
+        const widthPct = ((ev._eh - ev._sh) / HOURS) * 100;
         const topPct = totalCols > 1 ? (colIdx / totalCols) * 100 : 0;
         const heightPct = totalCols > 1 ? (1 / totalCols) * 100 : 100;
 
@@ -873,7 +867,10 @@ var Scheduler = (() => {
             
             // Para propagar a todo el día: el usuario dijo "se podría extender a todos los eventos del día" 
             const exp = getExpandedEvents(state.eventos);
-            const eventsDelDia = exp.filter(x => x.tecnico_nombre === techNombre && x._dayStr === ev._dayStr);
+            const eventsDelDia = exp.filter(x => {
+                const matchesTech = (x.calendar_id && ev.calendar_id && x.calendar_id === ev.calendar_id) || (!x.calendar_id && x.tecnico_nombre === techNombre);
+                return matchesTech && x._dayStr === ev._dayStr;
+            });
             if (eventsDelDia.length > 1 && confirm(`¿Desea asignar el vehículo ${val||'Ninguno'} a TODOS los ${eventsDelDia.length} eventos de ${techNombre} de este día?`)) {
                  App.toast('Aplicando a todos los eventos...');
                  for (const x of eventsDelDia) {

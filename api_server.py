@@ -8,8 +8,10 @@ import uvicorn
 import os
 import json
 import datetime
+import pandas as pd
 import threading
 import time
+
 import uuid
 import re
 import googleapiclient.errors
@@ -33,6 +35,46 @@ def get_resource_path(relative_path):
 
 app = FastAPI(title="Akrimet Planner API v2")
 db = DataManager()
+
+# ── BUSINESS DAY UTILS ────────────────────────────────────────
+
+def get_next_business_day(start_date: datetime.date) -> str:
+    """Return the next business day as ISO string, considering holidays from app_config.
+
+    Args:
+        start_date: The date from which to calculate the next business day.
+    Returns:
+        ISO formatted date string (YYYY-MM-DD) of the next business day.
+    """
+    # Gather holidays from app_config (keys are date strings)
+    holidays = []
+    try:
+        cfg = db.get_app_config()
+        hol_dict = cfg.get("holidays", {}) or {}
+        for d in hol_dict.keys():
+            try:
+                holidays.append(datetime.datetime.strptime(d, "%Y-%m-%d").date())
+            except Exception:
+                continue
+    except Exception:
+        holidays = []
+    # Use pandas CustomBusinessDay to compute next business day
+    cbd = pd.tseries.offsets.CustomBusinessDay(holidays=holidays)
+    next_bd = (pd.Timestamp(start_date) + cbd).date()
+    return next_bd.isoformat()
+
+# ── PUBLIC ENDPOINT FOR TARJETA DE SALIDA ──────────────────────────────
+@app.get("/api/tarjeta-salida")
+async def tarjeta_salida(date: Optional[str] = Query(None)):
+    """Public endpoint that returns tarjeta de salida data.
+
+    If *date* is not provided, the next business day (considering holidays) is used.
+    """
+    if date is None:
+        today = datetime.date.today()
+        date = get_next_business_day(today)
+    return await obtener_tarjetas_salida(fecha=date)
+
 
 # ── SYNC WORKER ───────────────────────────────────────────────
 # Instancia única del worker (hilo daemon que procesa la sync_queue)
@@ -60,10 +102,12 @@ poll_reporter = PollingDiagnosticReporter(
     google_service_factory=_make_google_service
 )
 
-from sync_observatory import SyncObservatoryService
+from drift_manager import DriftManagerService
 from group_integrity import validate_group_integrity
+from group_operations import GroupOperationContext, acquire_group_lock, release_group_lock, is_group_locked
 
-observatory = SyncObservatoryService(db)
+observatory = DriftManagerService(db)
+observatory.set_google_factory(_make_google_service)
 
 app.add_middleware(
     CORSMiddleware,
@@ -109,32 +153,8 @@ async def on_startup():
 # HELPERS
 # ─────────────────────────────────────────────
 
-def generar_descripcion_enriquecida(base_desc, patrones, vehiculo):
-    """
-    Combina la descripción base con los patrones y el vehículo en un bloque visual.
-    Si ya existe un bloque previo, lo reemplaza.
-    """
-    # Limpiar base_desc de bloques anteriores si existen (usamos el separador como guía)
-    if base_desc and "──────────" in base_desc:
-        # Dividir por el separador y tomar la primera parte
-        base_desc = base_desc.split("──────────")[0].strip()
-    
-    metadata_lines = []
-    if patrones:
-        # Asegurar que patrones sea una lista
-        p_list = patrones if isinstance(patrones, list) else [patrones]
-        metadata_lines.append(f"🛠️ Patrones: {', '.join(p_list)}")
-    if vehiculo:
-        metadata_lines.append(f"🚐 Vehículo: {vehiculo}")
-    
-    if not metadata_lines:
-        return (base_desc or "").strip()
-        
-    res = (base_desc or "").strip()
-    res += "\n\n─────────────────────────────────────────────\n"
-    res += "\n".join(metadata_lines)
-    res += "\n─────────────────────────────────────────────"
-    return res.strip()
+# generar_descripcion_enriquecida vive en utils.py (disponible también para group_operations)
+from utils import generar_descripcion_enriquecida  # noqa: F401 re-export
 
 def _is_complex_event(ev: dict) -> bool:
     """Determina si un evento es complejo (multidia o tiene invitados)."""
@@ -342,12 +362,17 @@ async def update_group_title(grupo_id: str):
     if not grupo: return
     
     tecnicos = db.obtener_tecnicos()
-    map_nombre_init = {t['nombre']: t.get('iniciales', '') for t in tecnicos}
+    map_correo_init = {t['correo']: t.get('iniciales', '') for t in tecnicos}
+
+    # Usar format_group_summary para garantizar separador canónico " + " (no "/")
+    from utils import format_group_summary, get_ot_base_from_event
+    ini_list = [map_correo_init.get(c, '') for c in grupo.get('calendar_ids', []) if c]
     
-    inits = []
-    for n in grupo['tecnico_nombres']:
-        if n in map_nombre_init: inits.append(map_nombre_init[n])
-    tag = "/".join(sorted(list(set(inits)))) if len(inits) > 1 else ""
+    # Fallback si no hay calendar_ids (datos legacy)
+    if not ini_list:
+        map_nombre_init = {t['nombre']: t.get('iniciales', '') for t in tecnicos}
+        ini_list = [map_nombre_init.get(n, '') for n in grupo.get('tecnico_nombres', []) if n]
+
     
     eventos_dict = db.obtener_eventos_dict()
     map_id_ev = {e['id']: e for e in eventos_dict}
@@ -395,19 +420,21 @@ async def update_group_title(grupo_id: str):
         if priv.get('app_vehiculo') and not vehiculo_lider:
             vehiculo_lider = priv.get('app_vehiculo')
             
-    # 2. Actualizar cada miembro
+    # 2. Calcular título canónico usando format_group_summary (separador " + ")
+    ref_ev = next((map_id_ev.get(eid) for eid in grupo['event_ids'] if map_id_ev.get(eid)), None)
+    ot_base = get_ot_base_from_event(ref_ev) if ref_ev else ""
+    new_title = format_group_summary(ot_base, ini_list) if ot_base else ""
+
+    # 3. Actualizar cada miembro si el título cambió
     for eid in grupo['event_ids']:
         ev = map_id_ev.get(eid)
         if not ev: continue
         
         titulo_orig = ev.get('evento') or ev.get('summary') or ''
-        clean_title = re.sub(r'\s*-\s*[A-Z0-9/]+\s*$', '', titulo_orig).strip()
-        new_title = f"{clean_title} - {tag}" if tag else clean_title
-        
-        if new_title != titulo_orig:
+        if new_title and new_title != titulo_orig:
             db.actualizar_titulo_evento(eid, new_title)
             
-            cal_id = ev.get('calendar_id') or ev.get('calendar_id', '')
+            cal_id = ev.get('calendar_id', '')
             tec = ev.get('tecnico_nombre') or ev.get('tecnico') or ''
             
             db.log_trace(eid, "mutation_created", {
@@ -495,7 +522,7 @@ async def _auto_agrupar_evento(event_id, cal_id, tec_nombre, fecha, ots, svc_cal
 async def receive_heartbeat():
     global _last_heartbeat
     _last_heartbeat = time.time()
-    return {"status": "alive"}
+    return {"status": "alive", "last_mutation_time": db.last_mutation_time}
 
 
 # ─────────────────────────────────────────────
@@ -626,12 +653,85 @@ async def get_config():
     config.pop("pin", None)
     return config
 
+class PinRequest(BaseModel):
+    pin: str
+
 @app.post("/api/config/verify-pin")
 async def verify_pin(req: PinRequest):
     """Verifica si el PIN ingresado es correcto."""
     config = db.get_app_config()
     is_valid = (req.pin == config.get("pin", "2302"))
     return {"valid": is_valid}
+
+class PollRoutingConfig(BaseModel):
+    REMOTE_CREATE: str
+    FIELD_CHANGE: str
+    FIELD_CHANGE_SAFE: str = "AUTO_APPLY"
+    REMOTE_DELETE: str
+
+@app.get("/api/config/poll-routing")
+async def get_poll_routing():
+    """Obtiene la configuración de ruteo de polling."""
+    import json
+    val = db.get_metadato("poll_routing_config")
+    if not val:
+        return {
+            "REMOTE_CREATE": "INBOX",
+            "FIELD_CHANGE": "INBOX",
+            "FIELD_CHANGE_SAFE": "AUTO_APPLY",
+            "REMOTE_DELETE": "INBOX"
+        }
+    return json.loads(val)
+
+@app.post("/api/config/poll-routing")
+async def save_poll_routing(req: PollRoutingConfig):
+    """Guarda la configuración de ruteo de polling."""
+    import json
+    db.set_metadato("poll_routing_config", json.dumps(req.dict()))
+    return {"status": "ok"}
+
+@app.post("/api/config/poll-routing/apply-retroactive")
+async def apply_retroactive_poll_routing():
+    """Applies current routing rules to all PENDING items in the review queue."""
+    import json
+    val = db.get_metadato("poll_routing_config")
+    rules = json.loads(val) if val else {}
+    
+    pending = db.get_poll_review_queue(limit=5000)
+    applied_count = 0
+    ignored_count = 0
+    
+    critical_keys = {"tecnico_nombre", "inicio", "fin", "summary", "status", "_action"}
+    
+    for item in pending:
+        c_type = item.get("conflict_type")
+        
+        rule_type = c_type
+        if c_type == "FIELD_CHANGE":
+            diff = item.get("diff", {})
+            has_critical = any(k in critical_keys for k in diff.keys())
+            if not has_critical:
+                rule_type = "FIELD_CHANGE_SAFE"
+        
+        rule = rules.get(rule_type, "INBOX")
+        
+        try:
+            if rule == "AUTO_APPLY":
+                db.accept_review(item["review_id"])
+                applied_count += 1
+            elif rule == "IGNORE":
+                with db._get_connection() as conn:
+                    conn.execute("UPDATE poll_review_queue SET status = 'IGNORED' WHERE review_id = ?", (item["review_id"],))
+                ignored_count += 1
+        except Exception as e:
+            print(f"[RETROACTIVE_APPLY_ERROR] review_id={item['review_id']} - {type(e).__name__}: {str(e)}")
+            pass
+
+    return {"applied": applied_count, "ignored": ignored_count}
+
+class ConfigRequest(BaseModel):
+    config: dict
+    pin: Optional[str] = None
 
 @app.post("/api/config")
 async def save_config(req: ConfigRequest):
@@ -648,6 +748,22 @@ async def save_config(req: ConfigRequest):
         new_config["pin"] = current_config.get("pin", "2302")
         
     db.set_app_config(new_config)
+    
+    # Sincronizar inmediatamente la tabla de técnicos para que el planner los vea
+    tecnicos_config = new_config.get("technicians", {})
+    tecnicos_db = []
+    for email, data in tecnicos_config.items():
+        if data.get("enabled", False):
+            tecnicos_db.append({
+                "nombre": data.get("alias", email.split('@')[0]),
+                "correo": email,
+                "iniciales": data.get("iniciales", ""),
+                "color": "",
+                "servicio": data.get("service", "")
+            })
+    if tecnicos_db:
+        db.guardar_tecnicos(tecnicos_db)
+
     return {"status": "ok", "message": "Configuración guardada"}
 
 @app.get("/api/calendars")
@@ -903,6 +1019,95 @@ class BuscarParams(BaseModel):
     patrones_requeridos: List[str] = []
     excluir_conflictos_pats: bool = False
     pivot_date: Optional[str] = None
+
+def _build_tech_events():
+    """Construye el diccionario tech_events que espera engine.py desde la DB."""
+    eventos = db.obtener_eventos_dict()
+    tech_events = {}
+
+    for ev in eventos:
+        tech = str(ev.get("tecnico_nombre", "")).strip()
+        if not tech: continue
+        if tech not in tech_events:
+            tech_events[tech] = {}
+
+        start_str = ev.get("inicio", "")
+        end_str = ev.get("fin", "")
+        summary = ev.get("summary", "")
+
+        if not start_str or not end_str: continue
+
+        idx_p = summary.find(')')
+        ot = summary[:idx_p + 1].strip() if idx_p != -1 else summary.split('-')[0].strip()
+        es_todo_el_dia = "T" not in start_str or start_str.endswith("T00:00:00Z") or start_str.endswith("T03:00:00Z")
+        es_ot = bool(ot and ot[0].isdigit()) or "RESERVA" in summary.upper()
+
+        try:
+            if "Z" in start_str: start_str = start_str.replace("Z", "+00:00")
+            if "Z" in end_str: end_str = end_str.replace("Z", "+00:00")
+            
+            try: start_dt = datetime.datetime.fromisoformat(start_str)
+            except ValueError: start_dt = datetime.datetime.strptime(start_str[:10], "%Y-%m-%d")
+            
+            try: end_dt = datetime.datetime.fromisoformat(end_str)
+            except ValueError: end_dt = datetime.datetime.strptime(end_str[:10], "%Y-%m-%d")
+            
+            import pytz
+            arg_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+            if start_dt.tzinfo: start_dt = start_dt.astimezone(arg_tz)
+            if end_dt.tzinfo: end_dt = end_dt.astimezone(arg_tz)
+
+            start_date = start_dt.date()
+            end_date = end_dt.date()
+            
+            is_functionally_allday = start_dt.hour == 0 and start_dt.minute == 0 and end_dt.hour == 0 and end_dt.minute == 0 and end_dt > start_dt
+            
+            if is_functionally_allday or es_todo_el_dia:
+                dias = max(1, (end_date - start_date).days)
+                for i in range(dias):
+                    d = start_date + datetime.timedelta(days=i)
+                    dk = d.strftime("%Y-%m-%d")
+                    tech_events[tech].setdefault(dk, []).append({
+                        "sort": 700, "sort_end": 1600, "text": f"07:00-16:00 | {ot}",
+                        "horas": 0.0 if d.weekday() >= 5 else 9.0, "es_ot": es_ot,
+                        "original_text": summary,
+                        "extendedProperties": ev.get("extended_props", {}),
+                        "id": ev.get("id"), "calendar_id": ev.get("calendar_id"),
+                        "Inicio": ev.get("inicio"), "Fin": ev.get("fin"),
+                        "description": ev.get("descripcion", "")
+                    })
+            else:
+                dias = (end_date - start_date).days
+                for i in range(dias + 1):
+                    d = start_date + datetime.timedelta(days=i)
+                    dk = d.strftime("%Y-%m-%d")
+                    is_weekend = d.weekday() >= 5
+                    if i == 0 and dias == 0:
+                        t1 = start_dt.strftime("%H:%M")
+                        t2 = end_dt.strftime("%H:%M")
+                        desc = f"{t1}-{t2} | {ot}"
+                        sort_val = int(start_dt.strftime("%H%M"))
+                        sort_end_val = int(end_dt.strftime("%H%M"))
+                        h = 0.0 if is_weekend else max(0.0, min(16.0, end_dt.hour + end_dt.minute / 60) - max(7.0, start_dt.hour + start_dt.minute / 60))
+                    else:
+                        desc = f"{start_dt.strftime('%H:%M')}-... | {ot}" if i == 0 else (f"...-{end_dt.strftime('%H:%M')} | {ot}" if i == dias else f"Día entero | {ot}")
+                        sort_val = int(start_dt.strftime("%H%M")) if i == 0 else 0
+                        sort_end_val = int(end_dt.strftime("%H%M")) if i == dias else 2359
+                        h = 0.0 if is_weekend else 9.0
+
+                    tech_events[tech].setdefault(dk, []).append({
+                        "sort": sort_val, "sort_end": sort_end_val, "text": desc,
+                        "horas": h, "es_ot": es_ot, "original_text": summary,
+                        "extendedProperties": ev.get("extended_props", {}),
+                        "id": ev.get("id"), "calendar_id": ev.get("calendar_id"),
+                        "Inicio": ev.get("inicio"), "Fin": ev.get("fin"),
+                        "description": ev.get("descripcion", "")
+                    })
+        except Exception as e:
+            print(f"Error parseando {ev.get('id')}: {e}")
+            continue
+
+    return tech_events
 
 @app.post("/api/engine/buscar")
 async def buscar_disponibilidad(params: BuscarParams):
@@ -1691,212 +1896,81 @@ async def mover_grupo(event_id: str, params: MoverEventoParams):
         raise HTTPException(404, f"Evento {event_id} no encontrado")
     if _is_complex_event(ev_interno):
         raise HTTPException(400, "Eventos complejos (multidia o con invitados) estan bloqueados para edicion directa. Deben ser individualizados primero.")
-        
-    # Normalizar IDs
-    event_id = ev_interno['id']
 
-    if _is_complex_event(ev_interno):
-        raise HTTPException(400, "Eventos complejos (multidia o con invitados) estan bloqueados para edicion directa. Deben ser individualizados primero.")
+    # Normalizar al ID canónico local
+    event_id = ev_interno["id"]
 
+    # Si no pertenece a ningún grupo, delegar a mover_evento individual
+    grupo_meta = db.obtener_grupo_de_evento(event_id)
+    if not grupo_meta:
+        return await mover_evento(event_id, params)
+
+    grupo_id = grupo_meta["grupo_id"]
+
+    # [GROUP_LOCK] Evitar mutaciones concurrentes sobre el mismo grupo
+    db.log_trace(grupo_id, "GROUP_TX_BEGIN", {
+        "operation_type": "mover_grupo",
+        "trigger_event_id": event_id,
+        "initiated_by": "right_panel",
+        "base_version": params.base_version,
+    }, tag="GROUP_TX")
+
+    if is_group_locked(grupo_id):
+        raise HTTPException(409, f"El grupo {grupo_id} tiene una operación en curso. Intente nuevamente en unos segundos.")
+
+    # Verificar group_version (optimistic lock a nivel de grupo, no de miembro individual)
     if params.base_version is not None:
-        if ev_interno['version'] > params.base_version:
-            raise HTTPException(status_code=409, detail=f"Conflicto de concurrencia en grupo. Version local: {params.base_version}, Version DB: {ev_interno['version']}")
+        stored_group_version = grupo_meta.get("group_version", 0)
+        if params.base_version < stored_group_version:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Conflicto de versión grupal. Versión enviada: {params.base_version}, Versión actual: {stored_group_version}. Recargue la página e intente nuevamente."
+            )
+
+    acquired = acquire_group_lock(grupo_id, f"mover_grupo_{event_id}")
+    if not acquired:
+        raise HTTPException(409, f"El grupo {grupo_id} está siendo modificado por otra operación.")
+
     try:
-        grupo = db.obtener_grupo_de_evento(event_id)
-        
-        # [VEHICLE_UPDATE_TRACE] Capture initial state for group
-        print(f"[VEHICLE_UPDATE_TRACE] mover_grupo {event_id}:")
-        print(f"  1. Group Lead Original Props: {ev_interno.get('extendedProperties')}")
-        print(f"  3. Frontend Payload: {params.dict()}")
-
-        if not grupo:
-            return await mover_evento(event_id, params)
-
-        s_orig = ev_interno.get("inicio", "")
-        s_orig_date = s_orig[:10] if s_orig else ""
-        cambio_tecnico = params.correo_destino and params.correo_destino != ev_interno.get("calendar_id")
-        cambio_fecha = params.nueva_fecha and params.nueva_fecha != s_orig_date
-        
-        if cambio_tecnico and cambio_fecha:
-            raise HTTPException(400, "No se puede cambiar fecha y técnico a la vez en un evento de grupo.")
-
-        # Declarar variables requeridas para evitar NameError en logs y encolado
-        is_reassignment = False
-        reassignment_id = None
-        if cambio_tecnico:
-            import uuid
-            is_reassignment = True
-            reassignment_id = str(uuid.uuid4())
-
         tecs_db = db.obtener_tecnicos()
-        map_nombre_correo = {t['nombre']: t['correo'] for t in tecs_db}
-        map_correo_nombre = {t['correo']: t['nombre'] for t in tecs_db}
 
-        # [FASE 6 - BUG 2 FIX] Guard para nueva_fecha=None (puede ocurrir con solo cambio de tecnico)
-        if not params.nueva_fecha:
-            # Usar la fecha actual del evento lider para no crashear fromisoformat
-            params.nueva_fecha = ev_interno.get("inicio", "")[:10]
+        ctx = GroupOperationContext(
+            operation_type    = "mover_grupo",
+            grupo_id          = grupo_id,
+            initiated_by      = "right_panel",
+            trigger_event_id  = event_id,
+        )
 
-        nueva_f = datetime.date.fromisoformat(params.nueva_fecha)
-        tz_suffix = "-03:00"
+        ctx.load_group(db)
+        ctx.validate(params)
 
-        # [FASE 6 - BUG 2 FIX] Usar db.resolve_event en lugar de dict estatico para tolerar
-        # discrepancias entre google_event_id e id local en event_ids del grupo.
-        for i, eid in enumerate(grupo['event_ids']):
-            ev_actual_db = db.resolve_event(eid)
-            if not ev_actual_db:
-                print(f"[WARN] mover_grupo: no se pudo resolver eid={eid} — saltando")
-                continue
-                
-            tec_nombre = grupo['tecnico_nombres'][i] if i < len(grupo['tecnico_nombres']) else ev_actual_db.get("tecnico", "")
-            cal_target = map_nombre_correo.get(tec_nombre) or ev_actual_db.get("calendar_id", "")
-            
-            # Si es el evento editado y hay cambio de técnico
-            if eid == event_id and cambio_tecnico:
-                cal_target = params.correo_destino
-                tec_nombre = map_correo_nombre.get(cal_target) or cal_target
-                # Actualizar el array en memoria para cuando se guarde el grupo
-                if i < len(grupo['tecnico_nombres']):
-                    grupo['tecnico_nombres'][i] = tec_nombre
-            
-            start_orig = ev_actual_db.get("inicio", "")
-            end_orig = ev_actual_db.get("fin", "")
+        if ctx.validation_errors:
+            raise HTTPException(400, "; ".join(ctx.validation_errors))
 
-            if params.h_start is not None:
-                dur = params.h_dur
-                if dur is None:
-                    try:
-                        dt_s = datetime.datetime.fromisoformat(start_orig.replace('Z', '+00:00'))
-                        dt_e = datetime.datetime.fromisoformat(end_orig.replace('Z', '+00:00'))
-                        dur = (dt_e - dt_s).total_seconds() / 3600.0
-                    except:
-                        dur = 1.0
-                hs = params.h_start
-                dt_base = datetime.datetime.combine(nueva_f, datetime.time(0, 0))
-                dt_s_new = dt_base + datetime.timedelta(hours=hs)
-                dt_e_new = dt_base + datetime.timedelta(hours=hs + dur)
-                nuevo_s = dt_s_new.strftime(f"%Y-%m-%dT%H:%M:%S{tz_suffix}")
-                nuevo_e = dt_e_new.strftime(f"%Y-%m-%dT%H:%M:%S{tz_suffix}")
-            elif "T" in start_orig:
-                dt_s = datetime.datetime.fromisoformat(start_orig.replace('Z', '+00:00'))
-                dt_e = datetime.datetime.fromisoformat(end_orig.replace('Z', '+00:00'))
-                delta = (nueva_f - dt_s.date()).days
-                nuevo_s = (dt_s + datetime.timedelta(days=delta)).strftime(f"%Y-%m-%dT%H:%M:%S{tz_suffix}")
-                nuevo_e = (dt_e + datetime.timedelta(days=delta)).strftime(f"%Y-%m-%dT%H:%M:%S{tz_suffix}")
-            else:
-                nuevo_s = nueva_f.isoformat()
-                nuevo_e = (nueva_f + datetime.timedelta(days=1)).isoformat()
+        ctx.build_plan(db, params, tecs_db)
 
-            # Normalizar el evento para mantener consistente extended_props y preservar el grupo_id
-            ev_norm = utils.EventAdapter.normalize_event(ev_actual_db)
-            metadata = ev_norm.get('extended_props', {}).get('private', {}).copy()
-            
-            if params.ots is not None:
-                metadata["app_ots"] = json.dumps(params.ots)
-            if params.patrones is not None:
-                metadata["app_patrones"] = json.dumps(params.patrones)
-            if params.vehiculo is not None:
-                metadata["app_vehiculo"] = params.vehiculo
-            if params.requiere_vehiculo is not None:
-                metadata["app_requiere_vehiculo"] = str(params.requiere_vehiculo).lower()
-            
-            # Garantizar la persistencia del grupo_id
-            metadata["grupo_id"] = grupo['grupo_id']
-                
-            full_props = ev_norm.get('extended_props', {}).copy()
-            full_props["private"] = metadata
+        # Ejecutar mutación atómica (BEGIN IMMEDIATE → COMMIT/ROLLBACK automático)
+        with DataManager.group_transaction_static(db.db_path) as conn:
+            ctx.execute_mutation_phase(conn)
 
-            try:
-                pats_actuales = json.loads(metadata.get('app_patrones', '[]') or '[]')
-            except:
-                pats_actuales = []
+        # Post-commit: enqueue_sync, traces, journal — fuera de la transacción
+        await run_in_threadpool(ctx.execute_post_commit_phase, db)
 
-            base_desc = params.descripcion if params.descripcion is not None else ev_norm.get("descripcion", '')
-            if any(x is not None for x in [params.descripcion, params.patrones, params.vehiculo]):
-                desc_final = generar_descripcion_enriquecida(
-                    base_desc,
-                    params.patrones if params.patrones is not None else pats_actuales,
-                    params.vehiculo if params.vehiculo is not None else metadata.get('app_vehiculo', '')
-                )
-            else:
-                desc_final = base_desc
-                
-            nuevo_titulo = params.titulo if params.titulo is not None else ev_norm.get('summary', '')
+        db.log_trace(grupo_id, "GROUP_LOCK_RELEASED", {
+            "operation_id": ctx.operation_id,
+        }, tag="GROUP_TX")
 
-            # VALIDACIÓN ETAPA 5
-            h_start_val = params.h_start
-            h_end_val = params.h_start + dur if params.h_start is not None else None
-            if h_start_val is None:
-                try:
-                    dt_s_val = datetime.datetime.fromisoformat(nuevo_s.replace('Z', '+00:00'))
-                    dt_e_val = datetime.datetime.fromisoformat(nuevo_e.replace('Z', '+00:00'))
-                    h_start_val = dt_s_val.hour + dt_s_val.minute / 60.0
-                    h_end_val = dt_e_val.hour + dt_e_val.minute / 60.0
-                except:
-                    h_start_val, h_end_val = 7.0, 16.0
-                    
-            vehiculo_val = params.vehiculo if params.vehiculo is not None else metadata.get('app_vehiculo', '')
-            patrones_val = params.patrones if params.patrones is not None else pats_actuales
-
-            # Para el evento del técnico reasignado, usar REMOTE_REASSIGNMENT
-            if eid == event_id and is_reassignment:
-                sync_status_val = "REASSIGN_PENDING"
-                operation_val = "REMOTE_REASSIGNMENT"
-            else:
-                sync_status_val = "PENDING"
-                operation_val = "UPDATE"
-
-            db.actualizar_evento_individual(eid, ev_actual_db["calendar_id"], {
-                "tecnico_nombre": tec_nombre, "summary": nuevo_titulo,
-                "inicio": nuevo_s, "fin": nuevo_e,
-                "ubicacion": params.direccion if params.direccion is not None else ev_norm.get("ubicacion", ''), 
-                "descripcion": desc_final,
-                "extended_props": full_props,
-                "calendar_id": cal_target,
-                "sync_status": sync_status_val,
-                "pending_sync": 1
-            }, base_version=params.base_version if eid == event_id else None)
-            
-            # [OUTBOUND_MUTATION] mutation_created
-            db.log_trace(eid, "mutation_created", {
-                "type": operation_val,
-                "origin": "group_move",
-                "tecnico": tec_nombre,
-                "calendar_id": cal_target,
-                "reassignment_id": reassignment_id,
-                "original_calendar_id": ev_actual_db["calendar_id"]
-            }, calendar_id=cal_target, tag="OUTBOUND_MUTATION")
-
-            # Encolar cada uno
-            db.enqueue_sync(eid, cal_target, tec_nombre, operation_val, 
-                           origin=reassignment_id if is_reassignment else 'group_move',
-                           original_calendar_id=ev_actual_db["calendar_id"])
-
-        # Actualizar IDs en el grupo si cambiaron
-        new_grupo_data = {**grupo, "fecha": params.nueva_fecha}
-        
-        # PROPAGAR VEHÍCULO Y PATRONES SI CAMBIARON
-        if params.vehiculo is not None: new_grupo_data['vehiculo'] = params.vehiculo
-        if params.patrones is not None: new_grupo_data['patrones'] = params.patrones
-
-        db.crear_o_actualizar_grupo(new_grupo_data)
-
-        # [BUG5-FIX] No llamar a _auto_agrupar_evento aquí: el grupo ya existe y todos los eventos
-        # ya fueron movidos. _auto_agrupar buscaría los mismos eventos recién movidos y crearía
-        # un grupo duplicado. Auto-agrupar solo aplica a eventos nuevos sin grupo.
-
-        # Recalcular títulos del grupo si hubo cambio de técnico
-        if cambio_tecnico:
-            await update_group_title(grupo['grupo_id'])
-
-        return {"status": "ok", "moved": len(grupo['event_ids'])}
+        return ctx.to_snapshot_response(db)
 
     except HTTPException:
         raise
     except Exception as e:
         import traceback
-        print("Error global en mover_grupo:", traceback.format_exc())
+        print(f"[ERROR] mover_grupo:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_group_lock(grupo_id)
+
 
 
 
@@ -2115,11 +2189,17 @@ async def individualizar_evento(event_id: str, calendar_id: str = Query(...)):
         ini_map = {t['nombre']: t.get('iniciales', '') for t in all_tecnicos_db}
 
         remaining_ids = [eid for eid in grupo['event_ids'] if eid != event_id]
-        remaining_names = [
-            grupo['tecnico_nombres'][grupo['event_ids'].index(eid)]
-            for eid in remaining_ids
-            if eid in grupo['event_ids']
-        ]
+        
+        # Encontrar los nombres de forma segura sin .index() que falla si hay inconsistencias
+        remaining_names = []
+        for eid in remaining_ids:
+            found_name = ""
+            for i, gid in enumerate(grupo['event_ids']):
+                if gid == eid:
+                    found_name = grupo['tecnico_nombres'][i]
+                    break
+            if found_name:
+                remaining_names.append(found_name)
 
         # Limpiar título del evento individualizado
         ot_limpia = utils.get_ot_base_from_event(ev)
@@ -2300,7 +2380,8 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
         ots_db = db.obtener_bd_ots()
         map_ots = {str(ot[utils.IDX_OT]): ot for ot in ots_db if len(ot) > utils.IDX_OT}
         
-        eventos_dia = [e for e in db.obtener_eventos_dict() if e['inicio'][:10] == fecha or e.get('Inicio', '')[:10] == fecha]
+        eventos_all = db.obtener_eventos_dict()
+        eventos_dia = [e for e in eventos_all if e.get('inicio', '')[:10] == fecha or e.get('Inicio', '')[:10] == fecha]
         ids_en_grupos = []
         for g in grupos_db: ids_en_grupos.extend(g['event_ids'])
         
@@ -2336,13 +2417,40 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
                     cliente = ev.get('cliente') or ev.get('Cliente')
                     if not cliente: cliente = ot_info[utils.IDX_CLIE] if len(ot_info) > utils.IDX_CLIE else "---"
                     
-                    servicio = ev.get('descripcion') or ev.get('Descripción')
-                    if not servicio: servicio = ot_info[utils.IDX_TRAB] if len(ot_info) > utils.IDX_TRAB else "---"
+                    asunto = ot_info[utils.IDX_ASUNTO] if len(ot_info) > utils.IDX_ASUNTO else "---"
+                    if not asunto or str(asunto).strip() == "":
+                        asunto = "Sin asunto"
+                    
+                    direccion = ot_info[utils.IDX_DIRECCION] if len(ot_info) > utils.IDX_DIRECCION else "---"
+
+                    # Resumen de partidas
+                    filas_ot = [r for r in ots_db if len(r) > utils.IDX_OT and str(r[utils.IDX_OT]).strip() == ot]
+                    conteo = {}
+                    for f in filas_ot:
+                        t = f[utils.IDX_TRAB].strip() if len(f) > utils.IDX_TRAB else ''
+                        p = f[utils.IDX_PTS].strip() if len(f) > utils.IDX_PTS else ''
+                        if t or p:
+                            k = (t, p)
+                            conteo[k] = conteo.get(k, 0) + 1
+                    partidas = [{"trabajo": k[0] or "—", "puntos": k[1] or "—", "cant": v} for k, v in sorted(conteo.items())]
+
+                    # Fechas Adicionales
+                    fechas_adicionales = set()
+                    for e_all in eventos_all:
+                        e_tit = e_all.get('summary') or e_all.get('Evento') or ''
+                        e_ots = list(utils.extraer_ots(e_tit))
+                        if ot in e_ots:
+                            e_fecha = e_all.get('inicio', '')[:10] or e_all.get('Inicio', '')[:10]
+                            if e_fecha and e_fecha != fecha:
+                                fechas_adicionales.add(e_fecha)
                     
                     agrupados[key]['detalles_ots'].append({
                         'nro': ot,
                         'cliente': cliente,
-                        'servicio': servicio
+                        'asunto': asunto,
+                        'direccion': direccion,
+                        'partidas': partidas,
+                        'fechas_adicionales': sorted(list(fechas_adicionales))
                     })
             
             for p in (pats or []): agrupados[key]['patrones'].add(p)
@@ -2379,7 +2487,8 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
             
             ots_txt = ", ".join(sorted(list(data['ots'])))
             clientes = " / ".join(list(set([str(d['cliente']) for d in data['detalles_ots']])))
-            servicios = " / ".join(list(set([str(d['servicio']) for d in data['detalles_ots']])))
+            asuntos = " / ".join(list(set([str(d['asunto']) for d in data['detalles_ots']])))
+            direcciones = " / ".join(list(set([str(d['direccion']) for d in data['detalles_ots']])))
 
             resultado.append({
                 "grupo_id": f"group-{'-'.join(inits)}",
@@ -2389,8 +2498,9 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
                 "patrones": sorted(list(data['patrones'])),
                 "vehiculo": ", ".join(data['vehiculos']) if data['vehiculos'] else "N/A",
                 "cliente": clientes,
-                "direccion": "Ver OTs", 
-                "servicio": servicios
+                "direccion": direcciones, 
+                "asunto": asuntos,
+                "detalles_ots": data['detalles_ots']
             })
                 
         return resultado
@@ -2462,13 +2572,9 @@ async def quitar_tecnico(event_id: str, calendar_id: str = Query(...)):
         # 1. Resolver evento e identidad
         ev_interno = db.resolve_event(event_id)
         if not ev_interno:
-            raise HTTPException(status_code=404, detail=f"Evento {event_id} no encontrado")
+            # El borrado debe ser idempotente. Si ya no existe (ej. doble clic), retornamos OK.
+            return {"status": "ok", "detail": "Evento ya eliminado"}
 
-        if _is_complex_event(ev_interno):
-            raise HTTPException(400, f"El evento {event_id} es complejo (multidia o con invitados) y esta bloqueado para edicion. Individualice primero.")
-            
-        print(f"[REASSIGN_TRACE:DELETE] Intentando borrar evento local_id={event_id}, google_event_id={ev_interno.get('google_event_id')}, calendar_id={ev_interno['calendar_id']}")
-        
         event_id = ev_interno['id']
         calendar_id = ev_interno['calendar_id']
         tec_rem = ev_interno['tecnico']
@@ -2476,7 +2582,29 @@ async def quitar_tecnico(event_id: str, calendar_id: str = Query(...)):
         # 2. Identificar el grupo
         grupo = db.obtener_grupo_de_evento(event_id)
         if not grupo:
-            # Sin grupo: Borrado simple local con sync outbound
+            google_id_to_delete = ev_interno.get('google_event_id') or event_id
+            
+            # Si es complejo y no está individualizado, borramos todos los eventos locales
+            # que compartan el mismo google_event_id para garantizar que le pegamos al owner.
+            if _is_complex_event(ev_interno):
+                print(f"[DELETE] Evento complejo sin individualizar. Aplicando borrado global a {google_id_to_delete}")
+                with db._get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id, calendar_id, tecnico_nombre FROM eventos WHERE google_event_id = ? OR id = ?", (google_id_to_delete, google_id_to_delete))
+                    relatives = cursor.fetchall()
+                
+                for rel_id, rel_cal, rel_tec in relatives:
+                    db.log_trace(rel_id, "mutation_created", {
+                        "type": "DELETE",
+                        "tecnico": rel_tec,
+                        "calendar_id": rel_cal,
+                        "origin": "complex_global_delete"
+                    }, calendar_id=rel_cal, tag="OUTBOUND_MUTATION")
+                    db.enqueue_sync(google_id_to_delete, rel_cal, rel_tec, "DELETE")
+                    db.eliminar_evento_individual(rel_id)
+                return {"status": "ok", "detail": "Evento complejo eliminado globalmente"}
+
+            # Sin grupo, no complejo: Borrado simple local con sync outbound
             # [OUTBOUND_MUTATION] mutation_created
             db.log_trace(event_id, "mutation_created", {
                 "type": "DELETE",
@@ -2484,9 +2612,6 @@ async def quitar_tecnico(event_id: str, calendar_id: str = Query(...)):
                 "calendar_id": calendar_id
             }, calendar_id=calendar_id, tag="OUTBOUND_MUTATION")
 
-            # Pasamos google_event_id porque la DB borra el evento físico, 
-            # y el worker necesita el google_id para el borrado remoto.
-            google_id_to_delete = ev_interno.get('google_event_id') or event_id
             db.enqueue_sync(google_id_to_delete, calendar_id, tec_rem, "DELETE")
             db.eliminar_evento_individual(event_id)
             return {"status": "ok"}
@@ -2494,7 +2619,29 @@ async def quitar_tecnico(event_id: str, calendar_id: str = Query(...)):
         grupo_id = grupo['grupo_id']
 
         # 2. Encolar DELETE y marcar localmente
-        tec_rem = grupo['tecnico_nombres'][grupo['event_ids'].index(event_id)]
+        # 3. Calcular nueva composición y encontrar el índice de forma segura
+        # Resolver cada event_id del grupo para comparar con nuestro event_id físico y google_event_id
+        idx_removed = -1
+        google_id_to_compare = ev_interno.get('google_event_id') or event_id
+        for i, gid in enumerate(grupo['event_ids']):
+            if gid == event_id or gid == google_id_to_compare:
+                idx_removed = i
+                break
+            # Por las dudas, resolver en BD
+            mem = db.resolve_event(gid)
+            if mem and (mem['id'] == event_id or mem.get('google_event_id') == google_id_to_compare):
+                idx_removed = i
+                break
+                
+        if idx_removed == -1:
+            # Fallback en caso de inconsistencia extrema
+            tec_rem = ev_interno.get('tecnico_nombre') or ev_interno.get('tecnico')
+            new_tecnico_nombres = list(grupo['tecnico_nombres'])
+            new_event_ids = [eid for eid in grupo['event_ids'] if eid != event_id and eid != google_id_to_compare]
+        else:
+            tec_rem = grupo['tecnico_nombres'][idx_removed]
+            new_tecnico_nombres = [n for i, n in enumerate(grupo['tecnico_nombres']) if i != idx_removed]
+            new_event_ids = [eid for i, eid in enumerate(grupo['event_ids']) if i != idx_removed]
         
         # [OUTBOUND_MUTATION] mutation_created
         db.log_trace(event_id, "mutation_created", {
@@ -2507,15 +2654,6 @@ async def quitar_tecnico(event_id: str, calendar_id: str = Query(...)):
         db.enqueue_sync(google_id_to_delete, calendar_id, tec_rem, "DELETE")
         db.eliminar_evento_individual(event_id)
         
-        # 3. Calcular nueva composición
-        new_event_ids = [eid for eid in grupo['event_ids'] if eid != event_id]
-        
-        try:
-            idx_removed = grupo['event_ids'].index(event_id)
-            new_tecnico_nombres = [n for i, n in enumerate(grupo['tecnico_nombres']) if i != idx_removed]
-        except ValueError:
-            new_tecnico_nombres = list(grupo['tecnico_nombres'])
-
         # 4. Actualizar o disolver grupo
         if not new_event_ids or len(new_event_ids) <= 1:
             # Disolver grupo
@@ -2524,9 +2662,10 @@ async def quitar_tecnico(event_id: str, calendar_id: str = Query(...)):
             if new_event_ids:
                 last_ev = db.resolve_event(new_event_ids[0])
                 if last_ev:
+                    from utils import get_ot_base_from_event
+                    clean_title = get_ot_base_from_event(last_ev)
                     titulo_orig = last_ev.get('evento') or last_ev.get('summary') or ''
-                    clean_title = re.sub(r'\s*-\s*[A-Z0-9/]+\s*$', '', titulo_orig).strip()
-                    if clean_title != titulo_orig:
+                    if clean_title and clean_title != titulo_orig:
                         db.actualizar_titulo_evento(new_event_ids[0], clean_title)
                         gid_last = last_ev.get('google_event_id') or new_event_ids[0]
                         tec_last = last_ev.get('tecnico_nombre') or last_ev.get('tecnico') or ''
@@ -2821,6 +2960,7 @@ async def accept_review(review_id: str):
     - REMOTE_DELETE: marca evento como CANCELLED_IN_GOOGLE.
 
     [INBOUND_FIX] HTTP 422 si la mutación SQLite no ocurre (lookup miss).
+    [OCC] HTTP 409 si el evento fue modificado después de detectar el conflicto (STALE_REVIEW).
     El operador recibe error explícito en lugar de false-200.
     """
     await check_authorization()
@@ -2839,6 +2979,16 @@ async def accept_review(review_id: str):
         return result
     except ValueError as e:
         err = str(e)
+        # [OCC] Review obsoleto: el evento mutó después de la detección del conflicto
+        if err.startswith("STALE_REVIEW"):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "STALE_REVIEW",
+                    "message": err,
+                    "hint": "El evento fue modificado después de que este conflicto fue detectado. Refrescá el Inbox para ver el estado actualizado."
+                }
+            )
         # Distinguir: review no encontrado (404) vs mutación fallida (422)
         if "no encontrado en SQLite" in err or "lookup" in err.lower():
             raise HTTPException(
@@ -2988,11 +3138,7 @@ async def apply_review_change(review_id: str):
         print("[apply_review]", tb.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-webapp_path = get_resource_path("webapp")
-app.mount("/", StaticFiles(directory=webapp_path, html=True), name="webapp")
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# ── ADMIN & OBSERVABILITY ENDPOINTS ───────────────────────────
 # ── ADMIN & OBSERVABILITY ENDPOINTS ───────────────────────────
 
 @app.get("/api/system/drift_report")
@@ -3041,3 +3187,48 @@ async def admin_panel():
     from fastapi.responses import FileResponse
     path = get_resource_path("webapp/admin.html")
     return FileResponse(path)
+
+# ── DRIFT MANAGER ENDPOINTS ───────────────────────────────────
+
+@app.get("/api/drift")
+async def get_drift_events():
+    await check_authorization()
+    # Leer drift events almacenados asincronamente
+    drift_items = []
+    try:
+        with db._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT drift_id, event_id, calendar_id, drift_category, details_json, detected_at FROM drift_events ORDER BY detected_at DESC")
+            for r in cursor.fetchall():
+                import json
+                try:
+                    details = json.loads(r[4])
+                except Exception:
+                    details = {}
+                drift_items.append({
+                    "drift_id": r[0],
+                    "event_id": r[1],
+                    "calendar_id": r[2],
+                    "drift_category": r[3],
+                    "details": details,
+                    "detected_at": r[5]
+                })
+    except Exception as e:
+        print(f"Error fetching drift events: {e}")
+        
+    return {
+        "status": "ok",
+        "corrupt_sql": observatory.get_full_drift_report(),
+        "drift_items": drift_items
+    }
+
+
+
+# ── INICIO DE LA APLICACIÓN ───────────────────────────────────
+
+webapp_path = get_resource_path("webapp")
+app.mount("/", StaticFiles(directory=webapp_path, html=True), name="webapp")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

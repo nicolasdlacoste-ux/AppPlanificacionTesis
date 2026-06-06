@@ -14,6 +14,7 @@ const App = (() => {
     let _isBatchMode = false;
     let _batchSelected = new Set();
     let _batchTecnico = null;
+    let _localMutationTime = Date.now() / 1000;
     // ─────────────────────────────────
     // TRACEABILITY
     // ─────────────────────────────────
@@ -50,6 +51,9 @@ const App = (() => {
         
         console.log("[BOOT] Inicializando PollManager...");
         PollManager.init();
+        
+        console.log("[BOOT] Inicializando DriftManager...");
+        if (typeof DriftManager !== 'undefined') DriftManager.init();
         
         const scrollArea = document.getElementById('scheduler-scroll-area');
         const techLabels = document.getElementById('tech-labels-col');
@@ -166,8 +170,15 @@ const App = (() => {
                 let local = null;
                 for (let j = 0; j < _eventos.length; j++) {
                     // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
-                    if (_eventos[j].google_event_id === incoming.google_event_id) { local = _eventos[j]; break; }
+                    if (_eventos[j].google_event_id === incoming.google_event_id && _eventos[j].calendar_id === incoming.calendar_id) { local = _eventos[j]; break; }
                 }
+                
+                // Conservar metadatos de UI que no vienen de /api/eventos directamente
+                if (local) {
+                    if (local._grupo) incoming._grupo = local._grupo;
+                    if (local._grupo_tecs) incoming._grupo_tecs = local._grupo_tecs;
+                }
+
                 if (local && local._syncing) merged.push(local);
                 else merged.push(incoming);
             }
@@ -177,7 +188,7 @@ const App = (() => {
                     let found = false;
                     for (let k = 0; k < merged.length; k++) {
                         // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
-                        if (merged[k].google_event_id === local.google_event_id) { found = true; break; }
+                        if (merged[k].google_event_id === local.google_event_id && merged[k].calendar_id === local.calendar_id) { found = true; break; }
                     }
                     if (!found) merged.push(local);
                 }
@@ -200,7 +211,7 @@ const App = (() => {
         console.trace(`[UI_FORENSICS] refreshSingleEvent() invocado para: ${eventData.google_event_id}`);
         console.log("[DIAGNOSTIC] refreshSingleEvent received:", eventData);
         // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
-        const idx = _eventos.findIndex(e => e.google_event_id === eventData.google_event_id);
+        const idx = _eventos.findIndex(e => e.google_event_id === eventData.google_event_id && e.calendar_id === eventData.calendar_id);
         if (idx !== -1) {
             const current = _eventos[idx];
             if (eventData.version !== undefined && current.version !== undefined && eventData.version < current.version) {
@@ -220,6 +231,50 @@ const App = (() => {
         Scheduler.render();
         Backlog.render(_ots, _eventos);
         updateFooter();
+    }
+
+    /**
+     * Aplica un group_snapshot proveniente de la respuesta del servidor.
+     * Parchea _eventos con los datos actualizados de cada miembro del grupo
+     * sin necesidad de un round-trip completo a /api/eventos.
+     * 
+     * @param {Object} snapshot  - { grupo_id, members: [...], group_version, correlation_id }
+     */
+    function applyGroupSnapshot(snapshot) {
+        if (!snapshot || !snapshot.members || !snapshot.members.length) return;
+        console.log(`[GROUP_SNAPSHOT] Aplicando snapshot para grupo ${snapshot.grupo_id}, ${snapshot.members.length} miembros`);
+
+        let changed = false;
+        for (const member of snapshot.members) {
+            const idx = _eventos.findIndex(e =>
+                e.google_event_id === member.google_event_id
+                || e.google_event_id === member.id
+                || e.id === member.id
+            );
+            if (idx !== -1) {
+                const current = _eventos[idx];
+                // Aplicar campos actualizados conservando campos no incluidos en el snapshot
+                _eventos[idx] = {
+                    ...current,
+                    tecnico_nombre: member.tecnico_nombre ?? current.tecnico_nombre,
+                    calendar_id:    member.calendar_id    ?? current.calendar_id,
+                    inicio:         member.inicio          ?? current.inicio,
+                    fin:            member.fin             ?? current.fin,
+                    summary:        member.summary         ?? current.summary,
+                    sync_status:    member.sync_status     ?? current.sync_status,
+                    version:        member.version         ?? current.version,
+                    _syncing:       false,
+                };
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            Scheduler.setState({ tecnicos: _tecnicos, eventos: [..._eventos], holidays: _holidays });
+            Scheduler.render();
+            Backlog.render(_ots, _eventos);
+            updateFooter();
+        }
     }
 
     /** Marca todos los eventos de un grupo como 'sincronizando' para feedback visual inmediato. */
@@ -242,9 +297,9 @@ const App = (() => {
     }
 
     /** Elimina un evento de memoria y re-renderiza. Sin round-trip al servidor. */
-    function removeSingleEvent(eventId) {
+    function removeSingleEvent(eventId, calendarId) {
         // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
-        _eventos = _eventos.filter(e => e.google_event_id !== eventId);
+        _eventos = _eventos.filter(e => !(e.google_event_id === eventId && e.calendar_id === calendarId));
         Scheduler.setState({ tecnicos: _tecnicos, eventos: _eventos, holidays: _holidays });
         Scheduler.render();
         Backlog.render(_ots, _eventos);
@@ -256,7 +311,7 @@ const App = (() => {
         console.trace(`[UI_FORENSICS] batchRefreshEvents() invocado para ${newEvents.length} eventos`);
         newEvents.forEach(ev => {
             // [CANONICAL_MIGRATION] ev.id -> ev.google_event_id
-            const idx = _eventos.findIndex(e => e.google_event_id === ev.google_event_id);
+            const idx = _eventos.findIndex(e => e.google_event_id === ev.google_event_id && e.calendar_id === ev.calendar_id);
             if (idx !== -1) _eventos[idx] = ev;
             else _eventos.push(ev);
         });
@@ -269,8 +324,21 @@ const App = (() => {
 
 
     function startHeartbeat() {
-        const sendPulse = () => {
-            fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+        const sendPulse = async () => {
+            try {
+                const res = await fetch('/api/heartbeat', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.last_mutation_time && data.last_mutation_time > _localMutationTime) {
+                        console.log(`[Heartbeat] Backend mutation detected (Local: ${_localMutationTime}, Server: ${data.last_mutation_time}). Refreshing...`);
+                        _localMutationTime = data.last_mutation_time;
+                        // Evitar refresh si hay una acción global en curso (para no sobreescribir estados optimistas)
+                        if (typeof _globalSyncing === 'undefined' || !_globalSyncing) {
+                            refreshEvents();
+                        }
+                    }
+                }
+            } catch (e) {}
         };
 
         // Enviar un "latido" al servidor cada 15 segundos
@@ -434,20 +502,21 @@ const App = (() => {
             
             // Añadir el evento actual del panel derecho (si hay uno y es del mismo técnico)
             const currentEv = RightPanel.getCurrentEvent ? RightPanel.getCurrentEvent() : null;
-            if (currentEv && (currentEv.tecnico_nombre || currentEv.tecnico) === (ev.tecnico_nombre || ev.tecnico)) {
+            if (currentEv && (currentEv.calendar_id === ev.calendar_id)) {
                 let evsToToggle = [currentEv.google_event_id];
                 if (currentEv._grupo && currentEv._grupo.event_ids) {
                     evsToToggle = currentEv._grupo.event_ids;
                 }
                 evsToToggle.forEach(id => _batchSelected.add(id));
-                _batchTecnico = currentEv.tecnico_nombre || currentEv.tecnico;
+                _batchTecnico = currentEv.calendar_id;
             }
         }
 
         if (_isBatchMode) {
-            let myTec = ev.tecnico_nombre || ev.tecnico;
+            let myTec = ev.calendar_id;
             if (_batchSelected.size === 0) {
                 _batchTecnico = myTec;
+                _batchSelected.add(ev.google_event_id);
             } else if (myTec !== _batchTecnico) {
                 toast('Solo puedes seleccionar eventos del mismo técnico en Modo Batch.', 'warning');
                 return;
@@ -492,7 +561,7 @@ const App = (() => {
             toast('Operación en curso, por favor espera...', 'warning');
             return;
         }
-        const eventIdx = _eventos.findIndex(e => e.google_event_id === eventId);
+        const eventIdx = _eventos.findIndex(e => e.google_event_id === eventId && e.calendar_id === calendarId);
         if (eventIdx === -1 || _eventos[eventIdx]._syncing) return;
         _globalSyncing = true;
         const currentEvent = _eventos[eventIdx];
@@ -548,7 +617,7 @@ const App = (() => {
 
             if (scope === 'grupo' && grupoInfo) {
                 grupoInfo.event_ids.forEach(eid => {
-                    const idx = _eventos.findIndex(e => e.google_event_id === eid || e.id === eid);
+                    const idx = _eventos.findIndex(e => (e.google_event_id === eid || e.id === eid) && e.calendar_id === calendarId);
                     if (idx !== -1) applyOptimistic(_eventos[idx]);
                 });
             } else {
@@ -597,7 +666,7 @@ const App = (() => {
                         ? grupoInfo.event_ids
                         : [eventId];
                     idsToClear.forEach(eid => {
-                        const ev = _eventos.find(e => e.google_event_id === eid || e.id === eid);
+                        const ev = _eventos.find(e => (e.google_event_id === eid || e.id === eid) && e.calendar_id === calendarId);
                         if (ev) delete ev._syncing;
                     });
                 };
@@ -613,7 +682,7 @@ const App = (() => {
                 // Si la API dice que el ID cambió (fallback delete+insert)
                 // Forzamos refresh para capturar cambios por auto-agrupación (grupo_id, títulos con tags)
                 if (data.event_id && data.event_id !== eventId) {
-                    const ev = _eventos.find(e => e.google_event_id === eventId);
+                    const ev = _eventos.find(e => e.google_event_id === eventId && e.calendar_id === calendarId);
                     if (ev) ev.google_event_id = data.event_id;
                 }
                 await refreshEvents();
@@ -629,7 +698,9 @@ const App = (() => {
         };
 
         if (grupoInfo) {
-            const cambioTecnico = destCorreo && destCorreo !== calendarId;
+            const destCorreoL = destCorreo ? destCorreo.toLowerCase() : '';
+            const calendarIdL = calendarId ? calendarId.toLowerCase() : '';
+            const cambioTecnico = destCorreoL && destCorreoL !== calendarIdL;
             const currentDate = currentEvent.inicio ? currentEvent.inicio.substring(0, 10) : "";
             const cambioFecha = nuevaFecha && currentDate && nuevaFecha !== currentDate;
             
@@ -653,7 +724,7 @@ const App = (() => {
         _globalSyncing = true;
 
         // ── Actualización optimista: quitar de memoria ANTES de que responda el servidor
-        removeSingleEvent(eventId);
+        removeSingleEvent(eventId, calendarId);
         RightPanel.showEmpty();
 
         try {
@@ -695,13 +766,17 @@ const App = (() => {
 
     async function quitarTecnicoDeGrupo(eventId, calendarId) {
         _globalSyncing = true;
+        // Borrado optimista local
+        removeSingleEvent(eventId, calendarId);
+        RightPanel.showEmpty();
+
         try {
             const res = await fetch(`/api/eventos/${eventId}/quitar_tecnico?calendar_id=${encodeURIComponent(calendarId)}`, {
                 method: 'POST'
             });
             if (!res.ok) throw new Error(await res.text());
             toast('Técnico desasignado ✓', 'success');
-            RightPanel.showEmpty();
+            // Refresh para asegurar consistencia del título del grupo
             await refreshEvents();
         } catch (e) {
             toast('Error al quitar técnico: ' + e.message, 'error');
@@ -799,9 +874,12 @@ const App = (() => {
         const veh = _vehiculos.find(v => v.nombre === vehiculoNombre);
         if (!veh) return null;
         
+        const techInfo = _tecnicos.find(t => t.nombre === techNombre);
+        const techCorreo = techInfo ? techInfo.correo : null;
+        
         // Si no se pasó grupoId explícitamente, intentar obtenerlo del evento actual
         if (!grupoId && evId) {
-            const evTarget = _eventos.find(e => e.google_event_id === evId);
+            const evTarget = _eventos.find(e => e.google_event_id === evId && e.calendar_id === techCorreo);
             if (evTarget && evTarget.extended_props && evTarget.extended_props.private) {
                 grupoId = evTarget.extended_props.private.grupo_id;
             }
@@ -828,7 +906,9 @@ const App = (() => {
         // Regla NUEVA: Verificar si EL TÉCNICO tiene asignado OTRO vehículo este día
         const techEventsToday = _eventos.filter(ev => {
             if (ev.google_event_id === evId) return false;
-            if (ev.tecnico_nombre !== techNombre) return false;
+            // [CANONICAL_MIGRATION] match by calendar_id (fallback to nombre)
+            const matchesTech = (ev.calendar_id && ev.calendar_id === techCorreo) || (!ev.calendar_id && ev.tecnico_nombre === techNombre);
+            if (!matchesTech) return false;
             const evSh = ev.inicio || "";
             const evEh = ev.fin || "";
             if (!evSh || !evEh) return false;
@@ -847,9 +927,9 @@ const App = (() => {
         // IMPORTANTE: los miembros del mismo grupo SÍ cuentan como ocupantes del vehículo
         // (comparten el vehículo yendo al mismo trabajo, pero siguen ocupando asientos).
         const uniqueTechs = new Set();
-        uniqueTechs.add(techNombre);
+        uniqueTechs.add(techCorreo || techNombre);
         sameDayEvents.forEach(e => {
-            if (e.tecnico_nombre) uniqueTechs.add(e.tecnico_nombre);
+            if (e.calendar_id || e.tecnico_nombre) uniqueTechs.add(e.calendar_id || e.tecnico_nombre);
         });
         
         if (uniqueTechs.size > veh.asientos) {
@@ -1240,6 +1320,8 @@ const App = (() => {
         const inputDate = document.getElementById('ts-date-input');
         const btnRefrescar = document.getElementById('ts-btn-refrescar');
         const btnPrint = document.getElementById('ts-btn-print');
+        const btnCopy = document.getElementById('ts-btn-copy');
+        const btnWhatsApp = document.getElementById('ts-btn-whatsapp');
 
         if (!btnOpen) return;
 
@@ -1264,17 +1346,62 @@ const App = (() => {
                     <html>
                     <head><title>Tarjeta de Salida - Akrimet</title>
                     <style>
-                        body { font-family: 'Courier New', Courier, monospace; padding: 20px; white-space: pre-wrap; font-size: 14px; }
-                        .card-header { border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 5px; font-weight: bold; font-size: 18px; }
-                        .section-label { font-weight: bold; text-decoration: underline; margin-top: 15px; display: block; }
+                        body { padding: 20px; }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        }
                     </style>
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
                     </head>
                     <body>${content}</body>
                     </html>
                 `);
                 printWindow.document.close();
                 printWindow.focus();
-                setTimeout(() => { printWindow.print(); }, 500);
+                setTimeout(() => { printWindow.print(); }, 800);
+            });
+        }
+
+        if (btnCopy) {
+            btnCopy.addEventListener('click', async () => {
+                const target = document.getElementById('ts-capture-area');
+                if (!target) {
+                    toast('No hay tarjeta para copiar.', 'warning');
+                    return;
+                }
+                
+                try {
+                    btnCopy.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...';
+                    btnCopy.disabled = true;
+
+                    if (typeof html2canvas === 'undefined') {
+                        throw new Error('La librería html2canvas no está cargada. Actualice la página e intente de nuevo.');
+                    }
+
+                    const canvas = await html2canvas(target, {
+                        scale: 2, 
+                        useCORS: true,
+                        backgroundColor: '#ffffff'
+                    });
+
+                    canvas.toBlob(async (blob) => {
+                        try {
+                            const item = new ClipboardItem({ 'image/png': blob });
+                            await navigator.clipboard.write([item]);
+                            toast('Tarjeta copiada al portapapeles como imagen ✓', 'success');
+                        } catch (err) {
+                            console.error("Clipboard Error:", err);
+                            toast('Error al acceder al portapapeles. Puede que el navegador no lo soporte en este entorno.', 'error');
+                        }
+                        btnCopy.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar Imagen';
+                        btnCopy.disabled = false;
+                    }, 'image/png', 1.0);
+
+                } catch (e) {
+                    toast('Error generando imagen: ' + e.message, 'error');
+                    btnCopy.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar Imagen';
+                    btnCopy.disabled = false;
+                }
             });
         }
     }
@@ -1303,6 +1430,8 @@ const App = (() => {
         viewContainer.innerHTML = '';
         viewContainer.classList.add('hidden');
         if (btnPrint) btnPrint.classList.add('hidden');
+        const btnCopy = document.getElementById('ts-btn-copy');
+        if (btnCopy) btnCopy.classList.add('hidden');
 
         try {
             const res = await fetch(`/api/grupos/tarjeta_salida?fecha=${date}`);
@@ -1332,37 +1461,216 @@ const App = (() => {
     function renderTarjeta(g) {
         const viewContainer = document.getElementById('ts-visualizacion');
         const btnPrint = document.getElementById('ts-btn-print');
+        const btnCopy = document.getElementById('ts-btn-copy');
         
         const date = document.getElementById('ts-date-input').value;
         
-        // El 'g.tag' contiene las iniciales concatenadas (ej: ND/LR)
         const tag = g.tag || g.tecnicos.map(t => t.split(' ')[0][0]).join('/');
+        
+        // --- 1. Agrupar Patrones por Magnitud (Trabajos) ---
+        const patGroups = {};
+        const sinMagnitud = [];
+        (g.patrones || []).forEach(pCode => {
+            const patData = _patrones.find(x => x.nombre === pCode);
+            if (patData && patData.trabajos) {
+                try {
+                    const parsed = JSON.parse(patData.trabajos);
+                    const mag = Array.isArray(parsed) ? parsed[0] : parsed;
+                    if (!patGroups[mag]) patGroups[mag] = [];
+                    patGroups[mag].push(pCode);
+                } catch (e) {
+                    const parts = patData.trabajos.split(/[,;|]+/).map(s => s.trim().replace(/[\\[\\]"']/g, '')).filter(s => s);
+                    const mag = parts.length > 0 ? parts[0] : 'Otros';
+                    if (!patGroups[mag]) patGroups[mag] = [];
+                    patGroups[mag].push(pCode);
+                }
+            } else {
+                sinMagnitud.push(pCode);
+            }
+        });
+        
+        let patLines = [];
+        for (const [mag, codes] of Object.entries(patGroups)) {
+            patLines.push(`<div style="margin-bottom:2px"><b>${mag}:</b> ${codes.join(', ')}</div>`);
+        }
+        if (sinMagnitud.length > 0) {
+            patLines.push(`<div><b>Otros:</b> ${sinMagnitud.join(', ')}</div>`);
+        }
+        const patronesHtml = patLines.length ? patLines.join('') : '<div style="color:#888; font-style:italic;">Sin patrones asignados</div>';
+
+        // --- 2. Agrupar OTs por Cliente y Dirección ---
+        const otGroupsMap = {};
+        (g.detalles_ots || []).forEach(d => {
+            const key = `${d.cliente || '---'}|||${d.direccion || '---'}`;
+            if (!otGroupsMap[key]) {
+                otGroupsMap[key] = { cliente: d.cliente || '---', direccion: d.direccion || '---', ots: [] };
+            }
+            otGroupsMap[key].ots.push(d);
+        });
+        const otGroups = Object.values(otGroupsMap);
+
+        // --- 3. Generar HTML Amigable ---
+        const styles = `
+            <style>
+                #ts-capture-area {
+                    background: #ffffff;
+                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                    color: #1e293b;
+                    box-sizing: border-box;
+                    width: 100%;
+                    max-width: 420px;
+                    margin: 0 auto;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                    overflow: hidden;
+                    line-height: 1.4;
+                }
+                .ts-header {
+                    background: #1e3a8a;
+                    color: white;
+                    padding: 12px 16px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .ts-header-title { font-size: 15px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
+                .ts-header-date { font-size: 13px; font-weight: 600; opacity: 0.9; }
+                .ts-body { padding: 12px 16px; }
+                .ts-pill {
+                    display: inline-block;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    padding: 4px 8px;
+                    border-radius: 6px;
+                    font-size: 11px;
+                    margin-right: 6px;
+                    margin-bottom: 6px;
+                    color: #334155;
+                }
+                .ts-pill b { color: #0f172a; margin-right: 4px; }
+                .ts-patrones {
+                    background: #f8fafc;
+                    border: 1px dashed #cbd5e1;
+                    padding: 8px 12px;
+                    border-radius: 8px;
+                    font-size: 11px;
+                    margin-bottom: 16px;
+                    color: #334155;
+                }
+                .ts-destino {
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    margin-bottom: 12px;
+                    overflow: hidden;
+                }
+                .ts-destino:last-child { margin-bottom: 0; }
+                .ts-destino-header {
+                    background: #f1f5f9;
+                    border-bottom: 1px solid #e2e8f0;
+                    padding: 8px 12px;
+                }
+                .ts-destino-header b { font-size: 13px; color: #0f172a; display: block; margin-bottom: 2px;}
+                .ts-destino-header span { font-size: 11px; color: #64748b; }
+                .ts-destino-body { padding: 12px; }
+                .ts-ot-item {
+                    font-size: 11px;
+                    margin-bottom: 8px;
+                }
+                .ts-ot-title { color: #1e40af; font-weight: bold; margin-right: 4px; }
+                .ts-ot-asunto { color: #334155; }
+                .ts-ot-fechas { font-size: 9px; color: #d97706; margin-top: 2px; }
+            </style>
+        `;
 
         let html = `
-<div class="card-header">AKRIMET - TARJETA DE SALIDA - ${date} [${tag}]</div>
-<span class="section-label">DATOS DEL SERVICIO</span>
-OT:        ${g.ot_nro}
-CLIENTE:   ${g.cliente || '---'}
-DIRECCION: ${g.direccion || '---'}
-SERVICIO:  ${g.servicio || '---'}
+        <div id="ts-capture-area">
+            ${styles}
+            
+            <div class="ts-header">
+                <div class="ts-header-title">TARJETA DE SALIDA</div>
+                <div class="ts-header-date">${date}</div>
+            </div>
+            
+            <div class="ts-body">
+                <div style="margin-bottom: 10px;">
+                    <div class="ts-pill"><b>Técnicos:</b> ${g.tecnicos.join(' / ')}</div>
+                    <div class="ts-pill"><b>Vehículo:</b> ${g.vehiculo || 'No asignado'}</div>
+                </div>
 
-<span class="section-label">GRUPO DE TRABAJO</span>
-${g.tecnicos.map((t, i) => `[${i+1}] ${t}`).join('\n')}
+                <div class="ts-patrones">
+                    <div style="margin-bottom:4px; font-weight:bold; color:#0f172a; font-size:10px; text-transform:uppercase;">Patrones Asignados</div>
+                    ${patronesHtml}
+                </div>
 
-<span class="section-label">RECURSOS ASIGNADOS</span>
-VEHICULO:  ${g.vehiculo || 'No asignado'}
-PATRONES:
-${g.patrones.length ? g.patrones.map(p => ` - ${p}`).join('\n') : ' - Sin patrones registrados'}
+                <div style="font-size:12px; font-weight:800; color:#1e3a8a; margin-bottom:8px; text-transform:uppercase;">Destinos Programados</div>
+        `;
 
-<span class="section-label">OBSERVACIONES</span>
-____________________________________________________________
-____________________________________________________________
-____________________________________________________________
-`;
+        otGroups.forEach(group => {
+            // Resumen de partidas
+            const partidasResumenMap = {};
+            group.ots.forEach(d => {
+                if (d.partidas) {
+                    d.partidas.forEach(p => {
+                        const pk = `${p.trabajo}|||${p.puntos}`;
+                        if (!partidasResumenMap[pk]) partidasResumenMap[pk] = { trabajo: p.trabajo, puntos: p.puntos, cant: 0 };
+                        partidasResumenMap[pk].cant += parseInt(p.cant, 10) || 0;
+                    });
+                }
+            });
+            const resumenItems = Object.values(partidasResumenMap);
+            let tablaPartidasHtml = '';
+            if (resumenItems.length > 0) {
+                tablaPartidasHtml = `
+                    <table class="data-table" style="width:100%; margin-top:10px; margin-bottom:0; font-size:10px;">
+                        <thead><tr><th>Trabajo</th><th>Puntos</th><th style="text-align:center">Cant.</th></tr></thead>
+                        <tbody>
+                            ${resumenItems.map(p => `<tr><td>${p.trabajo}</td><td>${p.puntos}</td><td style="text-align:center; font-weight:bold;">${p.cant}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                tablaPartidasHtml = `<div style="font-size:10px; color:#888; font-style:italic; margin-top:8px;">Sin partidas registradas</div>`;
+            }
+                
+            let otsHtml = group.ots.map(d => {
+                let fechasExtra = '';
+                if (d.fechas_adicionales && d.fechas_adicionales.length) {
+                    fechasExtra = `<div class="ts-ot-fechas">Próximas visitas: ${d.fechas_adicionales.join(', ')}</div>`;
+                }
+                return `
+                <div class="ts-ot-item">
+                    <span class="ts-ot-title">OT ${d.nro}:</span>
+                    <span class="ts-ot-asunto">${d.asunto}</span>
+                    ${fechasExtra}
+                </div>`;
+            }).join('');
+
+            html += `
+            <div class="ts-destino">
+                <div class="ts-destino-header">
+                    <b>${group.cliente}</b>
+                    <span><i class="fa-solid fa-location-dot"></i> ${group.direccion}</span>
+                </div>
+                <div class="ts-destino-body">
+                    ${otsHtml}
+                    ${tablaPartidasHtml}
+                </div>
+            </div>
+            `;
+        });
+
+        html += `
+            </div>
+        </div>`;
         
-        viewContainer.innerHTML = html.replace(/\n/g, '<br>');
+        viewContainer.innerHTML = html;
         viewContainer.classList.remove('hidden');
+        viewContainer.style.background = "#f1f5f9"; // Soft gray background for the modal so the white card pops out
+        viewContainer.style.padding = "20px";
+        
         if (btnPrint) btnPrint.classList.remove('hidden');
+        if (btnCopy) btnCopy.classList.remove('hidden');
+        if (btnWhatsApp) btnWhatsApp.classList.remove('hidden');
     }
 
     function openSFLink(sfid) {
@@ -1405,6 +1713,7 @@ ____________________________________________________________
         toast, openPatronModal,
         getVehiculos, checkVehicleConflicts,
         refreshSingleEvent, removeSingleEvent, batchRefreshEvents, refreshEvents,
+        applyGroupSnapshot,
         renderTarjeta, quitarTecnicoDeGrupo, setGroupSyncing,
         openSFLink, showSFLinksPopup,
         logTrace,

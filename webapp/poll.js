@@ -81,28 +81,81 @@ const PollManager = (() => {
         document.getElementById('modal-poll-review')?.classList.remove('hidden');
     }
 
-    // ── DIFF VISUAL ────────────────────────────────────────
-    function renderDiffRow(field, d) {
-        const label = FIELD_LABELS[field] || field;
-        const oldVal = d.old !== undefined ? d.old : '—';
-        const newVal = d.new !== undefined ? d.new : '—';
+    function formatDateTime(isoString) {
+        if (!isoString || isoString === '-' || isoString === '—') return '—';
+        const d = new Date(isoString);
+        if (isNaN(d)) return isoString; 
+        const pad = (n) => n.toString().padStart(2, '0');
+        return `Fecha: ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} Hora: ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function getFieldDisplay(item, fieldKey, isDate = false) {
+        let isChanged = false;
+        let oldVal = null;
+        let newVal = null;
+
+        if (item.conflict_type === 'REMOTE_CREATE') {
+            const d = item.diff && item.diff[fieldKey];
+            newVal = d ? (d.new || d) : (item.remote_snapshot && item.remote_snapshot[fieldKey] ? item.remote_snapshot[fieldKey] : '—');
+            isChanged = true;
+        } else if (item.conflict_type === 'REMOTE_DELETE') {
+            oldVal = item[fieldKey] || (item.local_snapshot && item.local_snapshot[fieldKey]) || '—';
+            if (fieldKey === 'summary' && oldVal === '—') oldVal = item.event_summary || '—';
+            if (fieldKey === 'tecnico_nombre' && oldVal === '—') oldVal = item.tecnico_nombre || '—';
+            isChanged = true;
+        } else {
+            if (item.diff && item.diff[fieldKey]) {
+                isChanged = true;
+                oldVal = item.diff[fieldKey].old;
+                newVal = item.diff[fieldKey].new;
+            } else {
+                isChanged = false;
+                newVal = item[fieldKey] || (item.local_snapshot && item.local_snapshot[fieldKey]) || '—';
+                if (fieldKey === 'summary' && newVal === '—') newVal = item.event_summary || '—';
+                if (fieldKey === 'tecnico_nombre' && newVal === '—') newVal = item.tecnico_nombre || '—';
+            }
+        }
+
+        if (isDate) {
+            if (oldVal && oldVal !== '—') oldVal = formatDateTime(oldVal);
+            if (newVal && newVal !== '—') newVal = formatDateTime(newVal);
+        }
+
+        return { isChanged, oldVal, newVal };
+    }
+
+    function renderFieldRow(label, displayData) {
+        const { isChanged, oldVal, newVal } = displayData;
+        let contentHtml = '';
+
+        if (!isChanged) {
+            contentHtml = `<span style="color:#10b981;font-weight:600;">${newVal || oldVal || '-'}</span>`;
+        } else {
+            if (oldVal !== null && newVal !== null) {
+                contentHtml = `
+                    <span style="color:#94a3b8;text-decoration:line-through;">${oldVal}</span>
+                    <i class="fa-solid fa-arrow-right" style="color:#ef4444;margin:0 6px;font-size:10px;"></i>
+                    <span style="color:#ef4444;font-weight:bold;">${newVal}</span>
+                `;
+            } else if (oldVal !== null) {
+                contentHtml = `<span style="color:#ef4444;font-weight:bold;text-decoration:line-through;">${oldVal}</span>`;
+            } else if (newVal !== null) {
+                contentHtml = `<span style="color:#ef4444;font-weight:bold;">${newVal}</span>`;
+            }
+        }
+
         return `
-            <div style="display:grid;grid-template-columns:120px 1fr auto 1fr;gap:6px;align-items:center;
-                        padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px;">
+            <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px;">
                 <span style="color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">${label}</span>
-                <span style="background:rgba(239,68,68,.12);color:#fca5a5;padding:2px 6px;border-radius:4px;word-break:break-all">${oldVal}</span>
-                <span style="color:var(--text-muted)">→</span>
-                <span style="background:rgba(16,185,129,.12);color:#6ee7b7;padding:2px 6px;border-radius:4px;word-break:break-all">${newVal}</span>
-            </div>`;
+                <div>${contentHtml}</div>
+            </div>
+        `;
     }
 
     function renderCard(item) {
         const isDelete = item.conflict_type === 'REMOTE_DELETE';
         const isCreate = item.conflict_type === 'REMOTE_CREATE';
         const reviewId = item.review_id || '';
-        const eventSummary = item.event_summary || item.event_id?.substring(0, 12) + '…';
-        const tecnico = item.tecnico_nombre || '—';
-        const calendar = item.calendar_id || '—';
         const detectedAt = item.detected_at ? item.detected_at.substring(0, 16).replace('T', ' ') : '—';
         const recommended = item.recommended_action || 'ACCEPT_REMOTE';
 
@@ -126,32 +179,48 @@ const PollManager = (() => {
             recommendedLabel = 'Recomendación: Aceptar e importar evento nuevo';
         }
 
-        // Diff visual
-        let diffHtml = '';
-        if (isDelete) {
-            diffHtml = `
-                <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);
-                            border-radius:6px;padding:10px;margin:8px 0;font-size:11px;">
-                    <div style="font-weight:600;color:#f87171;margin-bottom:4px;">El evento fue eliminado directamente en Google Calendar.</div>
-                    <div style="color:var(--text-muted);">Estado local: <strong>ACTIVO</strong> — Google: <strong>CANCELADO</strong></div>
-                </div>`;
-        } else if (isCreate) {
-            const diff = item.diff || {};
-            const diffFields = Object.entries(diff).filter(([k]) => !k.startsWith('_'));
-            diffHtml = `
-                <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);
-                            border-radius:6px;padding:10px;margin:8px 0;font-size:11px;">
-                    <div style="font-weight:600;color:#34d399;margin-bottom:4px;">Se detectó la creación de un nuevo evento en Google Calendar.</div>
-                    <div style="color:var(--text-muted);margin-bottom:6px;">Se importarán los siguientes datos:</div>
-                    ${diffFields.map(([f, d]) => renderDiffRow(f, d)).join('')}
-                </div>`;
-        } else {
-            const diff = item.diff || {};
-            const diffFields = Object.entries(diff).filter(([k]) => !k.startsWith('_'));
-            if (diffFields.length > 0) {
-                diffHtml = `<div style="margin:8px 0;">${diffFields.map(([f, d]) => renderDiffRow(f, d)).join('')}</div>`;
+        const summaryData = getFieldDisplay(item, 'summary');
+        const tecnicoData = getFieldDisplay(item, 'tecnico_nombre');
+        const inicioData = getFieldDisplay(item, 'inicio', true);
+        const finData = getFieldDisplay(item, 'fin', true);
+
+        const collapsedSummary = summaryData.newVal || summaryData.oldVal || 'Sin Título';
+        const collapsedTecnico = tecnicoData.newVal || tecnicoData.oldVal || '—';
+        const collapsedInicio = inicioData.newVal || inicioData.oldVal || '—';
+
+        const toggleId = `details-${reviewId}`;
+
+        let otherFieldsHtml = '';
+        if (item.diff) {
+            for (const [k, v] of Object.entries(item.diff)) {
+                if (['summary', 'inicio', 'fin', 'tecnico_nombre', 'tecnico', 'calendar_id'].includes(k) || k.startsWith('_')) continue;
+                const dData = { isChanged: true, oldVal: v.old, newVal: v.new };
+                otherFieldsHtml += renderFieldRow(FIELD_LABELS[k] || k, dData);
             }
         }
+
+        const diffHtml = `
+            <div style="cursor:pointer; display:flex; align-items:center; justify-content:space-between;" onclick="document.getElementById('${toggleId}').classList.toggle('hidden');">
+                <div>
+                    <div style="font-weight:600;font-size:13px;margin-bottom:2px;">${collapsedSummary}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">
+                        <i class="fa-solid fa-user"></i> ${collapsedTecnico} &nbsp;·&nbsp;
+                        <i class="fa-solid fa-calendar-day"></i> ${collapsedInicio}
+                    </div>
+                </div>
+                <div style="color:var(--accent); font-size: 16px;">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+            </div>
+            
+            <div id="${toggleId}" class="hidden" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1);">
+                ${renderFieldRow('Título', summaryData)}
+                ${renderFieldRow('Inicio', inicioData)}
+                ${renderFieldRow('Fin', finData)}
+                ${renderFieldRow('Técnico', tecnicoData)}
+                ${otherFieldsHtml}
+            </div>
+        `;
 
         // Botones según tipo
         let acceptLabel = '<i class="fa-solid fa-check"></i> Aplicar Cambio';
@@ -183,11 +252,6 @@ const PollManager = (() => {
             </div>
             <!-- Body -->
             <div style="padding:10px 12px;">
-                <div style="font-weight:600;font-size:13px;margin-bottom:2px;">${eventSummary}</div>
-                <div style="font-size:11px;color:var(--text-muted);">
-                    <i class="fa-solid fa-user"></i> ${tecnico} &nbsp;·&nbsp;
-                    <i class="fa-solid fa-calendar"></i> ${calendar}
-                </div>
                 ${diffHtml}
             </div>
             <!-- Actions -->

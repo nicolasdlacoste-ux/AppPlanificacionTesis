@@ -97,9 +97,16 @@ def get_google_services():
         
     # Si no hay credenciales válidas, le pide al usuario que inicie sesión.
     if not creds or not creds.valid:
+        refreshed = False
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+                refreshed = True
+            except Exception as re_err:
+                print(f"[Auth] Error al refrescar token: {re_err}. Re-autenticando...")
+                creds = None
+                
+        if not refreshed:
             # 2. INTENTAR CARGAR CREDENCIALES (App Secret)
             env_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
             if env_creds:

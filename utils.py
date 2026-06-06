@@ -11,6 +11,32 @@ def _now_iso() -> str:
     """Retorna el timestamp actual en UTC como string ISO8601 con 'Z'."""
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+def generar_descripcion_enriquecida(base_desc: str, patrones, vehiculo: str) -> str:
+    """
+    Combina la descripción base con los patrones y el vehículo en un bloque visual.
+    Si ya existe un bloque previo (separador ──────────), lo reemplaza.
+    Importable desde utils para evitar dependencia circular con api_server.
+    """
+    if base_desc and "──────────" in base_desc:
+        base_desc = base_desc.split("──────────")[0].strip()
+
+    metadata_lines = []
+    if patrones:
+        p_list = patrones if isinstance(patrones, list) else [patrones]
+        metadata_lines.append(f"🛠️ Patrones: {', '.join(p_list)}")
+    if vehiculo:
+        metadata_lines.append(f"🚐 Vehículo: {vehiculo}")
+
+    if not metadata_lines:
+        return (base_desc or "").strip()
+
+    res = (base_desc or "").strip()
+    res += "\n\n─────────────────────────────────────────────\n"
+    res += "\n".join(metadata_lines)
+    res += "\n─────────────────────────────────────────────"
+    return res.strip()
+
+
 def _parse_dt(dt_str: str) -> datetime.datetime | None:
     """
     Parsea un string ISO8601 a datetime. 
@@ -296,6 +322,10 @@ class LegacyAliasRegistry:
         "updated_at": ["updated_at", "updated"],
         "last_synced_at": ["last_synced_at", "last_google_sync"],
         "sync_status": ["sync_status"],
+        "sync_state": ["sync_state"],
+        "pending_sync": ["pending_sync"],
+        "poll_source": ["poll_source"],
+        "source": ["source"],
         "version": ["version"]
     }
 
@@ -340,7 +370,7 @@ class EventAdapter:
 
 
         return {
-            "id":              gid,
+            "id":              f"{gid}_{calendar_id}" if calendar_id else gid,
             "google_event_id": gid,
             "calendar_id":     calendar_id or private.get("calendar_id"),
             "tecnico_nombre":  tec_nombre or private.get("tecnico_nombre"),
