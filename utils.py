@@ -11,29 +11,65 @@ def _now_iso() -> str:
     """Retorna el timestamp actual en UTC como string ISO8601 con 'Z'."""
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-def generar_descripcion_enriquecida(base_desc: str, patrones, vehiculo: str) -> str:
+def generar_descripcion_enriquecida(base_desc: str, patrones, vehiculo: str, all_pats: list = None) -> str:
     """
     Combina la descripción base con los patrones y el vehículo en un bloque visual.
     Si ya existe un bloque previo (separador ──────────), lo reemplaza.
     Importable desde utils para evitar dependencia circular con api_server.
     """
-    if base_desc and "──────────" in base_desc:
-        base_desc = base_desc.split("──────────")[0].strip()
+    for sep in ["──────────", "⚖️ Patrones:", "🛠️ Patrones:", "🚐 Vehículo:"]:
+        if base_desc and sep in base_desc:
+            base_desc = base_desc.split(sep)[0].strip()
 
     metadata_lines = []
+    
     if patrones:
         p_list = patrones if isinstance(patrones, list) else [patrones]
-        metadata_lines.append(f"🛠️ Patrones: {', '.join(p_list)}")
+        
+        if all_pats:
+            import json
+            import re
+            pat_groups = {}
+            sin_mag = []
+            
+            for pCode in p_list:
+                pat_row = next((r for r in all_pats if len(r) > IDX_PATRON_NOMBRE and r[IDX_PATRON_NOMBRE] == pCode), None)
+                if pat_row and len(pat_row) > IDX_PATRON_TRABAJOS and pat_row[IDX_PATRON_TRABAJOS]:
+                    trab_str = str(pat_row[IDX_PATRON_TRABAJOS]).strip()
+                    try:
+                        parsed = json.loads(trab_str)
+                        mag = parsed[0] if isinstance(parsed, list) else parsed
+                        if not mag: mag = 'Otros'
+                        if mag not in pat_groups: pat_groups[mag] = []
+                        pat_groups[mag].append(pCode)
+                    except:
+                        parts = [s.strip() for s in re.split(r'[,;|]+', trab_str.replace('[','').replace(']','').replace('"','').replace("'","")) if s.strip()]
+                        mag = parts[0] if parts else 'Otros'
+                        if mag not in pat_groups: pat_groups[mag] = []
+                        pat_groups[mag].append(pCode)
+                else:
+                    sin_mag.append(pCode)
+            
+            metadata_lines.append("⚖️ Patrones:")
+            for mag, codes in pat_groups.items():
+                metadata_lines.append(f"- {mag}: {', '.join(codes)}")
+            if sin_mag:
+                metadata_lines.append(f"- Otros: {', '.join(sin_mag)}")
+        else:
+            metadata_lines.append(f"🛠️ Patrones: {', '.join(p_list)}")
+            
     if vehiculo:
+        if patrones:
+            metadata_lines.append("") # Enter antes del vehículo
         metadata_lines.append(f"🚐 Vehículo: {vehiculo}")
 
     if not metadata_lines:
         return (base_desc or "").strip()
 
     res = (base_desc or "").strip()
-    res += "\n\n─────────────────────────────────────────────\n"
+    if res:
+        res += "\n\n"
     res += "\n".join(metadata_lines)
-    res += "\n─────────────────────────────────────────────"
     return res.strip()
 
 

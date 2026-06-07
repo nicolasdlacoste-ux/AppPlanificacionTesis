@@ -10,6 +10,7 @@ const App = (() => {
     let _patrones = [];
     let _vehiculos = [];
     let _holidays = {};
+    let _servicios = [];
     let _patronModalCallback = null;
     let _isBatchMode = false;
     let _batchSelected = new Set();
@@ -335,6 +336,9 @@ const App = (() => {
                         // Evitar refresh si hay una acción global en curso (para no sobreescribir estados optimistas)
                         if (typeof _globalSyncing === 'undefined' || !_globalSyncing) {
                             refreshEvents();
+                            if (window.PollManager && typeof window.PollManager.fetchPollStatus === 'function') {
+                                window.PollManager.fetchPollStatus();
+                            }
                         }
                     }
                 }
@@ -450,6 +454,7 @@ const App = (() => {
             
             const configRes = results.find(r => r.id === 'config');
             _holidays = (configRes?.ok && configRes.data?.holidays) ? configRes.data.holidays : {};
+            _servicios = (configRes?.ok && configRes.data?.services) ? configRes.data.services : [];
 
             console.log(`[BOOT] loadAll: Datos listos -> Tecs: ${_tecnicos.length}, Evs: ${_eventos.length}`);
 
@@ -1319,7 +1324,6 @@ const App = (() => {
         const btnOpen = document.getElementById('btn-ts-open');
         const inputDate = document.getElementById('ts-date-input');
         const btnRefrescar = document.getElementById('ts-btn-refrescar');
-        const btnPrint = document.getElementById('ts-btn-print');
         const btnCopy = document.getElementById('ts-btn-copy');
         const btnWhatsApp = document.getElementById('ts-btn-whatsapp');
 
@@ -1338,70 +1342,32 @@ const App = (() => {
         inputDate.addEventListener('change', refrescarGruposTS);
         btnRefrescar.addEventListener('click', refrescarGruposTS);
         
-        if (btnPrint) {
-            btnPrint.addEventListener('click', () => {
-                const content = document.getElementById('ts-visualizacion').innerHTML;
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(`
-                    <html>
-                    <head><title>Tarjeta de Salida - Akrimet</title>
-                    <style>
-                        body { padding: 20px; }
-                        @media print {
-                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        }
-                    </style>
-                    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-                    </head>
-                    <body>${content}</body>
-                    </html>
-                `);
-                printWindow.document.close();
-                printWindow.focus();
-                setTimeout(() => { printWindow.print(); }, 800);
-            });
-        }
-
         if (btnCopy) {
             btnCopy.addEventListener('click', async () => {
-                const target = document.getElementById('ts-capture-area');
-                if (!target) {
-                    toast('No hay tarjeta para copiar.', 'warning');
+                const target = document.getElementById('ts-visualizacion');
+                if (!target || !target.value) {
+                    toast('No hay texto para copiar.', 'warning');
                     return;
                 }
-                
                 try {
-                    btnCopy.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...';
-                    btnCopy.disabled = true;
-
-                    if (typeof html2canvas === 'undefined') {
-                        throw new Error('La librería html2canvas no está cargada. Actualice la página e intente de nuevo.');
-                    }
-
-                    const canvas = await html2canvas(target, {
-                        scale: 2, 
-                        useCORS: true,
-                        backgroundColor: '#ffffff'
-                    });
-
-                    canvas.toBlob(async (blob) => {
-                        try {
-                            const item = new ClipboardItem({ 'image/png': blob });
-                            await navigator.clipboard.write([item]);
-                            toast('Tarjeta copiada al portapapeles como imagen ✓', 'success');
-                        } catch (err) {
-                            console.error("Clipboard Error:", err);
-                            toast('Error al acceder al portapapeles. Puede que el navegador no lo soporte en este entorno.', 'error');
-                        }
-                        btnCopy.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar Imagen';
-                        btnCopy.disabled = false;
-                    }, 'image/png', 1.0);
-
-                } catch (e) {
-                    toast('Error generando imagen: ' + e.message, 'error');
-                    btnCopy.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar Imagen';
-                    btnCopy.disabled = false;
+                    await navigator.clipboard.writeText(target.value);
+                    toast('Texto copiado al portapapeles ✓', 'success');
+                } catch (err) {
+                    toast('Error al copiar al portapapeles.', 'error');
                 }
+            });
+        }
+        
+        if (btnWhatsApp) {
+            btnWhatsApp.addEventListener('click', () => {
+                const target = document.getElementById('ts-visualizacion');
+                if (!target || !target.value) {
+                    toast('No hay texto para compartir.', 'warning');
+                    return;
+                }
+                const text = encodeURIComponent(target.value);
+                const whatsappUrl = `https://api.whatsapp.com/send?text=${text}`;
+                window.open(whatsappUrl, '_blank');
             });
         }
     }
@@ -1424,14 +1390,15 @@ const App = (() => {
         const date = document.getElementById('ts-date-input').value;
         const listContainer = document.getElementById('ts-grupos-list');
         const viewContainer = document.getElementById('ts-visualizacion');
-        const btnPrint = document.getElementById('ts-btn-print');
 
         listContainer.innerHTML = '<div style="color:var(--text-muted)">Cargando...</div>';
-        viewContainer.innerHTML = '';
+        viewContainer.value = '';
         viewContainer.classList.add('hidden');
-        if (btnPrint) btnPrint.classList.add('hidden');
+        
         const btnCopy = document.getElementById('ts-btn-copy');
         if (btnCopy) btnCopy.classList.add('hidden');
+        const btnWhatsApp = document.getElementById('ts-btn-whatsapp');
+        if (btnWhatsApp) btnWhatsApp.classList.add('hidden');
 
         try {
             const res = await fetch(`/api/grupos/tarjeta_salida?fecha=${date}`);
@@ -1443,7 +1410,7 @@ const App = (() => {
             }
 
             listContainer.innerHTML = grupos.map(g => {
-                const tag = g.tecnicos.map(t => t.split(' ')[0][0]).join('/'); // Iniciales simples
+                const tag = g.tecnicos.map(t => t.split(' ')[0][0]).join('/'); 
                 return `
                 <div class="ts-grupo-item" onclick="App.renderTarjeta(${JSON.stringify(g).replace(/"/g, '&quot;')})">
                     <div class="ts-tag">${tag}</div>
@@ -1460,12 +1427,15 @@ const App = (() => {
 
     function renderTarjeta(g) {
         const viewContainer = document.getElementById('ts-visualizacion');
-        const btnPrint = document.getElementById('ts-btn-print');
         const btnCopy = document.getElementById('ts-btn-copy');
+        const btnWhatsApp = document.getElementById('ts-btn-whatsapp');
         
-        const date = document.getElementById('ts-date-input').value;
-        
-        const tag = g.tag || g.tecnicos.map(t => t.split(' ')[0][0]).join('/');
+        const dateRaw = document.getElementById('ts-date-input').value;
+        let dateFmt = dateRaw;
+        if (dateRaw && dateRaw.includes('-')) {
+            const parts = dateRaw.split('-');
+            dateFmt = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
         
         // --- 1. Agrupar Patrones por Magnitud (Trabajos) ---
         const patGroups = {};
@@ -1491,126 +1461,48 @@ const App = (() => {
         
         let patLines = [];
         for (const [mag, codes] of Object.entries(patGroups)) {
-            patLines.push(`<div style="margin-bottom:2px"><b>${mag}:</b> ${codes.join(', ')}</div>`);
+            patLines.push(`- ${mag}: ${codes.join(', ')}`);
         }
         if (sinMagnitud.length > 0) {
-            patLines.push(`<div><b>Otros:</b> ${sinMagnitud.join(', ')}</div>`);
+            patLines.push(`- Otros: ${sinMagnitud.join(', ')}`);
         }
-        const patronesHtml = patLines.length ? patLines.join('') : '<div style="color:#888; font-style:italic;">Sin patrones asignados</div>';
+        const patronesTxt = patLines.length > 0 ? patLines.join('\n') : '- Sin patrones asignados';
 
         // --- 2. Agrupar OTs por Cliente y Dirección ---
         const otGroupsMap = {};
-        (g.detalles_ots || []).forEach(d => {
-            const key = `${d.cliente || '---'}|||${d.direccion || '---'}`;
+        (g.detalles_ots || []).forEach(dt => {
+            const key = `${dt.cliente || '---'}|||${dt.direccion || '---'}`;
             if (!otGroupsMap[key]) {
-                otGroupsMap[key] = { cliente: d.cliente || '---', direccion: d.direccion || '---', ots: [] };
+                otGroupsMap[key] = { cliente: dt.cliente || '---', direccion: dt.direccion || '---', ots: [] };
             }
-            otGroupsMap[key].ots.push(d);
+            otGroupsMap[key].ots.push(dt);
         });
         const otGroups = Object.values(otGroupsMap);
 
-        // --- 3. Generar HTML Amigable ---
-        const styles = `
-            <style>
-                #ts-capture-area {
-                    background: #ffffff;
-                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-                    color: #1e293b;
-                    box-sizing: border-box;
-                    width: 100%;
-                    max-width: 420px;
-                    margin: 0 auto;
-                    border-radius: 12px;
-                    border: 1px solid #e2e8f0;
-                    overflow: hidden;
-                    line-height: 1.4;
-                }
-                .ts-header {
-                    background: #1e3a8a;
-                    color: white;
-                    padding: 12px 16px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .ts-header-title { font-size: 15px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
-                .ts-header-date { font-size: 13px; font-weight: 600; opacity: 0.9; }
-                .ts-body { padding: 12px 16px; }
-                .ts-pill {
-                    display: inline-block;
-                    background: #f8fafc;
-                    border: 1px solid #e2e8f0;
-                    padding: 4px 8px;
-                    border-radius: 6px;
-                    font-size: 11px;
-                    margin-right: 6px;
-                    margin-bottom: 6px;
-                    color: #334155;
-                }
-                .ts-pill b { color: #0f172a; margin-right: 4px; }
-                .ts-patrones {
-                    background: #f8fafc;
-                    border: 1px dashed #cbd5e1;
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    font-size: 11px;
-                    margin-bottom: 16px;
-                    color: #334155;
-                }
-                .ts-destino {
-                    border: 1px solid #e2e8f0;
-                    border-radius: 8px;
-                    margin-bottom: 12px;
-                    overflow: hidden;
-                }
-                .ts-destino:last-child { margin-bottom: 0; }
-                .ts-destino-header {
-                    background: #f1f5f9;
-                    border-bottom: 1px solid #e2e8f0;
-                    padding: 8px 12px;
-                }
-                .ts-destino-header b { font-size: 13px; color: #0f172a; display: block; margin-bottom: 2px;}
-                .ts-destino-header span { font-size: 11px; color: #64748b; }
-                .ts-destino-body { padding: 12px; }
-                .ts-ot-item {
-                    font-size: 11px;
-                    margin-bottom: 8px;
-                }
-                .ts-ot-title { color: #1e40af; font-weight: bold; margin-right: 4px; }
-                .ts-ot-asunto { color: #334155; }
-                .ts-ot-fechas { font-size: 9px; color: #d97706; margin-top: 2px; }
-            </style>
-        `;
-
-        let html = `
-        <div id="ts-capture-area">
-            ${styles}
+        // --- 3. Generar Texto Plano ---
+        let txt = `*TARJETA DE SALIDA - ${dateFmt}*\n\n`;
+        txt += `👥 *Equipo:* ${g.tecnicos.join(', ')}\n`;
+        txt += `🚐 *Vehículo:* ${g.vehiculo || 'No asignado'}\n`;
+        txt += `⚖️ *Patrones:*\n${patronesTxt}\n`;
+        
+        otGroups.forEach((group, index) => {
+            txt += `\n----------------------------------------\n`;
+            txt += `📍 *DESTINO ${index + 1}: ${group.cliente}*\n`;
+            txt += `🗺️ _${group.direccion}_\n\n`;
             
-            <div class="ts-header">
-                <div class="ts-header-title">TARJETA DE SALIDA</div>
-                <div class="ts-header-date">${date}</div>
-            </div>
+            // OTs
+            group.ots.forEach(dt => {
+                txt += `🔸 *OT ${dt.nro}:* ${dt.asunto}\n`;
+                if (dt.fechas_adicionales && dt.fechas_adicionales.length > 0) {
+                    txt += `_(Próximas visitas: ${dt.fechas_adicionales.join(', ')})_\n`;
+                }
+            });
             
-            <div class="ts-body">
-                <div style="margin-bottom: 10px;">
-                    <div class="ts-pill"><b>Técnicos:</b> ${g.tecnicos.join(' / ')}</div>
-                    <div class="ts-pill"><b>Vehículo:</b> ${g.vehiculo || 'No asignado'}</div>
-                </div>
-
-                <div class="ts-patrones">
-                    <div style="margin-bottom:4px; font-weight:bold; color:#0f172a; font-size:10px; text-transform:uppercase;">Patrones Asignados</div>
-                    ${patronesHtml}
-                </div>
-
-                <div style="font-size:12px; font-weight:800; color:#1e3a8a; margin-bottom:8px; text-transform:uppercase;">Destinos Programados</div>
-        `;
-
-        otGroups.forEach(group => {
-            // Resumen de partidas
+            // Resumen de Partidas
             const partidasResumenMap = {};
-            group.ots.forEach(d => {
-                if (d.partidas) {
-                    d.partidas.forEach(p => {
+            group.ots.forEach(dt => {
+                if (dt.partidas) {
+                    dt.partidas.forEach(p => {
                         const pk = `${p.trabajo}|||${p.puntos}`;
                         if (!partidasResumenMap[pk]) partidasResumenMap[pk] = { trabajo: p.trabajo, puntos: p.puntos, cant: 0 };
                         partidasResumenMap[pk].cant += parseInt(p.cant, 10) || 0;
@@ -1618,57 +1510,67 @@ const App = (() => {
                 }
             });
             const resumenItems = Object.values(partidasResumenMap);
-            let tablaPartidasHtml = '';
             if (resumenItems.length > 0) {
-                tablaPartidasHtml = `
-                    <table class="data-table" style="width:100%; margin-top:10px; margin-bottom:0; font-size:10px;">
-                        <thead><tr><th>Trabajo</th><th>Puntos</th><th style="text-align:center">Cant.</th></tr></thead>
-                        <tbody>
-                            ${resumenItems.map(p => `<tr><td>${p.trabajo}</td><td>${p.puntos}</td><td style="text-align:center; font-weight:bold;">${p.cant}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-                `;
-            } else {
-                tablaPartidasHtml = `<div style="font-size:10px; color:#888; font-style:italic; margin-top:8px;">Sin partidas registradas</div>`;
-            }
+                // Calcular anchos dinámicos respetando min y max
+                let maxTrabajo = 7; // "TRABAJO" len
+                let maxPts = 3;     // "PTS" len
+                let maxCant = 4;    // "CANT" len
                 
-            let otsHtml = group.ots.map(d => {
-                let fechasExtra = '';
-                if (d.fechas_adicionales && d.fechas_adicionales.length) {
-                    fechasExtra = `<div class="ts-ot-fechas">Próximas visitas: ${d.fechas_adicionales.join(', ')}</div>`;
-                }
-                return `
-                <div class="ts-ot-item">
-                    <span class="ts-ot-title">OT ${d.nro}:</span>
-                    <span class="ts-ot-asunto">${d.asunto}</span>
-                    ${fechasExtra}
-                </div>`;
-            }).join('');
-
-            html += `
-            <div class="ts-destino">
-                <div class="ts-destino-header">
-                    <b>${group.cliente}</b>
-                    <span><i class="fa-solid fa-location-dot"></i> ${group.direccion}</span>
-                </div>
-                <div class="ts-destino-body">
-                    ${otsHtml}
-                    ${tablaPartidasHtml}
-                </div>
-            </div>
-            `;
+                resumenItems.forEach(p => {
+                    const tLen = (p.trabajo || '').length;
+                    const pLen = String(p.puntos || '').length;
+                    const cLen = String(p.cant).length;
+                    if (tLen > maxTrabajo) maxTrabajo = tLen;
+                    if (pLen > maxPts) maxPts = pLen;
+                    if (cLen > maxCant) maxCant = cLen;
+                });
+                
+                // Ajustar al ancho máximo detectado sin un límite superior estricto
+                maxTrabajo = Math.max(maxTrabajo, 7);
+                maxPts = Math.max(maxPts, 3);
+                maxCant = Math.max(maxCant, 4);
+                
+                txt += `\n📊 *Partidas:*\n\`\`\`\n`;
+                txt += `TRABAJO`.padEnd(maxTrabajo, ' ') + ` | ` + `PTS`.padEnd(maxPts, ' ') + ` | CANT\n`;
+                txt += `-`.repeat(maxTrabajo) + `-+-` + `-`.repeat(maxPts) + `-+-----\n`;
+                
+                resumenItems.forEach(p => {
+                    let trabArr = [];
+                    let ptsArr = [];
+                    const trabStr = p.trabajo || '';
+                    const ptsStr = String(p.puntos || '');
+                    
+                    // Separar en múltiples líneas si excede el ancho máximo
+                    for (let i = 0; i < trabStr.length; i += maxTrabajo) {
+                        trabArr.push(trabStr.substring(i, i + maxTrabajo));
+                    }
+                    if (trabArr.length === 0) trabArr.push('');
+                    
+                    for (let i = 0; i < ptsStr.length; i += maxPts) {
+                        ptsArr.push(ptsStr.substring(i, i + maxPts));
+                    }
+                    if (ptsArr.length === 0) ptsArr.push('');
+                    
+                    const cant = String(p.cant).padEnd(4, ' ');
+                    
+                    const maxLines = Math.max(trabArr.length, ptsArr.length);
+                    for (let i = 0; i < maxLines; i++) {
+                        const tPart = (trabArr[i] || '').padEnd(maxTrabajo, ' ');
+                        const pPart = (ptsArr[i] || '').padEnd(maxPts, ' ');
+                        const cPart = i === 0 ? cant : '    ';
+                        txt += `${tPart} | ${pPart} | ${cPart}\n`;
+                    }
+                });
+                txt += `\`\`\``;
+            } else {
+                txt += `\n📊 *Partidas:* _Sin partidas registradas_`;
+            }
+            txt += `\n`;
         });
-
-        html += `
-            </div>
-        </div>`;
         
-        viewContainer.innerHTML = html;
+        viewContainer.value = txt.trim();
         viewContainer.classList.remove('hidden');
-        viewContainer.style.background = "#f1f5f9"; // Soft gray background for the modal so the white card pops out
-        viewContainer.style.padding = "20px";
         
-        if (btnPrint) btnPrint.classList.remove('hidden');
         if (btnCopy) btnCopy.classList.remove('hidden');
         if (btnWhatsApp) btnWhatsApp.classList.remove('hidden');
     }
@@ -1720,6 +1622,7 @@ const App = (() => {
         toggleBatchMode, isBatchMode: () => _isBatchMode, isEventSelected: (id) => _batchSelected.has(id), getBatchSelection: () => Array.from(_batchSelected),
         getEventos: () => _eventos,
         getBacklogOTs: () => _ots,
+        getServicios: () => _servicios,
         getState: () => ({ _tecnicos, _eventos, _ots, _patrones, _vehiculos, _holidays })
     };
 })();

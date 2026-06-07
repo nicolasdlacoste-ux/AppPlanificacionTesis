@@ -112,8 +112,22 @@ def son_consecutivos(fechas, viaje, workdays=None):
     return True
 
 def buscar_disponibilidad(tech_events, tecnicos_info, n_tec, dias_nec, consecutivo, viaje, f_inicio, ventana, 
-                           ignorar_no_ots=False, n_resultados=3, patrones_requeridos=None, excluir_conflictos_pats=False, ots_objetivo=None, holidays=None):
+                           ignorar_no_ots=False, n_resultados=3, patrones_requeridos=None, excluir_conflictos_pats=False, ots_objetivo=None, holidays=None, servicio_requerido=None):
     """Lógica centralizada de búsqueda de disponibilidad con detección de patrones y filtro."""
+    if servicio_requerido:
+        tecs_filtrados = []
+        sr_lower = servicio_requerido.strip().lower()
+        for t in tecnicos_info:
+            srvs = t.get("servicio", "")
+            if not srvs: continue
+            if isinstance(srvs, list):
+                lista = [str(s).strip().lower() for s in srvs]
+            else:
+                lista = [s.strip().lower() for s in str(srvs).split(',')]
+            if sr_lower in lista:
+                tecs_filtrados.append(t)
+        tecnicos_info = tecs_filtrados
+
     if holidays is None: holidays = set()
     f_fin = f_inicio + datetime.timedelta(days=ventana)
     workdays = []

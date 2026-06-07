@@ -787,6 +787,13 @@ const RightPanel = (() => {
         selVeh.innerHTML = '<option value="">Sin vehículo</option>' + vehiculos.map(v => `<option value="${v.nombre}">${v.nombre}</option>`).join('');
         document.getElementById('p-req-vehiculo').checked = false;
 
+        const servicios = App.getServicios() || [];
+        const selSrv = document.getElementById('p-restringir-servicio');
+        if (selSrv) {
+            selSrv.innerHTML = '<option value="">Todos los servicios (Sin filtro)</option>' + 
+                servicios.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
         document.getElementById('sched-ot-title').textContent = `OT ${ot.nro}`;
         document.getElementById('sched-ot-cliente').textContent = ot.cliente;
         
@@ -866,6 +873,7 @@ const RightPanel = (() => {
             viaje: document.getElementById('p-viaje').checked,
             patrones_requeridos: [...selectedPatrones],
             excluir_conflictos_pats: document.getElementById('p-excl-pats').checked,
+            servicio_requerido: document.getElementById('p-restringir-servicio') ? document.getElementById('p-restringir-servicio').value : null
         };
 
         const startDate = document.getElementById('p-start-date').value;

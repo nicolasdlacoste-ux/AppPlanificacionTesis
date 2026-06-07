@@ -165,6 +165,13 @@ class DataManager:
                 # (Omitiendo recreación completa aquí para brevedad, asumiendo que ya se hizo o se hará si es necesario)
                 # Pero mantengo la lógica de PK compuesta en el CREATE TABLE IF NOT EXISTS arriba.
             
+            # Verificación de migración para tabla tecnicos (agregar servicio)
+            cursor.execute("PRAGMA table_info(tecnicos)")
+            tecnicos_cols = [c[1] for c in cursor.fetchall()]
+            if 'servicio' not in tecnicos_cols:
+                print("Migrando tabla tecnicos: agregando columna 'servicio'...")
+                cursor.execute("ALTER TABLE tecnicos ADD COLUMN servicio TEXT")
+            
             # Tabla OTs (Caché de planilla)
             # Guardamos la fila completa como JSON para mantener compatibilidad con el resto de la app
             # pero indexamos la OT para búsquedas rápidas.
@@ -285,16 +292,16 @@ class DataManager:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM tecnicos")
             for t in tecnicos_list:
-                cursor.execute("INSERT INTO tecnicos (nombre, correo, iniciales) VALUES (?, ?, ?)",
-                               (t.get('nombre'), t.get('correo'), t.get('iniciales')))
+                cursor.execute("INSERT INTO tecnicos (nombre, correo, iniciales, servicio) VALUES (?, ?, ?, ?)",
+                               (t.get('nombre'), t.get('correo'), t.get('iniciales'), t.get('servicio', '')))
             conn.commit()
 
     def obtener_tecnicos(self):
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT nombre, correo, iniciales FROM tecnicos")
+            cursor.execute("SELECT nombre, correo, iniciales, servicio FROM tecnicos")
             rows = cursor.fetchall()
-            return [{"nombre": r[0], "correo": r[1], "iniciales": r[2]} for r in rows]
+            return [{"nombre": r[0], "correo": r[1], "iniciales": r[2], "servicio": r[3]} for r in rows]
 
     # --- MÉTODOS DE EVENTOS ---
     def guardar_eventos(self, eventos_list):
@@ -1117,11 +1124,19 @@ class DataManager:
                         cursor.execute(f"ALTER TABLE poll_review_queue ADD COLUMN {col} {spec}")
 
                 # [DEDUPLICACIÓN] Evitar reviews redundantes
-                cursor.execute("""
-                    SELECT status FROM poll_review_queue 
-                    WHERE google_event_id = ? AND calendar_id = ?
-                    ORDER BY detected_at DESC LIMIT 1
-                """, (gid, calendar_id))
+                if conflict_type.startswith("GROUP_"):
+                    # Si es drift de grupo, basta un solo review por google_event_id, sin importar el calendar
+                    cursor.execute("""
+                        SELECT status FROM poll_review_queue 
+                        WHERE google_event_id = ? AND conflict_type LIKE 'GROUP_%'
+                        ORDER BY detected_at DESC LIMIT 1
+                    """, (gid,))
+                else:
+                    cursor.execute("""
+                        SELECT status FROM poll_review_queue 
+                        WHERE google_event_id = ? AND calendar_id = ?
+                        ORDER BY detected_at DESC LIMIT 1
+                    """, (gid, calendar_id))
                 existing = cursor.fetchone()
                 if existing:
                     status = existing[0]
@@ -1168,6 +1183,7 @@ class DataManager:
                     recommended_action
                 ))
                 conn.commit()
+                self.bump_mutation_time()
         return review_id
 
     def get_poll_review_queue(self, limit: int = 50) -> list:
@@ -1429,6 +1445,54 @@ class DataManager:
             
             mapped = EventAdapter.google_to_canonical(g_ev, calendar_id, tec_nombre)
             params = EventAdapter.canonical_to_sqlite_params(mapped)
+            
+            # [IMPLICIT GROUP DETECTION] Si es REMOTE_CREATE, buscar si ya hay otros eventos con este google_event_id
+            gid = params["google_event_id"]
+            if gid:
+                sibling = self.find_by_google_event_id(gid)
+                # Si hay hermanos, compartir su grupo_id o crear uno nuevo formal
+                if sibling:
+                    from utils import EventAdapter as EA_utils
+                    import uuid
+                    sib_ext = EA_utils.normalize_extended_props(sibling.get("extended_props"))
+                    grupo_id = sib_ext.get("private", {}).get("grupo_id")
+                    
+                    if not grupo_id:
+                        grupo_id = "g_" + str(uuid.uuid4())[:8]
+                        # Asignar grupo al hermano existente (marcar para sync)
+                        sib_ext["private"]["grupo_id"] = grupo_id
+                        self.actualizar_evento_individual(
+                            sibling["id"], sibling["calendar_id"],
+                            {"extended_props": sib_ext},
+                            sync_status="PENDING",
+                            pending_sync=1,
+                            origin="implicit_group_creation"
+                        )
+                        # También registrar en la tabla grupos
+                        from utils import get_ot_base_from_event
+                        ot_base = get_ot_base_from_event(sibling) or ""
+                        fecha_grp = (sibling.get("inicio") or "1970-01-01")[:10]
+                        self.crear_o_actualizar_grupo({
+                            "grupo_id": grupo_id,
+                            "ot_nro": ot_base,
+                            "fecha": fecha_grp,
+                            "event_ids": [sibling["id"]],
+                            "tecnico_nombres": [sibling.get("tecnico_nombre")],
+                            "calendar_ids": [sibling.get("calendar_id")]
+                        })
+                        
+                    # Asignar grupo_id al evento entrante
+                    in_ext = EA_utils.normalize_extended_props(params["extended_props"])
+                    in_ext["private"]["grupo_id"] = grupo_id
+                    params["extended_props"] = json.dumps(in_ext, ensure_ascii=False)
+                    
+                    # Agregar al grupo formal
+                    grupo = self.obtener_grupo(grupo_id)
+                    if grupo:
+                        if params["id"] not in grupo.get("event_ids", []):
+                            grupo["event_ids"].append(params["id"])
+                            grupo["tecnico_nombres"].append(params["tecnico_nombre"])
+                            self.crear_o_actualizar_grupo(grupo)
             
             with self._lock:
                 with self._get_connection() as conn:

@@ -330,7 +330,8 @@ async def sync_group_events(grupo_id: str, svc_cal=None):
     metadata['app_vehiculo'] = veh
     
     base_desc = base_ev.get('description', '')
-    new_desc = generar_descripcion_enriquecida(base_desc, pats, veh)
+    all_pats = db.obtener_patrones()
+    new_desc = generar_descripcion_enriquecida(base_desc, pats, veh, all_pats)
     
     # 4. Actualizar todos los eventos (Usar threadpool para no bloquear el event loop)
     async def _patch_one(cal_id, eid, body):
@@ -1019,6 +1020,7 @@ class BuscarParams(BaseModel):
     patrones_requeridos: List[str] = []
     excluir_conflictos_pats: bool = False
     pivot_date: Optional[str] = None
+    servicio_requerido: Optional[str] = None
 
 def _build_tech_events():
     """Construye el diccionario tech_events que espera engine.py desde la DB."""
@@ -1151,7 +1153,8 @@ async def buscar_disponibilidad(params: BuscarParams):
             patrones_requeridos=params.patrones_requeridos,
             excluir_conflictos_pats=params.excluir_conflictos_pats,
             ots_objetivo=params.ots_seleccionadas,
-            holidays=holidays
+            holidays=holidays,
+            servicio_requerido=params.servicio_requerido
         )
         res_flex = engine.buscar_disponibilidad(
             tech_events, tecnicos_info, params.n_tec, params.jornadas,
@@ -1159,7 +1162,8 @@ async def buscar_disponibilidad(params: BuscarParams):
             patrones_requeridos=params.patrones_requeridos,
             excluir_conflictos_pats=params.excluir_conflictos_pats,
             ots_objetivo=params.ots_seleccionadas,
-            holidays=holidays
+            holidays=holidays,
+            servicio_requerido=params.servicio_requerido
         )
 
         return {"estrictas": serializar(res_est), "flexibles": serializar(res_flex)}
@@ -1206,13 +1210,15 @@ async def buscar_siguientes(params: BuscarSiguientesParams):
                                                ignorar_no_ots=False, patrones_requeridos=params.patrones_requeridos,
                                                excluir_conflictos_pats=params.excluir_conflictos_pats,
                                                ots_objetivo=params.ots_seleccionadas,
-                                               holidays=holidays)
+                                               holidays=holidays,
+                                               servicio_requerido=params.servicio_requerido)
         res_flex = engine.buscar_disponibilidad(tech_events, tecnicos_info, params.n_tec, params.jornadas,
                                                 params.consecutivo, params.viaje, f_pivot, 120,
                                                 ignorar_no_ots=True, patrones_requeridos=params.patrones_requeridos,
                                                 excluir_conflictos_pats=params.excluir_conflictos_pats,
                                                 ots_objetivo=params.ots_seleccionadas,
-                                                holidays=holidays)
+                                                holidays=holidays,
+                                                servicio_requerido=params.servicio_requerido)
 
         return {"estrictas": ser(res_est), "flexibles": ser(res_flex)}
     except Exception as e:
@@ -1265,7 +1271,8 @@ async def crear_evento(params: CrearEventoParams):
         if params.requiere_vehiculo:
             metadata["app_requiere_vehiculo"] = str(params.requiere_vehiculo).lower()
 
-        desc_enriquecida = generar_descripcion_enriquecida(params.descripcion, params.patrones, params.vehiculo)
+        all_pats = db.obtener_patrones()
+        desc_enriquecida = generar_descripcion_enriquecida(params.descripcion, params.patrones, params.vehiculo, all_pats)
 
         tec_nombre = params.correo_tecnico
         tecs = db.obtener_tecnicos()
@@ -1526,10 +1533,12 @@ async def mover_evento(event_id: str, params: MoverEventoParams):
 
         base_desc = params.descripcion if params.descripcion is not None else ev_actual.get('description', '')
         if any(x is not None for x in [params.descripcion, params.patrones, params.vehiculo]):
+            all_pats = db.obtener_patrones()
             desc_final = generar_descripcion_enriquecida(
                 base_desc,
                 json.loads(metadata.get("app_patrones", "[]")),
-                metadata.get("app_vehiculo", "")
+                metadata.get("app_vehiculo", ""),
+                all_pats
             )
         else:
             desc_final = base_desc
@@ -1641,7 +1650,8 @@ async def mover_evento(event_id: str, params: MoverEventoParams):
                         meta_m['app_patrones'] = json.dumps(params.patrones)
                     pats_m = params.patrones if params.patrones is not None else json.loads(meta_m.get('app_patrones', '[]') or '[]')
                     veh_m = params.vehiculo if params.vehiculo is not None else meta_m.get('app_vehiculo', '')
-                    desc_m = generar_descripcion_enriquecida(ev_norm.get('descripcion', ''), pats_m, veh_m)
+                    all_pats = db.obtener_patrones()
+                    desc_m = generar_descripcion_enriquecida(ev_norm.get('descripcion', ''), pats_m, veh_m, all_pats)
                     props_m = ev_norm.get('extended_props', {}).copy()
                     if 'private' not in props_m:
                         props_m['private'] = {}
@@ -1825,10 +1835,12 @@ async def batch_editar(params: BatchEditarParams):
         full_props["private"] = metadata
 
         base_desc = ev_interno.get("descripcion", "")
+        all_pats = db.obtener_patrones()
         desc_final = generar_descripcion_enriquecida(
             base_desc,
             json.loads(metadata.get("app_patrones", "[]")),
-            metadata.get("app_vehiculo", "")
+            metadata.get("app_vehiculo", ""),
+            all_pats
         )
 
         cal_target = target_cal if target_cal else ev_interno["calendar_id"]
@@ -2395,9 +2407,29 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
         # 3. Agrupamiento por Técnicos involucrados (Grupo de Trabajo)
         agrupados = {}
 
+        def _get_ots_from_ev(ev_data):
+            e_ots = []
+            has_meta = False
+            try:
+                ep = ev_data.get('extended_props') or ev_data.get('extendedProperties') or {}
+                if isinstance(ep, str): ep = json.loads(ep)
+                p = ep.get('private', {})
+                if 'app_ots' in p:
+                    has_meta = True
+                    ro = p['app_ots']
+                    if isinstance(ro, str): e_ots = json.loads(ro)
+                    elif isinstance(ro, list): e_ots = ro
+            except: pass
+            
+            if not has_meta:
+                t = ev_data.get('summary') or ev_data.get('Evento') or ''
+                extracted = list(utils.extraer_ots(t))
+                # Filtrar solo OTs que realmente existen en la DB para evitar falsos positivos
+                e_ots = [o for o in extracted if str(o) in map_ots]
+            return e_ots
+
         def procesar_agrupacion(tecs, pats, veh, ev):
-            titulo = ev.get('summary') or ev.get('Evento') or ''
-            ots_list = list(utils.extraer_ots(titulo))
+            ots_list = _get_ots_from_ev(ev)
             if not ots_list: return
             
             key = tuple(sorted(tecs))
@@ -2437,8 +2469,7 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
                     # Fechas Adicionales
                     fechas_adicionales = set()
                     for e_all in eventos_all:
-                        e_tit = e_all.get('summary') or e_all.get('Evento') or ''
-                        e_ots = list(utils.extraer_ots(e_tit))
+                        e_ots = _get_ots_from_ev(e_all)
                         if ot in e_ots:
                             e_fecha = e_all.get('inicio', '')[:10] or e_all.get('Inicio', '')[:10]
                             if e_fecha and e_fecha != fecha:

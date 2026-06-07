@@ -610,6 +610,9 @@ class GroupOperationContext:
             {"operation_id": self.operation_id},
             tag="GROUP_TX"
         )
+        
+        # [HEARTBEAT] Notificar al frontend que hubo mutación
+        db.bump_mutation_time()
 
         return self
 

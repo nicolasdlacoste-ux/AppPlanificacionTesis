@@ -541,6 +541,21 @@ class PollingManager:
                     if review_id:
                         trace["persistence"] = "review_queued"
                         trace["review_id"] = review_id
+                        
+                        # Revisar auto-apply config
+                        routing_raw = self.db.get_metadato("poll_routing_config")
+                        routing = json.loads(routing_raw) if routing_raw else {}
+                        rule = routing.get("REMOTE_CREATE", "INBOX")
+                        if rule == "AUTO_APPLY":
+                            try:
+                                self.db.accept_review(review_id)
+                                trace["persistence"] = "auto_applied_via_routing"
+                            except Exception as e:
+                                trace["auto_apply_error"] = str(e)
+                        elif rule == "IGNORE":
+                            with self.db._get_connection() as conn:
+                                conn.execute("UPDATE poll_review_queue SET status = 'IGNORED' WHERE review_id = ?", (review_id,))
+                            trace["persistence"] = "ignored_via_routing"
                     else:
                         trace["persistence"] = "duplicate_ignored"
                 except Exception as e:
@@ -746,7 +761,7 @@ class PollingManager:
                 if not self._dry_run:
                     local_snap  = trace.get("local_state", {})
                     remote_snap = trace.get("google_state", {})
-                    self.db.enqueue_review(
+                    review_id = self.db.enqueue_review(
                         local["id"], calendar_id, critical_diff,
                         conflict_type="FIELD_CHANGE",
                         google_event_id=gid,
@@ -755,6 +770,30 @@ class PollingManager:
                         g_updated=g_ev.get("updated")
                     )
                     trace["persistence"] = "review_queued"
+                    
+                    if review_id:
+                        # Revisar auto-apply config
+                        routing_raw = self.db.get_metadato("poll_routing_config")
+                        routing = json.loads(routing_raw) if routing_raw else {}
+                        
+                        rule_type = "FIELD_CHANGE"
+                        # Si no hay críticos de verdad (solo notas o seguros)
+                        critical_keys = {"tecnico_nombre", "inicio", "fin", "summary", "status", "_action"}
+                        has_critical = any(k in critical_keys for k in critical_diff.keys())
+                        if not has_critical:
+                            rule_type = "FIELD_CHANGE_SAFE"
+                            
+                        rule = routing.get(rule_type, "INBOX")
+                        if rule == "AUTO_APPLY":
+                            try:
+                                self.db.accept_review(review_id)
+                                trace["persistence"] = "auto_applied_via_routing"
+                            except Exception as e:
+                                trace["auto_apply_error"] = str(e)
+                        elif rule == "IGNORE":
+                            with self.db._get_connection() as conn:
+                                conn.execute("UPDATE poll_review_queue SET status = 'IGNORED' WHERE review_id = ?", (review_id,))
+                            trace["persistence"] = "ignored_via_routing"
                 else:
                     trace["persistence"] = "skipped_dry_run"
                 _poll_log(self.db, "POLL_INBOUND_TRACE", "REVIEW_REQUIRED", trace)
@@ -807,6 +846,7 @@ class PollingManager:
                     "google_poll"
                 ))
                 conn.commit()
+                self.db.bump_mutation_time()
 
     def _handle_cancelled(self, event_id: str, calendar_id: str, g_ev: dict = None):
         """
@@ -850,6 +890,20 @@ class PollingManager:
             if len(active_siblings) > 0:
                 self.db.accept_review(review_id)
                 _poll_log(self.db, "POLL_INBOUND_TRACE", "AUTO_ARBITRATED_DELETE", {"event_id": local["id"], "reason": "sibling_exists"})
+            if review_id:
+                # Revisar auto-apply config
+                routing_raw = self.db.get_metadato("poll_routing_config")
+                routing = json.loads(routing_raw) if routing_raw else {}
+                rule = routing.get("REMOTE_DELETE", "INBOX")
+                if rule == "AUTO_APPLY":
+                    try:
+                        self.db.accept_review(review_id)
+                        _poll_log(self.db, "POLL_INBOUND_TRACE", "AUTO_APPLIED_DELETE", {"review_id": review_id, "rule": rule}, calendar_id=calendar_id, event_id=event_id)
+                    except Exception as e:
+                        _poll_log(self.db, "POLL_INBOUND_TRACE", "AUTO_APPLIED_DELETE_ERROR", {"error": str(e)}, calendar_id=calendar_id, event_id=event_id)
+                elif rule == "IGNORE":
+                    with self.db._get_connection() as conn:
+                        conn.execute("UPDATE poll_review_queue SET status = 'IGNORED' WHERE review_id = ?", (review_id,))
                 
             _poll_log(self.db, "POLL_INBOUND_TRACE", "DELETE_DETECTED",
                       {
