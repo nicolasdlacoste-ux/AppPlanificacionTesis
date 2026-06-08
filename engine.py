@@ -112,7 +112,7 @@ def son_consecutivos(fechas, viaje, workdays=None):
     return True
 
 def buscar_disponibilidad(tech_events, tecnicos_info, n_tec, dias_nec, consecutivo, viaje, f_inicio, ventana, 
-                           ignorar_no_ots=False, n_resultados=3, patrones_requeridos=None, excluir_conflictos_pats=False, ots_objetivo=None, holidays=None, servicio_requerido=None):
+                           ignorar_no_ots=False, n_resultados=3, patrones_requeridos=None, excluir_conflictos_pats=False, ots_objetivo=None, holidays=None, servicio_requerido=None, tecnico_op=None, tecnico_filtro=None):
     """Lógica centralizada de búsqueda de disponibilidad con detección de patrones y filtro."""
     if servicio_requerido:
         tecs_filtrados = []
@@ -127,6 +127,9 @@ def buscar_disponibilidad(tech_events, tecnicos_info, n_tec, dias_nec, consecuti
             if sr_lower in lista:
                 tecs_filtrados.append(t)
         tecnicos_info = tecs_filtrados
+
+    if tecnico_op == 'No Contiene' and tecnico_filtro:
+        tecnicos_info = [t for t in tecnicos_info if t["nombre"] != tecnico_filtro]
 
     if holidays is None: holidays = set()
     f_fin = f_inicio + datetime.timedelta(days=ventana)
@@ -143,6 +146,11 @@ def buscar_disponibilidad(tech_events, tecnicos_info, n_tec, dias_nec, consecuti
     candidatos = []
     for combo in itertools.combinations(tecnicos_info, n_tec):
         nombres = [t["nombre"] for t in combo]
+        
+        if tecnico_op == 'Contiene' and tecnico_filtro:
+            if tecnico_filtro not in nombres:
+                continue
+
         dias_validos = []
         for wd in workdays:
             dk = wd.strftime("%Y-%m-%d")

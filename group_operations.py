@@ -408,7 +408,8 @@ class GroupOperationContext:
                 "descripcion": ev_mem.get("descripcion", ""),
                 "extended_props": ev_mem.get("extended_props", {}),
                 "calendar_id": cal_target,
-                "sync_status": sync_state_to_apply if sync_state_to_apply else "SUCCESS",
+                "sync_status": "SUCCESS",
+                "sync_state": sync_state_to_apply if sync_state_to_apply else ev_mem.get("sync_state"),
                 "pending_sync": 0 # arbitration accepting means it came from google
             }
             
@@ -488,7 +489,7 @@ class GroupOperationContext:
                 SET tecnico_nombre = ?, summary = ?, inicio = ?, fin = ?,
                     ubicacion = ?, descripcion = ?, extended_props = ?,
                     calendar_id = ?, version = ?, updated_at = ?,
-                    pending_sync = ?, sync_status = ?
+                    pending_sync = ?, sync_status = ?, sync_state = ?
                 WHERE id = ? AND calendar_id = ?
                 """,
                 (
@@ -504,6 +505,7 @@ class GroupOperationContext:
                     now,
                     data["pending_sync"],
                     data["sync_status"],
+                    data.get("sync_state"),
                     actual_id,
                     cal_orig
                 ),

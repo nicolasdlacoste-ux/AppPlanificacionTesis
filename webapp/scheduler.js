@@ -611,7 +611,7 @@ var Scheduler = (() => {
                         block.addEventListener('dragstart', e => {
                             e.dataTransfer.setData('application/json', JSON.stringify({
                                 type: 'move',
-                                eventId: ev.google_event_id,
+                                eventId: ev.google_event_id || ev.id,
                                 calendarId: ev.calendar_id || 'primary'
                             }));
                         });
@@ -703,7 +703,7 @@ var Scheduler = (() => {
             block.addEventListener('dragstart', e => {
                 e.dataTransfer.setData('application/json', JSON.stringify({
                     type: 'move',
-                    eventId: ev.google_event_id,
+                    eventId: ev.google_event_id || ev.id,
                     calendarId: ev.calendar_id || 'primary'
                 }));
                 block.classList.add('dragging');
@@ -1104,8 +1104,16 @@ var Scheduler = (() => {
                 }
             }
 
-            // 2. Calcular Hora (si estamos en vista día)
-            if (state.view === 'day') {
+            // 2. Calcular Hora
+            if (state.view === 'week') {
+                const cell = e.target.closest('.day-cell');
+                if (cell) {
+                    const rect = cell.getBoundingClientRect();
+                    const relX = e.clientX - rect.left;
+                    const pct = Math.max(0, Math.min(1, relX / rect.width));
+                    hour = Math.floor((START_H + pct * HOURS) * 2) / 2;
+                }
+            } else if (state.view === 'day') {
                 const scrollArea = document.getElementById('scheduler-scroll-area');
                 const contentLeft = scrollArea.getBoundingClientRect().left;
                 const relX = e.clientX - contentLeft + scrollArea.scrollLeft;
@@ -1128,7 +1136,18 @@ var Scheduler = (() => {
 
     function handleDblClick(e, tech) {
         let hour = 7;
-        if (state.view === 'day') {
+        let targetDate = state.currentDate;
+        
+        if (state.view === 'week') {
+            const cell = e.target.closest('.day-cell');
+            if (cell && cell.dataset.date) {
+                targetDate = parseAnyDate(cell.dataset.date);
+                const rect = cell.getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const pct = Math.max(0, Math.min(1, relX / rect.width));
+                hour = Math.floor((START_H + pct * HOURS) * 2) / 2;
+            }
+        } else if (state.view === 'day') {
             const scrollArea = document.getElementById('scheduler-scroll-area');
             const contentLeft = scrollArea.getBoundingClientRect().left;
             const relX = e.clientX - contentLeft + scrollArea.scrollLeft;
@@ -1136,7 +1155,7 @@ var Scheduler = (() => {
             const pct = Math.max(0, relX / totalW);
             hour = Math.floor((START_H + pct * HOURS) * 2) / 2;
         }
-        App.openQuickCreate(tech, state.currentDate, hour, null);
+        App.openQuickCreate(tech, targetDate, hour, null);
     }
 
     // ─────────────────────────────────────

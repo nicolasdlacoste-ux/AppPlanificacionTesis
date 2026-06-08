@@ -792,6 +792,19 @@ const RightPanel = (() => {
         if (selSrv) {
             selSrv.innerHTML = '<option value="">Todos los servicios (Sin filtro)</option>' + 
                 servicios.map(s => `<option value="${s}">${s}</option>`).join('');
+            
+            // Valor por defecto
+            if (servicios.includes('Calibraciones')) {
+                selSrv.value = 'Calibraciones';
+            }
+        }
+
+        const tecnicos = App.getState()._tecnicos || [];
+        const selTecFiltro = document.getElementById('p-tec-filtro');
+        if (selTecFiltro) {
+            selTecFiltro.innerHTML = '<option value="">-- Sin preferencia --</option>' + 
+                tecnicos.map(t => `<option value="${t.nombre}">${t.nombre}</option>`).join('');
+            document.getElementById('p-tec-op').value = 'Contiene';
         }
 
         document.getElementById('sched-ot-title').textContent = `OT ${ot.nro}`;
@@ -873,7 +886,9 @@ const RightPanel = (() => {
             viaje: document.getElementById('p-viaje').checked,
             patrones_requeridos: [...selectedPatrones],
             excluir_conflictos_pats: document.getElementById('p-excl-pats').checked,
-            servicio_requerido: document.getElementById('p-restringir-servicio') ? document.getElementById('p-restringir-servicio').value : null
+            servicio_requerido: document.getElementById('p-restringir-servicio') ? document.getElementById('p-restringir-servicio').value : null,
+            tecnico_op: document.getElementById('p-tec-op') ? document.getElementById('p-tec-op').value : null,
+            tecnico_filtro: document.getElementById('p-tec-filtro') ? document.getElementById('p-tec-filtro').value : null
         };
 
         const startDate = document.getElementById('p-start-date').value;

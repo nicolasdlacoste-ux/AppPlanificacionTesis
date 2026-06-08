@@ -562,12 +562,17 @@ const App = (() => {
             }
         } catch (e) {}
 
+        console.log("moveEvent IN:", {eventId, calendarId, destCorreo, nuevaFecha, hora});
         if (_globalSyncing) {
             toast('Operación en curso, por favor espera...', 'warning');
             return;
         }
-        const eventIdx = _eventos.findIndex(e => e.google_event_id === eventId && e.calendar_id === calendarId);
-        if (eventIdx === -1 || _eventos[eventIdx]._syncing) return;
+        const eventIdx = _eventos.findIndex(e => (e.google_event_id === eventId || e.id === eventId) && (e.calendar_id || 'primary') === (calendarId || 'primary'));
+        console.log("moveEvent MATCH:", {eventIdx});
+        if (eventIdx === -1 || _eventos[eventIdx]._syncing) {
+             console.warn("Event not found or syncing", {eventId, calendarId, foundIdx: eventIdx});
+             return;
+        }
         _globalSyncing = true;
         const currentEvent = _eventos[eventIdx];
         const destTec = _tecnicos.find(t => t.correo === destCorreo);
@@ -589,7 +594,7 @@ const App = (() => {
 
             // --- ACTUALIZACIÓN OPTIMISTA ---
             const applyOptimistic = (evToModify) => {
-                const isDraggedMember = evToModify.google_event_id === eventId;
+                const isDraggedMember = evToModify.google_event_id === eventId || evToModify.id === eventId;
                 if (isDraggedMember && destCorreo) {
                     evToModify.calendar_id = destCorreo;
                     evToModify.tecnico_nombre = nuevoTecNombre;
@@ -604,7 +609,7 @@ const App = (() => {
                 }
                 
                 // sh/eh solo aplican al evento arrastrado si vino con hora en vista diaria
-                if (hora !== undefined && evToModify.google_event_id === eventId) {
+                if (hora !== undefined && (evToModify.google_event_id === eventId || evToModify.id === eventId)) {
                     const duration = evToModify._eh - evToModify._sh;
                     evToModify._sh = hora;
                     evToModify._eh = hora + (duration > 0 ? duration : 1);
@@ -622,7 +627,7 @@ const App = (() => {
 
             if (scope === 'grupo' && grupoInfo) {
                 grupoInfo.event_ids.forEach(eid => {
-                    const idx = _eventos.findIndex(e => (e.google_event_id === eid || e.id === eid) && e.calendar_id === calendarId);
+                    const idx = _eventos.findIndex(e => e.google_event_id === eid || e.id === eid);
                     if (idx !== -1) applyOptimistic(_eventos[idx]);
                 });
             } else {
@@ -671,7 +676,7 @@ const App = (() => {
                         ? grupoInfo.event_ids
                         : [eventId];
                     idsToClear.forEach(eid => {
-                        const ev = _eventos.find(e => (e.google_event_id === eid || e.id === eid) && e.calendar_id === calendarId);
+                        const ev = _eventos.find(e => e.google_event_id === eid || e.id === eid);
                         if (ev) delete ev._syncing;
                     });
                 };
@@ -1340,7 +1345,7 @@ const App = (() => {
 
         // Automatización: Refrescar al cambiar la fecha
         inputDate.addEventListener('change', refrescarGruposTS);
-        btnRefrescar.addEventListener('click', refrescarGruposTS);
+        if (btnRefrescar) btnRefrescar.addEventListener('click', refrescarGruposTS);
         
         if (btnCopy) {
             btnCopy.addEventListener('click', async () => {
@@ -1410,7 +1415,7 @@ const App = (() => {
             }
 
             listContainer.innerHTML = grupos.map(g => {
-                const tag = g.tecnicos.map(t => t.split(' ')[0][0]).join('/'); 
+                const tag = g.tag || g.tecnicos.map(t => t.split(' ')[0][0]).join('/'); 
                 return `
                 <div class="ts-grupo-item" onclick="App.renderTarjeta(${JSON.stringify(g).replace(/"/g, '&quot;')})">
                     <div class="ts-tag">${tag}</div>
@@ -1487,7 +1492,11 @@ const App = (() => {
         
         otGroups.forEach((group, index) => {
             txt += `\n----------------------------------------\n`;
-            txt += `📍 *DESTINO ${index + 1}: ${group.cliente}*\n`;
+            if (otGroups.length > 1) {
+                txt += `📍 *DESTINO ${index + 1}: ${group.cliente}*\n`;
+            } else {
+                txt += `📍 *DESTINO: ${group.cliente}*\n`;
+            }
             txt += `🗺️ _${group.direccion}_\n\n`;
             
             // OTs
@@ -1525,43 +1534,15 @@ const App = (() => {
                     if (cLen > maxCant) maxCant = cLen;
                 });
                 
-                // Ajustar al ancho máximo detectado sin un límite superior estricto
-                maxTrabajo = Math.max(maxTrabajo, 7);
-                maxPts = Math.max(maxPts, 3);
-                maxCant = Math.max(maxCant, 4);
-                
-                txt += `\n📊 *Partidas:*\n\`\`\`\n`;
-                txt += `TRABAJO`.padEnd(maxTrabajo, ' ') + ` | ` + `PTS`.padEnd(maxPts, ' ') + ` | CANT\n`;
-                txt += `-`.repeat(maxTrabajo) + `-+-` + `-`.repeat(maxPts) + `-+-----\n`;
+                txt += `\n📊 *Partidas:*\n\n`;
                 
                 resumenItems.forEach(p => {
-                    let trabArr = [];
-                    let ptsArr = [];
-                    const trabStr = p.trabajo || '';
-                    const ptsStr = String(p.puntos || '');
+                    const trabStr = p.trabajo || '---';
+                    const ptsStr = p.puntos ? ` (${p.puntos})` : '';
+                    const cantStr = p.cant;
                     
-                    // Separar en múltiples líneas si excede el ancho máximo
-                    for (let i = 0; i < trabStr.length; i += maxTrabajo) {
-                        trabArr.push(trabStr.substring(i, i + maxTrabajo));
-                    }
-                    if (trabArr.length === 0) trabArr.push('');
-                    
-                    for (let i = 0; i < ptsStr.length; i += maxPts) {
-                        ptsArr.push(ptsStr.substring(i, i + maxPts));
-                    }
-                    if (ptsArr.length === 0) ptsArr.push('');
-                    
-                    const cant = String(p.cant).padEnd(4, ' ');
-                    
-                    const maxLines = Math.max(trabArr.length, ptsArr.length);
-                    for (let i = 0; i < maxLines; i++) {
-                        const tPart = (trabArr[i] || '').padEnd(maxTrabajo, ' ');
-                        const pPart = (ptsArr[i] || '').padEnd(maxPts, ' ');
-                        const cPart = i === 0 ? cant : '    ';
-                        txt += `${tPart} | ${pPart} | ${cPart}\n`;
-                    }
+                    txt += `▪ *${trabStr}*${ptsStr} ➞ Cant: ${cantStr}\n`;
                 });
-                txt += `\`\`\``;
             } else {
                 txt += `\n📊 *Partidas:* _Sin partidas registradas_`;
             }

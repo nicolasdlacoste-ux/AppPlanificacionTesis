@@ -1021,6 +1021,8 @@ class BuscarParams(BaseModel):
     excluir_conflictos_pats: bool = False
     pivot_date: Optional[str] = None
     servicio_requerido: Optional[str] = None
+    tecnico_op: Optional[str] = None
+    tecnico_filtro: Optional[str] = None
 
 def _build_tech_events():
     """Construye el diccionario tech_events que espera engine.py desde la DB."""
@@ -1064,6 +1066,13 @@ def _build_tech_events():
             
             is_functionally_allday = start_dt.hour == 0 and start_dt.minute == 0 and end_dt.hour == 0 and end_dt.minute == 0 and end_dt > start_dt
             
+            raw_props = ev.get("extended_props", {})
+            if isinstance(raw_props, str):
+                try: props = json.loads(raw_props) if raw_props else {}
+                except: props = {}
+            else:
+                props = raw_props or {}
+            
             if is_functionally_allday or es_todo_el_dia:
                 dias = max(1, (end_date - start_date).days)
                 for i in range(dias):
@@ -1073,7 +1082,7 @@ def _build_tech_events():
                         "sort": 700, "sort_end": 1600, "text": f"07:00-16:00 | {ot}",
                         "horas": 0.0 if d.weekday() >= 5 else 9.0, "es_ot": es_ot,
                         "original_text": summary,
-                        "extendedProperties": ev.get("extended_props", {}),
+                        "extendedProperties": props,
                         "id": ev.get("id"), "calendar_id": ev.get("calendar_id"),
                         "Inicio": ev.get("inicio"), "Fin": ev.get("fin"),
                         "description": ev.get("descripcion", "")
@@ -1100,7 +1109,7 @@ def _build_tech_events():
                     tech_events[tech].setdefault(dk, []).append({
                         "sort": sort_val, "sort_end": sort_end_val, "text": desc,
                         "horas": h, "es_ot": es_ot, "original_text": summary,
-                        "extendedProperties": ev.get("extended_props", {}),
+                        "extendedProperties": props,
                         "id": ev.get("id"), "calendar_id": ev.get("calendar_id"),
                         "Inicio": ev.get("inicio"), "Fin": ev.get("fin"),
                         "description": ev.get("descripcion", "")
@@ -1154,7 +1163,9 @@ async def buscar_disponibilidad(params: BuscarParams):
             excluir_conflictos_pats=params.excluir_conflictos_pats,
             ots_objetivo=params.ots_seleccionadas,
             holidays=holidays,
-            servicio_requerido=params.servicio_requerido
+            servicio_requerido=params.servicio_requerido,
+            tecnico_op=params.tecnico_op,
+            tecnico_filtro=params.tecnico_filtro
         )
         res_flex = engine.buscar_disponibilidad(
             tech_events, tecnicos_info, params.n_tec, params.jornadas,
@@ -1163,7 +1174,9 @@ async def buscar_disponibilidad(params: BuscarParams):
             excluir_conflictos_pats=params.excluir_conflictos_pats,
             ots_objetivo=params.ots_seleccionadas,
             holidays=holidays,
-            servicio_requerido=params.servicio_requerido
+            servicio_requerido=params.servicio_requerido,
+            tecnico_op=params.tecnico_op,
+            tecnico_filtro=params.tecnico_filtro
         )
 
         return {"estrictas": serializar(res_est), "flexibles": serializar(res_flex)}
@@ -1211,14 +1224,18 @@ async def buscar_siguientes(params: BuscarSiguientesParams):
                                                excluir_conflictos_pats=params.excluir_conflictos_pats,
                                                ots_objetivo=params.ots_seleccionadas,
                                                holidays=holidays,
-                                               servicio_requerido=params.servicio_requerido)
+                                               servicio_requerido=params.servicio_requerido,
+                                               tecnico_op=params.tecnico_op,
+                                               tecnico_filtro=params.tecnico_filtro)
         res_flex = engine.buscar_disponibilidad(tech_events, tecnicos_info, params.n_tec, params.jornadas,
                                                 params.consecutivo, params.viaje, f_pivot, 120,
                                                 ignorar_no_ots=True, patrones_requeridos=params.patrones_requeridos,
                                                 excluir_conflictos_pats=params.excluir_conflictos_pats,
                                                 ots_objetivo=params.ots_seleccionadas,
                                                 holidays=holidays,
-                                                servicio_requerido=params.servicio_requerido)
+                                                servicio_requerido=params.servicio_requerido,
+                                                tecnico_op=params.tecnico_op,
+                                                tecnico_filtro=params.tecnico_filtro)
 
         return {"estrictas": ser(res_est), "flexibles": ser(res_flex)}
     except Exception as e:
@@ -2494,9 +2511,18 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
                 procesar_agrupacion(g['tecnico_nombres'], g.get('patrones', []), g.get('vehiculo', ''), info_ev)
 
         # B. Procesar eventos individuales
+        tecnicos_en_grupos = set()
+        for g in grupos_db:
+            for t in g.get('tecnico_nombres', []):
+                tecnicos_en_grupos.add(t)
+
         for ev in eventos_dia:
             if ev['id'] in ids_en_grupos: continue
             
+            tec = ev.get('tecnico_nombre') or ev.get('Técnico') or '---'
+            # Si existe un grupo de trabajo, no se muestran tarjetas para técnicos individuales que ya están en el grupo
+            if tec in tecnicos_en_grupos: continue
+
             props = ev.get('extended_props') or ev.get('extendedProperties') or {}
             if isinstance(props, str):
                 try: props = json.loads(props)
@@ -2507,7 +2533,6 @@ async def obtener_tarjetas_salida(fecha: str = Query(...)):
                 try: pats = json.loads(pats)
                 except: pats = []
             
-            tec = ev.get('tecnico_nombre') or ev.get('Técnico') or '---'
             procesar_agrupacion([tec], pats, priv.get('app_vehiculo', ''), ev)
 
         # 4. Formatear Resultado Final
@@ -3253,6 +3278,89 @@ async def get_drift_events():
         "drift_items": drift_items
     }
 
+
+
+@app.get("/api/indicadores/ocupacion")
+async def get_indicador_ocupacion(start_date: str, end_date: str):
+    try:
+        sd = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+        ed = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido")
+
+    # Días hábiles sin feriados
+    app_config = db.get_app_config()
+    holiday_set = set(app_config.get("holidays", {}).keys())
+    
+    dias_habiles = []
+    curr = sd
+    while curr <= ed:
+        if curr.weekday() < 5 and curr.strftime("%Y-%m-%d") not in holiday_set:
+            dias_habiles.append(curr.strftime("%Y-%m-%d"))
+        curr += datetime.timedelta(days=1)
+
+    if not dias_habiles:
+        return {"servicios": [], "dias_habiles_count": 0}
+
+    tech_events = _build_tech_events()
+    tecnicos_info = db.obtener_tecnicos()
+
+    servicios_data = {}
+
+    for t in tecnicos_info:
+        nombre = t['nombre']
+        t_servicios_raw = t.get("servicio", "")
+        t_servicios = [s.strip() for s in t_servicios_raw.split(",") if s.strip()]
+        if not t_servicios:
+            t_servicios = ["Sin Servicio"]
+
+        tech_sum_ot = 0.0
+        tech_sum_all = 0.0
+
+        for d_key in dias_habiles:
+            evs = tech_events.get(nombre, {}).get(d_key, [])
+            horas_ot_dia = 0.0
+            horas_all_dia = 0.0
+            for ev in evs:
+                h = ev.get("horas", 0.0)
+                horas_all_dia += h
+                if ev.get("es_ot", False):
+                    horas_ot_dia += h
+
+            # Topar al 100% (9 horas)
+            occ_ot_dia = min(1.0, horas_ot_dia / 9.0)
+            occ_all_dia = min(1.0, horas_all_dia / 9.0)
+
+            tech_sum_ot += occ_ot_dia
+            tech_sum_all += occ_all_dia
+
+        for srv in t_servicios:
+            if srv not in servicios_data:
+                servicios_data[srv] = {"techs_count": 0, "sum_ot": 0.0, "sum_all": 0.0}
+            servicios_data[srv]["techs_count"] += 1
+            servicios_data[srv]["sum_ot"] += tech_sum_ot
+            servicios_data[srv]["sum_all"] += tech_sum_all
+
+    res = []
+    total_dias = len(dias_habiles)
+    for srv, data in servicios_data.items():
+        count = data["techs_count"]
+        if count > 0 and total_dias > 0:
+            avg_ot = data["sum_ot"] / (count * total_dias)
+            avg_all = data["sum_all"] / (count * total_dias)
+        else:
+            avg_ot = 0.0
+            avg_all = 0.0
+
+        res.append({
+            "servicio": srv,
+            "ocupacion_ot": round(avg_ot * 100, 1),
+            "ocupacion_all": round(avg_all * 100, 1),
+            "tecnicos_count": count
+        })
+
+    res.sort(key=lambda x: x["ocupacion_all"], reverse=True)
+    return {"servicios": res, "dias_habiles_count": total_dias}
 
 
 # ── INICIO DE LA APLICACIÓN ───────────────────────────────────

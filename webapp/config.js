@@ -268,8 +268,7 @@ const ConfigMenu = (() => {
                 return;
             }
 
-            // Opciones de servicios
-            const servicesOpts = (currentConfig.services || []).map(s => `<option value="${s}">${s}</option>`).join('');
+            // No pre-generamos el HTML de los checkboxes aquí porque depende de los servicios asignados a cada técnico
 
             // Ordenar los calendarios según el sort_order guardado antes de renderizar
             calendars.sort((a, b) => {
@@ -291,27 +290,25 @@ const ConfigMenu = (() => {
                     <td style="text-align:center;">
                         <input type="checkbox" class="tech-chk" data-id="${cal.id}" ${isEnabled ? 'checked' : ''}>
                     </td>
-                    <td style="color: var(--text-muted);">${cal.id}</td>
+                    <td style="color: var(--text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${cal.id}">${cal.id}</td>
                     <td>
                         <input type="text" class="param-input tech-alias" data-id="${cal.id}" placeholder="${cal.summary}" value="${alias}" style="width:100%; margin:0; padding:2px 5px;" ${!isEnabled ? 'disabled' : ''}>
                     </td>
                     <td>
                         <input type="text" class="param-input tech-ini" data-id="${cal.id}" value="${iniciales}" style="width:100%; margin:0; padding:2px 5px; text-transform:uppercase;" maxlength="3" ${!isEnabled ? 'disabled' : ''}>
                     </td>
-                    <td>
-                        <select class="param-input tech-service" data-id="${cal.id}" style="width:100%; margin:0; padding:2px 5px;" ${!isEnabled ? 'disabled' : ''}>
-                            <option value="">-- Sin Servicio --</option>
-                            ${servicesOpts}
-                        </select>
+                    <td style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                        ${(currentConfig.services || []).map(s => {
+                            const isChecked = assignedService.split(',').map(x => x.trim()).includes(s) ? 'checked' : '';
+                            return `<label style="font-size: 11px; white-space: nowrap;"><input type="checkbox" class="tech-service-chk" value="${s}" ${isChecked} ${!isEnabled ? 'disabled' : ''}> ${s}</label>`;
+                        }).join('')}
                     </td>
                     <td>
                         <input type="number" class="param-input tech-sort" data-id="${cal.id}" value="${sortOrder}" style="width:100%; margin:0; padding:2px 5px;" ${!isEnabled ? 'disabled' : ''}>
                     </td>
                 `;
                 
-                // Actualizar selects
-                const sel = tr.querySelector('.tech-service');
-                sel.value = assignedService;
+                // Ya no necesitamos actualizar un select único, los checkboxes se marcaron en el HTML
 
                 // Evento checkbox para habilitar inputs
                 const chk = tr.querySelector('.tech-chk');
@@ -319,7 +316,7 @@ const ConfigMenu = (() => {
                     const disabled = !e.target.checked;
                     tr.querySelector('.tech-alias').disabled = disabled;
                     tr.querySelector('.tech-ini').disabled = disabled;
-                    tr.querySelector('.tech-service').disabled = disabled;
+                    tr.querySelectorAll('.tech-service-chk').forEach(chkSrv => chkSrv.disabled = disabled);
                     tr.querySelector('.tech-sort').disabled = disabled;
                 });
 
@@ -436,7 +433,8 @@ const ConfigMenu = (() => {
                     const id = chk.dataset.id;
                     const alias = tr.querySelector('.tech-alias').value.trim();
                     const ini = tr.querySelector('.tech-ini').value.trim();
-                    const service = tr.querySelector('.tech-service').value;
+                    const serviceBoxes = tr.querySelectorAll('.tech-service-chk:checked');
+                    const service = Array.from(serviceBoxes).map(cb => cb.value).join(',');
                     const sort = parseInt(tr.querySelector('.tech-sort').value) || 0;
 
                     currentConfig.technicians[id] = {

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Akrimet Planner — Control Room</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -198,28 +199,39 @@
 
                         <label>Hora fin</label>
                         <input type="time" id="edit-hend" class="param-input">
+                    </div> <!-- close param-grid -->
 
-                        <label class="full-row mt-2">OT(s) vinculadas</label>
-                        <div class="full-row" style="display:flex; gap:8px;">
+                    <!-- OTs Section -->
+                    <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px;">
+                        <div style="font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; margin-bottom: 8px;">
+                            OT(s) vinculadas
+                        </div>
+                        <div style="display:flex; gap:8px;">
                             <input type="text" id="edit-new-ot" class="param-input" style="flex:1; margin-bottom:0;" placeholder="Nro de OT o Cliente...">
-                            <button class="btn-secondary" id="btn-add-ot" style="padding:0 12px;"><i class="fa-solid fa-plus"></i></button>
+                            <button class="btn-secondary" id="btn-add-ot" style="padding:0 12px;"><i class="fa-solid fa-plus"></i> Agregar</button>
                         </div>
-                        <div id="edit-ots-list" class="tag-list full-row" style="margin-top:8px;"></div>
+                        <div id="edit-ots-list" class="tag-list" style="margin-top: 8px; min-height: 28px; width: 100%;"></div>
+                    </div>
 
-                        <label class="full-row mt-2">Patrones de calibración</label>
-                        <div class="full-row patron-row">
-                            <button class="btn-secondary" id="edit-btn-patrones">
-                                <i class="fa-solid fa-tools"></i> Seleccionar Patrones
+                    <!-- Recursos Section -->
+                    <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px;">
+                        <div style="font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; margin-bottom: 8px;">
+                            Recursos y Logística
+                        </div>
+                        <div class="param-grid">
+                            <label>Patrones</label>
+                            <button class="btn-secondary param-input" id="edit-btn-patrones" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span><i class="fa-solid fa-tools"></i> Editar Patrones</span>
+                                <span id="edit-patron-count" class="badge">0</span>
                             </button>
-                            <span id="edit-patron-count" class="badge ml-2">0</span>
-                        </div>
 
-                        <label class="full-row mt-2">Vehículo</label>
-                        <div class="full-row" style="display:flex; gap:8px;">
-                            <select id="edit-vehiculo" class="param-input" style="flex:1">
+                            <label>Vehículo</label>
+                            <select id="edit-vehiculo" class="param-input">
                                 <option value="">Sin vehículo</option>
                             </select>
-                            <label class="check-row" style="margin-top:0"><input type="checkbox" id="edit-req-vehiculo"> Requiere</label>
+                            
+                            <div></div>
+                            <label class="check-row" style="margin-top:0; color: var(--text-muted);"><input type="checkbox" id="edit-req-vehiculo"> Requiere gestión de vehículo</label>
                         </div>
                     </div>
                 </div>
@@ -294,13 +306,31 @@
                     <label class="check-row" style="margin-top:0"><input type="checkbox" id="p-req-vehiculo"> Requiere</label>
                 </div>
 
-                <div class="section-title mt-3">Fecha de Inicio <span class="optional">(opc.)</span></div>
-                <input type="date" id="p-start-date" class="param-input w-full">
-                
-                <div class="section-title mt-3"><i class="fa-solid fa-wrench"></i> Restringir por Servicio</div>
+                <div class="section-title mt-3">Servicio</div>
                 <select id="p-restringir-servicio" class="param-input w-full mt-1">
                     <option value="">Todos los servicios (Sin filtro)</option>
                 </select>
+
+                <details style="margin-top: 16px; border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: var(--surface-alt);">
+                    <summary style="font-weight: 600; font-size: 12px; color: var(--text-muted); cursor: pointer; outline: none; user-select: none;">
+                        <i class="fa-solid fa-sliders"></i> Opciones Avanzadas
+                    </summary>
+                    <div style="margin-top: 12px;">
+                        <div class="section-title">Fecha de Inicio <span class="optional">(opc.)</span></div>
+                        <input type="date" id="p-start-date" class="param-input w-full" style="margin-bottom: 0;">
+
+                        <div class="section-title mt-3">Preferencia de Técnico <span class="optional">(opc.)</span></div>
+                        <div style="display:flex; gap:8px; margin-bottom: 0;">
+                            <select id="p-tec-op" class="param-input" style="flex:1; margin-bottom:0;">
+                                <option value="Contiene">Contiene</option>
+                                <option value="No Contiene">No Contiene</option>
+                            </select>
+                            <select id="p-tec-filtro" class="param-input" style="flex:2; margin-bottom:0;">
+                                <option value="">-- Sin preferencia --</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
 
                 <button id="btn-buscar-disp" class="btn-primary w-full mt-4">
                     <i class="fa-solid fa-magnifying-glass-chart"></i> Buscar Disponibilidad
@@ -411,6 +441,9 @@
         Akrimet Planner v2.2
     </div>
     <div class="footer-right">
+        <button id="btn-open-indicadores" class="btn-config-footer" title="Indicadores de Ocupación" style="margin-right: 8px;">
+            <i class="fa-solid fa-chart-bar"></i> Ocupación
+        </button>
         <button id="btn-open-config" class="btn-config-footer" title="Configuración del Sistema">
             <i class="fa-solid fa-gear"></i> Configuración
         </button>
@@ -418,6 +451,36 @@
 </footer>
 
 <!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Modal: Indicadores de Ocupación -->
+<div id="modal-indicadores" class="modal-overlay hidden">
+    <div class="modal-box modal-lg">
+        <div class="modal-header">
+            <span><i class="fa-solid fa-chart-bar"></i> Ocupación de Técnicos</span>
+            <button class="modal-close" data-modal="modal-indicadores">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:var(--surface-3); padding:10px; border-radius:6px; border:1px solid var(--border);">
+                <div style="display:flex; gap:10px;">
+                    <button id="ind-btn-semana" class="btn-primary" style="padding:6px 12px; margin:0;">Semana</button>
+                    <button id="ind-btn-mes" class="btn-secondary" style="padding:6px 12px; margin:0;">Mes</button>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <button id="ind-btn-prev" class="btn-secondary" style="margin:0;"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span id="ind-label-rango" style="font-weight:600; color:var(--text); min-width:200px; text-align:center;">---</span>
+                    <button id="ind-btn-next" class="btn-secondary" style="margin:0;"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <div id="ind-resultados">
+                <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>Cargando indicadores...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Modal: Patrones -->
 <div id="modal-patrones" class="modal-overlay hidden">
@@ -519,11 +582,10 @@
         
         <div style="display: flex; flex: 1; overflow: hidden;">
             <!-- Left column: Date & Groups -->
-            <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border);">
+            <div style="width: 33.33%; flex: 0 0 33.33%; display: flex; flex-direction: column; border-right: 1px solid var(--border);">
                 <div style="padding: 15px; border-bottom: 1px solid var(--border); display: flex; gap: 15px; align-items: center;">
                     <label>Fecha:</label>
-                    <input type="date" id="ts-date-input" class="param-input">
-                    <button class="btn-primary" id="ts-btn-refrescar">Cargar</button>
+                    <input type="date" id="ts-date-input" class="param-input" style="flex: 1;">
                 </div>
                 <div id="ts-grupos-list" style="padding: 15px; flex: 1; overflow-y: auto; background: var(--bg); display: flex; flex-direction: column; gap: 10px;">
                     <!-- Lista de grupos -->
@@ -531,7 +593,7 @@
             </div>
 
             <!-- Right column: Preview -->
-            <div style="flex: 1.5; display: flex; flex-direction: column; background: var(--surface);">
+            <div style="width: 66.67%; flex: 0 0 66.67%; display: flex; flex-direction: column; background: var(--surface);">
                 <div style="padding: 12px 15px; border-bottom: 1px solid var(--border); background: var(--surface-alt); font-weight: 600; font-size: 13px; color: var(--text-muted);">
                     Vista Previa (Texto)
                 </div>
@@ -811,12 +873,13 @@
     </div>
 </div>
 
-<script src="scheduler.js?v=2.2"></script>
-<script src="backlog.js?v=2.2"></script>
-<script src="right-panel.js?v=2.2"></script>
-<script src="config.js?v=2.2"></script>
-<script src="poll.js?v=2.2"></script>
-<script src="app.js?v=2.2"></script>
+<script src="scheduler.js?v=2.6"></script>
+<script src="backlog.js?v=2.6"></script>
+<script src="right-panel.js?v=2.6"></script>
+<script src="config.js?v=2.6"></script>
+<script src="poll.js?v=2.6"></script>
+<script src="app.js?v=2.6"></script>
+<script src="indicadores.js?v=2.6"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
 </html>
