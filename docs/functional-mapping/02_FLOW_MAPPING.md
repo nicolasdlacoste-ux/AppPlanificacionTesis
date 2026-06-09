@@ -213,7 +213,10 @@ poll_manager.start → loop cada N seg
          g_updated <= local_updated → NO_OP_STALE
          diff + FieldOwnershipRegistry
          safe → apply_poll_safe_changes
-         critical → enqueue_review FIELD_CHANGE
+                  critical → evalúa poll_routing_config
+              AUTO_APPLY → data_manager.accept_review
+              INBOX → enqueue_review FIELD_CHANGE
+              IGNORE → marca como ignored
     → UI poll.js badge GET /api/review/pending
 ```
 

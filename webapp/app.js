@@ -16,6 +16,7 @@ const App = (() => {
     let _batchSelected = new Set();
     let _batchTecnico = null;
     let _localMutationTime = Date.now() / 1000;
+    let _globalSyncing = false;
     // ─────────────────────────────────
     // TRACEABILITY
     // ─────────────────────────────────

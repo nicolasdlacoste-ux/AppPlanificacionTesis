@@ -60,6 +60,7 @@ Unificar en una sola superficie (UI admin o panel dedicado) la **visibilidad ope
 | sync_queue PENDING/FAILED | `sync_queue` | FAILED > 0 |
 | eventos PENDING / REASSIGN_PENDING | `eventos.sync_status` | REASSIGN_PENDING > 5 min |
 | reviews PENDING | `poll_review_queue` | > 0 |
+| auto_applied_reviews | `poll_log` | INFO (routing rate) | | `poll_review_queue` | > 0 |
 | reopened_reviews | drift SQL | > 0 crítico |
 | polling_lag calendars | `poll_calendar_state` | > 12 min |
 | lookup_misses_24h | trace tag LOOKUP_MISS | > 0 |

@@ -4,6 +4,17 @@
 
 **Estado de validación:** `SQL` · `API` · `frontend` · `runtime` · `ownership` · `no validado` · `parcial`
 
+
+
+### G5 — IMPLICIT_GROUP_COALESCENCE
+
+| Atributo | Valor |
+|----------|-------|
+| **Descripción** | Eventos creados remotamente (REMOTE_CREATE) con un `google_event_id` idéntico a uno existente, se auto-agrupan implícitamente compartiendo el `grupo_id`. |
+| **Componentes** | `data_manager._handle_remote_create` |
+| **Validación** | runtime en poll inbound |
+| **Estado** | API |
+
 ---
 
 ## Resumen

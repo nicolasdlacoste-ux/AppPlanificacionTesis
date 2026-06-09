@@ -42,6 +42,7 @@
 | Engine buscar slot | estable | bajo | local_only | `engine.py`, `api_server` | No persiste |
 | Tarjeta de salida | estable | bajo | local_only | `right-panel`, `grupos/tarjeta_salida` | Solo lectura por fecha |
 | Heartbeat / auth | estable | bajo | local_only | `api_server`, `launcher` | Watchdog cierre servidor |
+| Dashboard ocupación | estable | bajo | local_only | `api_server`, `indicadores` | Ocupación consolidada por técnico/servicio |
 | Trace cliente | parcial | bajo | local_only | `POST /api/trace` | Logs en DB vía `log_trace` |
 
 ### 2. Creación y duplicación
@@ -103,8 +104,9 @@
 |-----------|--------|--------|------|-------------|------------------------|
 | Poll start/stop/trigger | parcial | medio | sync_inbound | `poll_manager`, `api_server` | Checklist pre-poll; ciclo por calendario |
 | Procesar evento inbound | parcial | alto | sync_inbound | `_process_incoming_event` | Anti-loop `source=internal`; ownership filter |
+| Implicit Group Creation | estable | medio | arbitration | `data_manager`, `google_event_id` | Agrupa eventos inbound automáticamente |
 | Auto-apply SHARED_SAFE | parcial | medio | sync_inbound | `apply_poll_safe_changes` | SQLite sin review |
-| Encolar review CRITICAL | parcial | alto | arbitration | `enqueue_review` | `poll_review_queue` PENDING |
+| Inbound Routing (AUTO/INBOX) | estable | alto | arbitration | `poll_routing_config` | Auto-aplica o encola según reglas | parcial | alto | arbitration | `enqueue_review` | `poll_review_queue` PENDING |
 | Accept review | parcial | alto | arbitration | `accept_review` | Mutación SQLite; idempotencia status |
 | Reject review | parcial | alto | arbitration | `reject_review` | Encola UPDATE/CREATE outbound |
 | Defer review | estable | bajo | arbitration | `defer_review` | No muta evento |
