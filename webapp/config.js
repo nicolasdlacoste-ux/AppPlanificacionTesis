@@ -81,7 +81,7 @@ const ConfigMenu = (() => {
 
     async function loadConfig() {
         try {
-            const res = await fetch('/api/config');
+            const res = await fetch(`/api/config?t=${Date.now()}`, { cache: 'no-store' });
             currentConfig = await res.json();
             
             // Llenar General
@@ -147,6 +147,7 @@ const ConfigMenu = (() => {
         if (!unlocked) return;
         const input = document.getElementById('cfg-new-service');
         const val = input.value.trim();
+        if (!currentConfig.services) currentConfig.services = [];
         if (val && !currentConfig.services.includes(val)) {
             currentConfig.services.push(val);
             input.value = '';
@@ -182,6 +183,7 @@ const ConfigMenu = (() => {
     function addUser() {
         const input = document.getElementById('cfg-new-user');
         const val = input.value.trim();
+        if (!currentConfig.authorized_users) currentConfig.authorized_users = [];
         if (val && !currentConfig.authorized_users.includes(val)) {
             currentConfig.authorized_users.push(val);
             input.value = '';

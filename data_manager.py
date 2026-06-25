@@ -1856,6 +1856,11 @@ class DataManager:
 
     def set_app_config(self, config_dict: dict):
         self.set_metadato("config", json.dumps(config_dict))
+        # Limpiar overrides individuales antiguos para que la clave 'config' sea la única fuente de verdad
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM metadatos WHERE clave IN ('pin', 'authorized_users', 'holidays')")
+            conn.commit()
 
     def get_poll_status(self) -> dict:
         with self._get_connection() as conn:
