@@ -384,29 +384,48 @@ class EventAdapter:
 
     @staticmethod
     def google_to_canonical(g_ev: dict, calendar_id: str = None, tec_nombre: str = None) -> dict:
-        """Transforma un evento crudo de Google Calendar al modelo interno canónico."""
+        """Transforma un evento crudo de Google Calendar al modelo interno canónico.
+        
+        [SURROGATE_KEY] Detecta la presencia de 'tarea_id_local' en extendedProperties.private
+        para determinar si el evento pertenece al sistema (is_external=False) o es externo
+        (is_external=True). Los eventos externos no se insertan en la tabla 'eventos';
+        solo se usan para bloquear disponibilidad en el Planner.
+        """
         gid = g_ev.get("id")
         start = g_ev.get("start", {})
         end   = g_ev.get("end",   {})
         
         # Metadata parsing
         ext = g_ev.get("extendedProperties", {})
+        if not isinstance(ext, dict):
+            ext = {}
         private = ext.get("private", {}) if isinstance(ext, dict) else {}
+        if not isinstance(private, dict):
+            private = {}
         
         # OTs normalization
         ots = OTNormalizationService.normalize(g_ev)
         
         # Detect guests
         attendees = g_ev.get("attendees", [])
-        has_guests = len(attendees) > 1 # Assuming owner is 1
+        has_guests = len(attendees) > 1  # Assuming owner is 1
         
-        # Inject into extended_props to ensure frontend receives it
-        if "private" not in ext: ext["private"] = {}
+        # Inject has_guests into extended_props so frontend receives it
+        if "private" not in ext:
+            ext["private"] = {}
         ext["private"]["has_guests"] = "true" if has_guests else "false"
 
+        # [SURROGATE_KEY] Determinar si el evento es propio del sistema o externo.
+        # Un evento es 'interno' si tiene tarea_id_local inyectado por este sistema.
+        tarea_id_local = private.get("tarea_id_local")
+        is_external = tarea_id_local is None
+
+        # Mantener compatibilidad: un evento con source='internal' también es propio.
+        if private.get("source") == "internal" and is_external:
+            is_external = False
 
         return {
-            "id":              f"{gid}_{calendar_id}" if calendar_id else gid,
+            "id":              tarea_id_local if tarea_id_local else (f"{gid}_{calendar_id}" if calendar_id else gid),
             "google_event_id": gid,
             "calendar_id":     calendar_id or private.get("calendar_id"),
             "tecnico_nombre":  tec_nombre or private.get("tecnico_nombre"),
@@ -417,7 +436,10 @@ class EventAdapter:
             "descripcion":     g_ev.get("description", ""),
             "extended_props":  ext,
             "app_ots":         ots,
-            "source":          "internal" if private.get("source") == "internal" else "external",
+            "source":          "internal" if not is_external else "external",
+            "is_external":     is_external,
+            "tarea_id_local":  tarea_id_local,
+            "attendees":       attendees,
             "updated_at":      g_ev.get("updated"),
             "version":         int(private.get("version", 1)) if private.get("version") else 1,
             "sync_status":     "SUCCESS"
@@ -557,7 +579,12 @@ class EventAdapter:
 
     @staticmethod
     def canonical_to_google(event: dict) -> dict:
-        """Transforma un evento canónico al formato de Google Calendar API."""
+        """Transforma un evento canónico al formato de Google Calendar API.
+        
+        [SURROGATE_KEY] Inyecta siempre 'tarea_id_local' en extendedProperties.private.
+        Esto ancla el vínculo entre el evento de Google Calendar y el registro SQL
+        incluso si el evento es movido a otro calendario o su google_event_id cambia.
+        """
         # Resolver campos usando aliases por si viene de una fuente no-limpia
         summary = LegacyAliasRegistry.resolve(event, "summary", "Sin título")
         desc    = LegacyAliasRegistry.resolve(event, "descripcion", "")
@@ -575,6 +602,13 @@ class EventAdapter:
         # Inyectar control de sync
         private["source"] = "internal"
         private["version"] = str(LegacyAliasRegistry.resolve(event, "version", 1))
+        
+        # [SURROGATE_KEY] Inyectar llave sustituta permanente.
+        # Usamos el 'id' canónico local (UUID del Planner) como ancla.
+        # Esta clave sobrevive a cambios de calendario, reasignaciones y ediciones en GCal.
+        event_id = LegacyAliasRegistry.resolve(event, "id")
+        if event_id and not private.get("tarea_id_local"):
+            private["tarea_id_local"] = str(event_id)
         
         # Sanitización
         sanitized_ext = ExtendedPropertiesSanitizer.sanitize({"private": private})

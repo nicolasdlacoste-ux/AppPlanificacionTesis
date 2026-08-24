@@ -547,7 +547,6 @@ var Scheduler = (() => {
 
             cell.style.position = 'relative';
             
-            // Línea de tiempo horizontal (X=Tiempo), Apilamiento vertical (Y=Solapamiento)
             const groups = getOverlapGroups(evs);
             groups.forEach(group => {
                 group.forEach((ev, colIdx) => {
@@ -558,8 +557,11 @@ var Scheduler = (() => {
 
                     const block = document.createElement('div');
                     const jk = getJobKey(ev);
-                    
-                    block.className = 'ev-block week-ev-block' + (state.soloOTs && !isOT(ev) ? ' dim' : '');
+
+                    // [SURROGATE_KEY] Detectar si el evento es externo (sin tarea_id_local)
+                    const isExternal = ev.source === 'external' || ev.is_external === true;
+
+                    block.className = 'ev-block week-ev-block' + (state.soloOTs && !isOT(ev) ? ' dim' : '') + (isExternal ? ' ev-external' : '');
                     if (ev._isMultiDay) {
                         if (!ev._isFirstDay) block.classList.add('cont-prev');
                         if (!ev._isLastDay) block.classList.add('cont-next');
@@ -570,63 +572,174 @@ var Scheduler = (() => {
             block.classList.add("batch-selected");
         }
 
-                    block.style.cssText = `
-                        background:${color}dd;
-                        left:${leftPct}%;
-                        width:calc(${widthPct}% - 1px);
-                        top:calc(${topPct}% + 1px);
-                        height:calc(${heightPct}% - 2px);
-                    `;
-                    
-                    const isGroup = state._jobFreq && state._jobFreq[jk] > 1;
-                    const confirmedGrupoId = ev.extended_props?.private?.grupo_id || null;
-                    const groupIcon = isGroup ? '<i class="fa-solid fa-users group-badge" title="Mismo trabajo"></i>' : '';
-                    const confirmedIcon = confirmedGrupoId ? '<i class="fa-solid fa-link group-confirmed-badge" title="Grupo confirmado"></i>' : '';
-                    block.innerHTML = `<div class="ev-title" style="font-size:9px">${ev.summary}</div>${groupIcon}${confirmedIcon}`;
-                    if (confirmedGrupoId) block.dataset.grupoId = confirmedGrupoId;
-
-                    // Hover: highlight por grupo_id confirmado (prioridad) o por jobKey
-                    block.addEventListener('mouseenter', () => {
-                        if (confirmedGrupoId) {
-                            document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.add('group-active'));
-                        } else {
-                            document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.add('group-active'));
-                        }
-                    });
-                    block.addEventListener('mouseleave', () => {
-                        if (confirmedGrupoId) {
-                            document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.remove('group-active'));
-                        } else {
-                            document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.remove('group-active'));
-                        }
-                    });
-
-                    if (ev._syncing) {
-                        block.setAttribute('draggable', 'false');
-                        block.classList.add('syncing');
-                        block.style.opacity = '0.5';
-                        block.innerHTML += '<div class="ev-sync-spinner"><i class="fa-solid fa-rotate fa-spin"></i></div>';
+                    if (isExternal) {
+                        // Eventos externos: gris rayado, no arrastrables
+                        block.style.cssText = `
+                            background: repeating-linear-gradient(45deg, #6b728033, #6b728033 4px, #37415133 4px, #37415133 8px);
+                            border: 1.5px dashed #94a3b8;
+                            left:${leftPct}%;
+                            width:calc(${widthPct}% - 1px);
+                            top:calc(${topPct}% + 1px);
+                            height:calc(${heightPct}% - 2px);
+                            cursor: pointer;
+                            opacity: 0.85;
+                        `;
+                        block.innerHTML = `
+                            <div class="ev-title" style="font-size:9px; color:#94a3b8">
+                                <i class="fa-solid fa-lock" style="font-size:8px; margin-right:3px"></i>${ev.summary}
+                            </div>`;
+                        block.title = 'Evento externo de Google Calendar. Click para importar.';
+                        block.addEventListener('click', e => { e.stopPropagation(); _showImportPopover(ev, e); });
                     } else {
-                        block.setAttribute('draggable', 'true');
-                        block.addEventListener('dragstart', e => {
-                            e.dataTransfer.setData('application/json', JSON.stringify({
-                                type: 'move',
-                                eventId: ev.google_event_id || ev.id,
-                                calendarId: ev.calendar_id || 'primary'
-                            }));
+                        block.style.cssText = `
+                            background:${color}dd;
+                            left:${leftPct}%;
+                            width:calc(${widthPct}% - 1px);
+                            top:calc(${topPct}% + 1px);
+                            height:calc(${heightPct}% - 2px);
+                        `;
+                        
+                        const isGroup = state._jobFreq && state._jobFreq[jk] > 1;
+                        const confirmedGrupoId = ev.extended_props?.private?.grupo_id || null;
+                        const groupIcon = isGroup ? '<i class="fa-solid fa-users group-badge" title="Mismo trabajo"></i>' : '';
+                        const confirmedIcon = confirmedGrupoId ? '<i class="fa-solid fa-link group-confirmed-badge" title="Grupo confirmado"></i>' : '';
+                        block.innerHTML = `<div class="ev-title" style="font-size:9px">${ev.summary}</div>${groupIcon}${confirmedIcon}`;
+                        if (confirmedGrupoId) block.dataset.grupoId = confirmedGrupoId;
+
+                        block.addEventListener('mouseenter', () => {
+                            if (confirmedGrupoId) {
+                                document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.add('group-active'));
+                            } else {
+                                document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.add('group-active'));
+                            }
+                        });
+                        block.addEventListener('mouseleave', () => {
+                            if (confirmedGrupoId) {
+                                document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.remove('group-active'));
+                            } else {
+                                document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.remove('group-active'));
+                            }
+                        });
+
+                        if (ev._syncing) {
+                            block.setAttribute('draggable', 'false');
+                            block.classList.add('syncing');
+                            block.style.opacity = '0.5';
+                            block.innerHTML += '<div class="ev-sync-spinner"><i class="fa-solid fa-rotate fa-spin"></i></div>';
+                        } else {
+                            block.setAttribute('draggable', 'true');
+                            block.addEventListener('dragstart', e => {
+                                e.dataTransfer.setData('application/json', JSON.stringify({
+                                    type: 'move',
+                                    eventId: ev.google_event_id || ev.id,
+                                    calendarId: ev.calendar_id || 'primary'
+                                }));
+                            });
+                        }
+
+                        block.addEventListener('click', e => { 
+                            if (ev._syncing) return;
+                            e.stopPropagation(); 
+                            App.selectEvent(ev, e.ctrlKey || e.metaKey); 
                         });
                     }
-
-                    block.addEventListener('click', e => { 
-                        if (ev._syncing) return;
-                        e.stopPropagation(); 
-                        App.selectEvent(ev, e.ctrlKey || e.metaKey); 
-                    });
                     cell.appendChild(block);
                 });
             });
         });
     }
+
+    // [SURROGATE_KEY] Muestra popover de importación para eventos externos
+    function _showImportPopover(ev, mouseEvent) {
+        // Remover popover anterior si existe
+        const old = document.getElementById('import-external-popover');
+        if (old) old.remove();
+
+        const pop = document.createElement('div');
+        pop.id = 'import-external-popover';
+        pop.style.cssText = `
+            position:fixed; z-index:9999;
+            background:#1e293b; border:1px solid #334155;
+            border-radius:10px; padding:14px 16px;
+            box-shadow:0 8px 32px rgba(0,0,0,0.5);
+            min-width:220px; max-width:280px;
+            font-family: inherit; color: #e2e8f0;
+        `;
+        // Posicionar cerca del click
+        const x = Math.min(mouseEvent.clientX + 8, window.innerWidth - 290);
+        const y = Math.min(mouseEvent.clientY + 8, window.innerHeight - 160);
+        pop.style.left = x + 'px';
+        pop.style.top  = y + 'px';
+
+        pop.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <span style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.05em">EVENTO EXTERNO</span>
+                <button id="import-pop-close" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:14px">✕</button>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:#f1f5f9;margin-bottom:4px">${ev.summary || 'Sin título'}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:12px">
+                <i class="fa-solid fa-lock" style="margin-right:4px"></i>No pertenece al Planner
+            </div>
+            <button id="import-pop-btn" style="
+                width:100%; padding:8px;
+                background: linear-gradient(135deg, #3b82f6, #6366f1);
+                border:none; border-radius:6px;
+                color:white; font-size:12px; font-weight:600;
+                cursor:pointer; transition: opacity .2s;
+            ">
+                <i class="fa-solid fa-file-import" style="margin-right:6px"></i>Importar como Trabajo
+            </button>
+        `;
+        document.body.appendChild(pop);
+
+        document.getElementById('import-pop-close').addEventListener('click', () => pop.remove());
+        document.addEventListener('click', function outsideClick(e) {
+            if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener('click', outsideClick); }
+        }, { capture: true });
+
+        document.getElementById('import-pop-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('import-pop-btn');
+            if (!btn) return;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-rotate fa-spin"></i> Importando...';
+
+            try {
+                const res = await fetch('/api/eventos/importar-externo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        google_event_id: ev.google_event_id || ev.id,
+                        calendar_id:     ev.calendar_id,
+                        tecnico_nombre:  ev.tecnico_nombre
+                    })
+                });
+                const data = await res.json();
+                pop.remove();
+
+                if (res.ok) {
+                    // Mostrar warnings si los hay (invitados desconocidos)
+                    if (data.warnings && data.warnings.length > 0) {
+                        data.warnings.forEach(w => {
+                            if (window.App && App.showToast) App.showToast(w, 'warning');
+                            else console.warn('[IMPORT_EXTERNAL]', w);
+                        });
+                    }
+                    if (window.App && App.showToast) App.showToast('Evento importado correctamente', 'success');
+                    // Refrescar la grilla
+                    if (window.App && App.refresh) App.refresh();
+                    else if (window.Scheduler && Scheduler.refresh) Scheduler.refresh();
+                } else {
+                    const msg = data.detail || 'Error al importar';
+                    if (window.App && App.showToast) App.showToast(msg, 'error');
+                    else alert(msg);
+                }
+            } catch(err) {
+                pop.remove();
+                if (window.App && App.showToast) App.showToast('Error de red: ' + err.message, 'error');
+            }
+        });
+    }
+
 
     function createDayBlock(ev, color, colIdx, totalCols) {
         // Usar valores pre-calculados por getExpandedEvents
@@ -637,8 +750,11 @@ var Scheduler = (() => {
 
         const block = document.createElement('div');
         const jk = getJobKey(ev);
+
+        // [SURROGATE_KEY] Detectar si el evento es externo
+        const isExternal = ev.source === 'external' || ev.is_external === true;
         
-        block.className = 'ev-block' + (state.soloOTs && !isOT(ev) ? ' dim' : '');
+        block.className = 'ev-block' + (state.soloOTs && !isOT(ev) ? ' dim' : '') + (isExternal ? ' ev-external' : '');
         if (ev._isMultiDay) {
             if (!ev._isFirstDay) block.classList.add('cont-prev');
             if (!ev._isLastDay) block.classList.add('cont-next');
@@ -652,13 +768,31 @@ var Scheduler = (() => {
             block.classList.add("batch-selected");
         }
 
-        block.style.cssText = `
-            left:${leftPct}%;
-            width:${Math.max(widthPct, 1.5)}%;
-            background:${color}dd;
-            top:calc(${topPct}% + 4px);
-            height:calc(${heightPct}% - 8px);
-            bottom:unset;`;
+        if (isExternal) {
+            block.style.cssText = `
+                left:${leftPct}%;
+                width:${Math.max(widthPct, 1.5)}%;
+                background: repeating-linear-gradient(45deg, #6b728033, #6b728033 4px, #37415133 4px, #37415133 8px);
+                border: 1.5px dashed #94a3b8;
+                top:calc(${topPct}% + 4px);
+                height:calc(${heightPct}% - 8px);
+                bottom:unset;
+                cursor: pointer;
+                opacity: 0.85;
+            `;
+            block.innerHTML = `
+                <div class="ev-title">
+                    <i class="fa-solid fa-lock" style="font-size:9px; margin-right:3px; color:#94a3b8"></i>
+                    <span style="color:#94a3b8">${ev.summary}</span>
+                </div>
+                <div class="ev-time" style="color:#64748b">${fmtHour(ev._sh)}–${fmtHour(ev._eh)}</div>
+            `;
+            block.title = 'Evento externo de Google Calendar. Click para importar.';
+            block.addEventListener('click', e => { e.stopPropagation(); _showImportPopover(ev, e); });
+            return block;
+        }
+
+
         const isGroup = state._jobFreq && state._jobFreq[jk] > 1;
         const confirmedGrupoId = ev.extended_props?.private?.grupo_id || null;
         const groupIcon = isGroup ? '<i class="fa-solid fa-users group-badge" title="Mismo trabajo"></i>' : '';

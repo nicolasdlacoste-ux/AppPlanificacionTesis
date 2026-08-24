@@ -3,6 +3,12 @@ import json
 import os
 import datetime
 import threading
+import sys
+if sys.stdout is not None and getattr(sys.stdout, 'encoding', None) != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
 from pathlib import Path
 import utils
 import time
@@ -118,6 +124,25 @@ class DataManager:
                     next_retry_at TEXT,
                     original_calendar_id TEXT,
                     mutation_context TEXT
+                )
+            ''')
+
+            # [SURROGATE_KEY] Tabla Eventos Externos — caché vivo de GCal sin arbitraje
+            # Contiene todos los eventos de Google Calendar que NO tienen tarea_id_local.
+            # Se actualiza por el PollingManager en cada ciclo. No genera sync_queue.
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS eventos_externos (
+                    google_event_id TEXT NOT NULL,
+                    calendar_id     TEXT NOT NULL,
+                    tecnico_nombre  TEXT,
+                    summary         TEXT,
+                    inicio          TEXT,
+                    fin             TEXT,
+                    ubicacion       TEXT,
+                    descripcion     TEXT,
+                    attendees       TEXT,
+                    updated_at      TEXT,
+                    PRIMARY KEY (google_event_id, calendar_id)
                 )
             ''')
 
@@ -552,6 +577,69 @@ class DataManager:
             cursor.execute("SELECT * FROM eventos")
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
+
+    # ── Métodos de Eventos Externos (caché vivo de GCal) ──────────────────────
+
+    def upsert_evento_externo(self, g_ev: dict, calendar_id: str, tec_nombre: str = None):
+        """[SURROGATE_KEY] Guarda o actualiza un evento externo en el caché vivo.
+        No genera sync_queue ni arbitraje. Sobreescribe siempre con el estado de GCal."""
+        from utils import TimeNormalizationService
+        import json as _json
+        start = g_ev.get("start", {})
+        end   = g_ev.get("end",   {})
+        attendees = g_ev.get("attendees", [])
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO eventos_externos
+                    (google_event_id, calendar_id, tecnico_nombre, summary,
+                     inicio, fin, ubicacion, descripcion, attendees, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                g_ev.get("id"),
+                calendar_id,
+                tec_nombre,
+                g_ev.get("summary", "Sin título"),
+                TimeNormalizationService.normalize_to_utc_z(start),
+                TimeNormalizationService.normalize_to_utc_z(end),
+                g_ev.get("location", ""),
+                g_ev.get("description", ""),
+                _json.dumps(attendees, ensure_ascii=False),
+                g_ev.get("updated"),
+            ))
+            conn.commit()
+
+    def delete_evento_externo(self, google_event_id: str, calendar_id: str):
+        """[SURROGATE_KEY] Elimina un evento externo cuando desaparece de GCal."""
+        with self._get_connection() as conn:
+            conn.execute("""
+                DELETE FROM eventos_externos
+                WHERE google_event_id = ? AND calendar_id = ?
+            """, (google_event_id, calendar_id))
+            conn.commit()
+
+    def obtener_eventos_externos(self, start: str = None, end: str = None) -> list:
+        """[SURROGATE_KEY] Retorna eventos externos en un rango de fechas opcional.
+        start/end son strings ISO (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SSZ)."""
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            if start and end:
+                rows = conn.execute("""
+                    SELECT * FROM eventos_externos
+                    WHERE inicio >= ? AND inicio <= ?
+                    ORDER BY inicio
+                """, (start, end + "T23:59:59Z")).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM eventos_externos ORDER BY inicio"
+                ).fetchall()
+            result = []
+            for r in rows:
+                d = dict(r)
+                d["source"] = "external"
+                d["is_external"] = True
+                d["id"] = f"ext_{d['google_event_id']}"
+                result.append(d)
+            return result
 
     # --- MÉTODOS DE OTS Y PATRONES ---
     def guardar_bd_ots(self, ots_raw_list):

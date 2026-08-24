@@ -50,6 +50,7 @@ const App = (() => {
         bindEmptySpaceClick();
         console.log("[BOOT] Inicializando ConfigMenu...");
         ConfigMenu.init();
+        bindForcePollButton();
         
         console.log("[BOOT] Inicializando PollManager...");
         PollManager.init();
@@ -162,9 +163,15 @@ const App = (() => {
     async function refreshEvents() {
         console.trace("[UI_FORENSICS] refreshEvents() invocado - Posible causa de Shadow Events o sobreescritura de cache");
         try {
-            const evRes = await fetch(`/api/eventos?t=${Date.now()}`);
+            // [SURROGATE_KEY] Cargar internos y externos en paralelo
+            const [evRes, extRes] = await Promise.all([
+                fetch(`/api/eventos?t=${Date.now()}`),
+                fetch(`/api/eventos-externos?t=${Date.now()}`)
+            ]);
             if (!evRes.ok) return;
-            const newEvents = await evRes.json();
+            const internos = await evRes.json();
+            const externos = extRes.ok ? await extRes.json() : [];
+            const newEvents = [...internos, ...externos];
             console.log("[DIAGNOSTIC] First event from /api/eventos:", newEvents[0]);
             const merged = [];
             for (let i = 0; i < newEvents.length; i++) {
@@ -401,12 +408,13 @@ const App = (() => {
         console.log("[BOOT] loadAll: Iniciando carga masiva de datos...");
         try {
             const endpoints = [
-                { id: 'tecnicos', url: `/api/tecnicos?t=${Date.now()}` },
-                { id: 'eventos',  url: `/api/eventos?t=${Date.now()}` },
-                { id: 'ots',      url: `/api/ots/pendientes?t=${Date.now()}` },
-                { id: 'patrones', url: `/api/patrones?t=${Date.now()}` },
-                { id: 'vehiculos',url: `/api/vehiculos?t=${Date.now()}` },
-                { id: 'config',   url: `/api/config?t=${Date.now()}` }
+                { id: 'tecnicos',         url: `/api/tecnicos?t=${Date.now()}` },
+                { id: 'eventos',          url: `/api/eventos?t=${Date.now()}` },
+                { id: 'eventos_externos', url: `/api/eventos-externos?t=${Date.now()}` },
+                { id: 'ots',             url: `/api/ots/pendientes?t=${Date.now()}` },
+                { id: 'patrones',        url: `/api/patrones?t=${Date.now()}` },
+                { id: 'vehiculos',       url: `/api/vehiculos?t=${Date.now()}` },
+                { id: 'config',          url: `/api/config?t=${Date.now()}` }
             ];
 
             console.log("[BOOT] loadAll: Ejecutando peticiones...");
@@ -445,8 +453,14 @@ const App = (() => {
 
             // Asignar datos con fallbacks seguros
             _tecnicos = tecsRes.data || [];
-            _eventos  = evsRes.data || [];
-            console.log("[DIAGNOSTIC] loadAll _eventos count:", _eventos.length);
+            // [SURROGATE_KEY] Mezclar eventos internos + externos en un solo array.
+            // Los externos tienen is_external=true y se renderizan como bloques grises.
+            const internos  = evsRes.data || [];
+            const extRes    = results.find(r => r.id === 'eventos_externos');
+            const externos  = (extRes?.ok && extRes.data) ? extRes.data : [];
+            _eventos = [...internos, ...externos];
+            console.log("[DIAGNOSTIC] loadAll _eventos count:", _eventos.length,
+                        `(${internos.length} internos + ${externos.length} externos)`);
             if (_eventos.length > 0) console.log("[DIAGNOSTIC] loadAll sample event:", _eventos[0]);
             
             _ots      = results.find(r => r.id === 'ots')?.data || [];
@@ -1590,6 +1604,38 @@ const App = (() => {
             toast('No se encontraron IDs de Salesforce para estas OTs', 'info');
         }
     }
+
+    function bindForcePollButton() {
+        const btn = document.getElementById('btn-force-poll');
+        if (!btn) return;
+
+        btn.addEventListener('click', async () => {
+            if (btn.disabled) return;
+            btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-rotate fa-spin" id="icon-force-poll"></i> Sincronizando...`;
+
+            try {
+                toast('Iniciando sincronización forzada con Google Calendar...', 'info');
+                const res = await fetch('/api/poll/trigger', { method: 'POST' });
+                if (res.ok) {
+                    // Esperar 1.5s a que el backend termine de ingresar los eventos
+                    await new Promise(r => setTimeout(r, 1500));
+                    await refreshEvents();
+                    toast('Sincronización con Google Calendar completada', 'success');
+                } else {
+                    toast('Error al solicitar sincronización con Google Calendar', 'error');
+                }
+            } catch (err) {
+                console.error('[ForcePoll]', err);
+                toast('Error de conexión al sincronizar con Google Calendar', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        });
+    }
+
 
     return { 
         init, refresh, selectEvent, openQuickCreate, 

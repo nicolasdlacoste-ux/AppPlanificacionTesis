@@ -1,4 +1,10 @@
 import os
+import sys
+if sys.stdout is not None and getattr(sys.stdout, 'encoding', None) != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
 import threading
 import time
 import subprocess

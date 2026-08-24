@@ -108,6 +108,22 @@ def run_pre_polling_checklist(db, *args, **kwargs) -> bool:
         ok = cursor.fetchone()[0] > 0
     checks.append(("POLL_REVIEW_TABLE",     ok, "tabla poll_review_queue ausente"))
 
+    # 9. [SURROGATE_KEY] Cobertura de tarea_id_local: todos los eventos internos deben tenerla
+    with db._get_connection() as conn:
+        cursor = conn.cursor()
+        # Busca eventos 'internal' cuyo extended_props no contenga 'tarea_id_local'
+        cursor.execute("""
+            SELECT COUNT(*) FROM eventos
+            WHERE source = 'internal'
+              AND (
+                extended_props IS NULL
+                OR extended_props NOT LIKE '%tarea_id_local%'
+              )
+        """)
+        orphans = cursor.fetchone()[0]
+    checks.append(("SURROGATE_KEY_COVERAGE", orphans == 0,
+                   f"{orphans} eventos internos sin tarea_id_local (ejecutar backfill)"))
+
     # ── Evaluar y loggear ────────────────────────────────────────────────────
     all_passed = True
     for name, passed, detail in checks:
@@ -412,7 +428,27 @@ class PollingManager:
         if last_sync:
             params["updatedMin"] = last_sync
 
-        result       = svc.events().list(**params).execute()
+        try:
+            result = svc.events().list(**params).execute()
+        except Exception as err:
+            is_410 = False
+            if "410" in str(err) or "updatedMinTooLongAgo" in str(err):
+                is_410 = True
+            elif hasattr(err, "resp") and getattr(err.resp, "status", None) == 410:
+                is_410 = True
+            elif hasattr(err, "status_code") and getattr(err, "status_code", None) == 410:
+                is_410 = True
+
+            if is_410 and "updatedMin" in params:
+                stale_time = params.pop("updatedMin")
+                _poll_log(self.db, "POLL_TRACE", "UPDATED_MIN_EXPIRED_FALLBACK_FULL_SYNC",
+                          {"stale_updatedMin": stale_time, "error": str(err)[:200]},
+                          calendar_id=calendar_id)
+                print(f"[PollingManager] updatedMin expirado ({stale_time}) para {calendar_id}. Realizando Full Sync de auto-recuperación.")
+                result = svc.events().list(**params).execute()
+            else:
+                raise err
+
         google_events = result.get("items", [])
 
         _poll_log(self.db, "TRACE_EVENT_FLOW", "POLL_FETCHED",
@@ -480,14 +516,29 @@ class PollingManager:
             _poll_log(self.db, "POLL_TRACE", "DELETE_DETECTED", trace)
             return "ignored"
 
-        # 2. Anti-loop: evento escrito por nosotros → ignorar
-        if _is_internal_change(g_ev):
-            trace["decision"] = "ANTI_LOOP_SKIP"
-            trace["reason"] = "source='internal' metadata detected"
-            _poll_log(self.db, "POLL_INBOUND_TRACE", "ANTI_LOOP", trace)
-            return "ignored"
+        # [SURROGATE_KEY] 2.5 Clasificar evento: propio vs externo.
+        # Un evento es 'propio' si tiene tarea_id_local en sus extendedProperties.private.
+        # Los eventos externos (creados a mano en GCal o invitaciones de terceros) se omiten
+        # de la base de datos operativa y solo se usan para bloquear disponibilidad en el frontend.
+        _ext_priv = g_ev.get("extendedProperties", {})
+        if not isinstance(_ext_priv, dict):
+            _ext_priv = {}
+        _priv = _ext_priv.get("private", {})
+        if not isinstance(_priv, dict):
+            _priv = {}
+        _tarea_id_local = _priv.get("tarea_id_local")
 
-        # 3. Estado del evento local para trazas
+        if not _tarea_id_local:
+            # [SURROGATE_KEY] Evento externo: guardar en caché vivo sin arbitraje.
+            # El Planner lo mostrará como bloque gris actualizado. Sin sync_queue. Sin review.
+            try:
+                self.db.upsert_evento_externo(g_ev, calendar_id, tec_nombre)
+            except Exception as _ue:
+                _poll_log(self.db, "POLL_INBOUND_TRACE", "EXTERNAL_CACHE_ERROR",
+                          {"error": str(_ue), "gid": gid}, calendar_id=calendar_id)
+            return "external_cached"
+
+
         trace["local_status"] = "exists" if local else "new"
         if local:
             trace["local_state"] = {
@@ -507,66 +558,56 @@ class PollingManager:
             "extendedProperties": g_ev.get("extendedProperties")
         }
 
-        # 4. Evento nuevo en Google → encolar para revisión humana (Arbitraje de creación)
+        # [SURROGATE_KEY] 4. Evento propio sin registro local → Auto-recuperación (self-healing).
+        # Este caso ocurre cuando un evento con tarea_id_local existe en Google pero no en la DB
+        # (ej. DB restaurada desde backup, migración parcial, etc.).
+        # NO va al arbitraje humano: se reinserta automáticamente desde los datos de Google.
         if local is None:
-            trace["decision"] = "queued_for_review"
+            trace["decision"] = "SELF_HEALING_REINSERT"
             if not self._dry_run:
                 try:
-                    # Enriquecer/hidratar el evento nuevo antes de guardarlo en el remote_snapshot
+                    # Hidratar si está disponible
                     if self._hydrator:
                         g_ev = self._hydrator.hydrate_event(g_ev)
 
                     g_mapped = _map_google_to_local(g_ev, calendar_id, tec_nombre)
-                    
-                    # Diff visual de creación
-                    create_diff = {
-                        "summary": {"old": "—", "new": g_mapped.get("summary", "Sin título"), "category": "critical"},
-                        "inicio": {"old": "—", "new": g_mapped.get("inicio"), "category": "critical"},
-                        "fin": {"old": "—", "new": g_mapped.get("fin"), "category": "critical"},
-                        "tecnico_nombre": {"old": "—", "new": g_mapped.get("tecnico_nombre", tec_nombre), "category": "critical"}
-                    }
 
-                    review_id = self.db.enqueue_review(
-                        event_id=gid,
-                        calendar_id=calendar_id,
-                        diff=create_diff,
-                        conflict_type="REMOTE_CREATE",
-                        google_event_id=gid,
-                        local_snapshot={},
-                        remote_snapshot=g_ev,
-                        recommended_action="ACCEPT_REMOTE",
-                        g_updated=g_ev.get("updated")
-                    )
-                    
-                    if review_id:
-                        trace["persistence"] = "review_queued"
-                        trace["review_id"] = review_id
-                        
-                        # Revisar auto-apply config
-                        routing_raw = self.db.get_metadato("poll_routing_config")
-                        routing = json.loads(routing_raw) if routing_raw else {}
-                        rule = routing.get("REMOTE_CREATE", "INBOX")
-                        if rule == "AUTO_APPLY":
-                            try:
-                                self.db.accept_review(review_id)
-                                trace["persistence"] = "auto_applied_via_routing"
-                            except Exception as e:
-                                trace["auto_apply_error"] = str(e)
-                        elif rule == "IGNORE":
-                            with self.db._get_connection() as conn:
-                                conn.execute("UPDATE poll_review_queue SET status = 'IGNORED' WHERE review_id = ?", (review_id,))
-                            trace["persistence"] = "ignored_via_routing"
-                    else:
-                        trace["persistence"] = "duplicate_ignored"
+                    # Usar tarea_id_local como ID canónico (preserva el vínculo original)
+                    g_mapped["id"] = _tarea_id_local
+                    g_mapped["source"] = "internal"
+                    g_mapped["sync_status"] = "SUCCESS"
+                    g_mapped["pending_sync"] = 0
+
+                    self.db.guardar_evento_individual(g_mapped)
+                    trace["persistence"] = "self_healed"
+                    trace["recovered_id"] = _tarea_id_local
+                    _poll_log(self.db, "POLL_INBOUND_TRACE", "SELF_HEAL_REINSERTED", trace)
                 except Exception as e:
-                    trace["persistence"] = "failed"
+                    trace["persistence"] = "self_heal_failed"
                     trace["error"] = str(e)
+                    _poll_log(self.db, "POLL_INBOUND_TRACE", "SELF_HEAL_ERROR", trace)
             else:
                 trace["persistence"] = "skipped_dry_run"
-            _poll_log(self.db, "POLL_INBOUND_TRACE", "REVIEW_REQUIRED", trace)
-            return "conflicts"
+                _poll_log(self.db, "POLL_INBOUND_TRACE", "SELF_HEAL_DRY_RUN", trace)
+            return "changes"
+
+        # [AUTO_RESTORE] Si el evento local estaba marcado como CANCELLED_IN_GOOGLE pero en Google sigue activo (confirmed),
+        # limpiamos el sync_state para revivirlo automáticamente en la pantalla del Planner.
+        if local and local.get("sync_state") == "CANCELLED_IN_GOOGLE" and g_ev.get("status") != "cancelled":
+            try:
+                with self.db._get_connection() as conn:
+                    conn.execute(
+                        "UPDATE eventos SET sync_state = NULL, sync_status = 'SUCCESS' WHERE id = ?",
+                        (local["id"],)
+                    )
+                    conn.commit()
+                _poll_log(self.db, "POLL_INBOUND_TRACE", "RESTORE_CANCELLED_STATE",
+                          {"local_id": local["id"], "google_event_id": gid}, calendar_id=calendar_id)
+            except Exception:
+                pass
 
         # 5. ¿Google tiene algo más nuevo?
+
         g_updated     = _parse_dt(g_ev.get("updated"))
         local_updated = _parse_dt(local.get("updated_at"))
         if local_updated and g_updated and g_updated <= local_updated:
@@ -917,6 +958,12 @@ class PollingManager:
                       },
                       calendar_id=calendar_id, event_id=event_id)
         else:
+            # Evento cancelado en GCal que tampoco está en la DB local.
+            # Puede ser un evento externo cacheado → limpiar de eventos_externos.
+            try:
+                self.db.delete_evento_externo(event_id, calendar_id)
+            except Exception:
+                pass
             _poll_log(self.db, "POLL_INBOUND_TRACE", "DELETE_IGNORED",
-                      {"note": "Evento cancelado no existe localmente"},
+                      {"note": "Evento cancelado no existe localmente, limpiado de externos"},
                       calendar_id=calendar_id, event_id=event_id)

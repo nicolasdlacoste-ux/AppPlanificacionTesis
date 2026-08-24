@@ -16,6 +16,11 @@ import uuid
 import re
 import googleapiclient.errors
 import sys
+if sys.stdout is not None and getattr(sys.stdout, 'encoding', None) != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
 
 import utils
 import engine
@@ -998,9 +1003,27 @@ async def get_cancelled_eventos():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/eventos-externos")
+async def get_eventos_externos(
+    start: Optional[str] = Query(None),
+    end:   Optional[str] = Query(None)
+):
+    """
+    [SURROGATE_KEY] Retorna el caché vivo de eventos externos de Google Calendar.
+    Estos eventos no tienen tarea_id_local y no están en la tabla 'eventos'.
+    Son actualizados automáticamente por el PollingManager sin arbitraje.
+    """
+    try:
+        return db.obtener_eventos_externos(start=start, end=end)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 @app.get("/api/vehiculos")
 async def get_vehiculos():
+
     try:
         return db.obtener_vehiculos()
     except Exception as e:
@@ -1257,8 +1280,294 @@ class CrearEventoParams(BaseModel):
     requiere_vehiculo: bool = False
 
 # ─────────────────────────────────────────────
+# IMPORTAR EVENTO EXTERNO DE GOOGLE CALENDAR
+# ─────────────────────────────────────────────
+
+class ImportarEventoExternoParams(BaseModel):
+    google_event_id: str          # ID del evento en Google Calendar
+    calendar_id: str              # Calendario donde vive el evento (del técnico destino)
+    tecnico_nombre: str           # Nombre del técnico en el sistema
+
+@app.post("/api/eventos/importar-externo")
+async def importar_evento_externo(params: ImportarEventoExternoParams):
+    """
+    [SURROGATE_KEY] Importa un evento externo de Google Calendar al Planner.
+
+    Lógica de Grupo Automática:
+      Importa al organizador y a TODOS los técnicos invitados registrados en Configuración,
+      vinculándolos bajo un mismo 'grupo_id', sin importar desde qué calendario se
+      hizo clic en "Importar Trabajo".
+    """
+    await check_authorization()
+    try:
+        svc_cal, _ = extractor._safe_get_google_services()
+
+        # 1. Obtener el evento desde el calendario solicitado
+        try:
+            g_ev = svc_cal.events().get(
+                calendarId=params.calendar_id,
+                eventId=params.google_event_id
+            ).execute()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Evento no encontrado en Google Calendar: {e}")
+
+        # 2. Obtener el evento máster desde el organizador (si el click fue en un invitado)
+        organizer_email = g_ev.get("organizer", {}).get("email", "")
+        master_g_ev = g_ev
+        master_calendar_id = params.calendar_id
+
+        if organizer_email and organizer_email != params.calendar_id:
+            try:
+                master_g_ev = svc_cal.events().get(
+                    calendarId=organizer_email,
+                    eventId=params.google_event_id
+                ).execute()
+                master_calendar_id = organizer_email
+            except Exception:
+                # Fallback: usar el evento traído originalmente
+                master_g_ev = g_ev
+
+        # 3. Validar si ESTE técnico específico ya importó este evento
+        existing_priv = master_g_ev.get("extendedProperties", {}).get("private", {})
+        existing_tarea_id = existing_priv.get("tarea_id_local")
+        existing_grupo_id = existing_priv.get("grupo_id")
+
+        with db._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            tec_already_has = conn.execute(
+                """SELECT * FROM eventos 
+                   WHERE calendar_id = ? 
+                     AND (google_event_id = ? OR id = ? OR extended_props LIKE ?)""",
+                (
+                    params.calendar_id,
+                    master_g_ev.get("id"),
+                    existing_tarea_id or "___NONE___",
+                    f"%{existing_tarea_id}%" if existing_tarea_id else "%___NONE___%"
+                )
+            ).fetchone()
+
+        if tec_already_has:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Este técnico ('{params.tecnico_nombre}') ya tiene importado este trabajo en el Planner ({tec_already_has['id']})"
+            )
+
+        # 4. Clasificar técnicos registrados
+        tecnicos = db.obtener_tecnicos()
+        email_to_tec = {t["correo"]: t for t in tecnicos if t.get("correo")}
+        warnings = []
+
+        attendees = master_g_ev.get("attendees", [])
+        organizer_tec = email_to_tec.get(organizer_email)
+
+        registered_guest_tecs = []
+        unknown_guests = []
+
+        for att in attendees:
+            att_email = att.get("email", "")
+            if not att_email or att_email == organizer_email:
+                continue
+            if att_email in email_to_tec:
+                registered_guest_tecs.append(email_to_tec[att_email])
+            else:
+                unknown_guests.append(att_email)
+                warnings.append(f"Aviso: El invitado '{att_email}' no está registrado como técnico en el sistema.")
+
+        # Determinar si el organizador ya fue importado previamente
+        org_already_imported = False
+        org_event_row = None
+        if organizer_tec and existing_tarea_id:
+            with db._get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                org_event_row = conn.execute(
+                    "SELECT * FROM eventos WHERE google_event_id = ? OR id = ?",
+                    (master_g_ev.get("id"), existing_tarea_id)
+                ).fetchone()
+                if org_event_row:
+                    org_already_imported = True
+                    if not existing_grupo_id:
+                        try:
+                            import json as _json
+                            ep_data = _json.loads(org_event_row.get("extended_props") or "{}")
+                            existing_grupo_id = ep_data.get("private", {}).get("grupo_id")
+                        except Exception:
+                            pass
+
+        # Determinar si requiere grupo (múltiples técnicos o unir nuevo invitado a organizador importado)
+        all_participating_tecs = ([] if not organizer_tec else [organizer_tec]) + registered_guest_tecs
+        has_group = len(all_participating_tecs) > 1 or org_already_imported
+        grupo_id = existing_grupo_id or (f"g_{uuid.uuid4().hex[:10]}" if has_group else None)
+
+        # Preparar fechas normalizadas
+        from utils import TimeNormalizationService
+        start_raw = master_g_ev.get("start", {})
+        end_raw   = master_g_ev.get("end",   {})
+        inicio_str = TimeNormalizationService.normalize_to_utc_z(start_raw)
+        fin_str    = TimeNormalizationService.normalize_to_utc_z(end_raw)
+
+        imported_tarea_ids = []
+
+        # 5. Procesar ORGANIZADOR
+        if organizer_tec and not org_already_imported:
+            org_tarea_id = f"local_{uuid.uuid4().hex[:12]}"
+
+            # Desvincular a los invitados registrados del evento original en GCal
+            remaining_attendees = [
+                a for a in attendees
+                if a.get("email") not in email_to_tec or a.get("email") == organizer_email
+            ]
+
+            org_patch_priv = {
+                **existing_priv,
+                "source":         "internal",
+                "tarea_id_local": org_tarea_id,
+                "import_type":    "group_owner_claim"
+            }
+            if grupo_id:
+                org_patch_priv["grupo_id"] = grupo_id
+
+            try:
+                svc_cal.events().patch(
+                    calendarId=organizer_email,
+                    eventId=master_g_ev.get("id"),
+                    body={
+                        "attendees": remaining_attendees,
+                        "extendedProperties": {"private": org_patch_priv}
+                    }
+                ).execute()
+            except Exception as e:
+                warnings.append(f"Aviso al actualizar evento del organizador: {e}")
+
+            org_event_obj = {
+                "id":              org_tarea_id,
+                "google_event_id": master_g_ev.get("id"),
+                "calendar_id":     organizer_email,
+                "tecnico":         organizer_tec["nombre"],
+                "tecnico_nombre":  organizer_tec["nombre"],
+                "summary":         master_g_ev.get("summary", "Trabajo importado"),
+                "evento":          master_g_ev.get("summary", "Trabajo importado"),
+                "inicio":          inicio_str,
+                "fin":             fin_str,
+                "descripcion":     master_g_ev.get("description", ""),
+                "ubicacion":       master_g_ev.get("location", ""),
+                "extendedProperties": {
+                    "private": org_patch_priv
+                },
+                "sync_status":  "SUCCESS",
+                "pending_sync": 0,
+                "source":       "internal"
+            }
+            db.guardar_evento_individual(org_event_obj)
+            db.delete_evento_externo(master_g_ev.get("id"), organizer_email)
+            imported_tarea_ids.append(org_tarea_id)
+
+        elif organizer_tec and org_already_imported and grupo_id and not existing_grupo_id:
+            # El organizador ya fue importado previamente pero no tenía grupo_id; se lo asignamos ahora
+            try:
+                org_tarea_id = org_event_row["id"]
+                org_patch_priv = {
+                    **existing_priv,
+                    "grupo_id": grupo_id
+                }
+                svc_cal.events().patch(
+                    calendarId=organizer_email,
+                    eventId=master_g_ev.get("id"),
+                    body={"extendedProperties": {"private": org_patch_priv}}
+                ).execute()
+
+                db.actualizar_extended_props_incremental(org_tarea_id, {"private": {"grupo_id": grupo_id}})
+            except Exception as e:
+                warnings.append(f"Aviso al asignar grupo_id al organizador: {e}")
+
+
+        # 6. Procesar cada INVITADO REGISTRADO
+        for g_tec in registered_guest_tecs:
+            guest_tarea_id = f"local_{uuid.uuid4().hex[:12]}"
+            guest_priv = {
+                "source":         "internal",
+                "tarea_id_local": guest_tarea_id,
+                "imported_from":  master_g_ev.get("id"),
+                "import_type":    "group_guest_detach"
+            }
+            if grupo_id:
+                guest_priv["grupo_id"] = grupo_id
+
+            guest_body = {
+                "summary":     master_g_ev.get("summary", "Trabajo importado"),
+                "description": master_g_ev.get("description", ""),
+                "location":    master_g_ev.get("location", ""),
+                "start":       start_raw,
+                "end":         end_raw,
+                "extendedProperties": {"private": guest_priv}
+            }
+
+            try:
+                created_guest = svc_cal.events().insert(
+                    calendarId=g_tec["correo"],
+                    body=guest_body
+                ).execute()
+
+                guest_google_id = created_guest["id"]
+
+                guest_event_obj = {
+                    "id":              guest_tarea_id,
+                    "google_event_id": guest_google_id,
+                    "calendar_id":     g_tec["correo"],
+                    "tecnico":         g_tec["nombre"],
+                    "tecnico_nombre":  g_tec["nombre"],
+                    "summary":         master_g_ev.get("summary", "Trabajo importado"),
+                    "evento":          master_g_ev.get("summary", "Trabajo importado"),
+                    "inicio":          inicio_str,
+                    "fin":             fin_str,
+                    "descripcion":     master_g_ev.get("description", ""),
+                    "ubicacion":       master_g_ev.get("location", ""),
+                    "extendedProperties": {
+                        "private": guest_priv
+                    },
+                    "sync_status":  "SUCCESS",
+                    "pending_sync": 0,
+                    "source":       "internal"
+                }
+                db.guardar_evento_individual(guest_event_obj)
+                db.delete_evento_externo(master_g_ev.get("id"), g_tec["correo"])
+                imported_tarea_ids.append(guest_tarea_id)
+            except Exception as ge:
+                warnings.append(f"No se pudo crear evento individual para invitado '{g_tec['nombre']}': {ge}")
+
+        # Limpiar también la entrada de eventos_externos para params.calendar_id por si acaso
+        db.delete_evento_externo(params.google_event_id, params.calendar_id)
+        db.bump_mutation_time()
+
+        db.log_trace(params.google_event_id, "importar_grupo_externo", {
+            "grupo_id":       grupo_id,
+            "organizer":      organizer_email,
+            "guests_count":   len(registered_guest_tecs),
+            "imported_ids":   imported_tarea_ids,
+            "warnings":       warnings
+        }, calendar_id=params.calendar_id, tag="IMPORT_GROUP_EXTERNAL")
+
+        return {
+            "status":          "ok",
+            "grupo_id":        grupo_id,
+            "imported_count":  len(imported_tarea_ids),
+            "organizer":       organizer_tec["nombre"] if organizer_tec else None,
+            "guests_imported": [t["nombre"] for t in registered_guest_tecs],
+            "warnings":        warnings
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+# ─────────────────────────────────────────────
 # CREACIÓN / MOVIMIENTO / ELIMINACIÓN
 # ─────────────────────────────────────────────
+
 
 @app.post("/api/eventos/crear")
 async def crear_evento(params: CrearEventoParams):
