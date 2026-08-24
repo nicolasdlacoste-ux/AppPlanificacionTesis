@@ -77,7 +77,16 @@ const App = (() => {
         console.log("[BOOT] Llamando a loadAll()...");
         await loadAll();
         console.log("[BOOT] loadAll() completado. Seteando vista...");
-        Scheduler.setView('week');
+        const savedDateStr = sessionStorage.getItem('planner_active_date');
+        const savedView    = sessionStorage.getItem('planner_active_view') || 'week';
+        if (savedDateStr && typeof Scheduler.parseAnyDate === 'function') {
+            const parsedDate = Scheduler.parseAnyDate(savedDateStr);
+            if (parsedDate && !isNaN(parsedDate)) {
+                Scheduler.setState({ currentDate: parsedDate });
+            }
+        }
+        Scheduler.setView(savedView);
+
         
         startHeartbeat();
         

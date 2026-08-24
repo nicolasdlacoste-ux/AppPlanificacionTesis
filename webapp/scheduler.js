@@ -221,6 +221,7 @@ var Scheduler = (() => {
             renderHeader();
             renderRows();
             updateDateLabel();
+            saveViewState();
             console.log("[SCHEDULER] Render finalizado con éxito.");
         } catch (err) {
             console.error("[SCHEDULER] Error fatal durante el render:", err);
@@ -1203,6 +1204,15 @@ var Scheduler = (() => {
         return groups;
     }
 
+    function saveViewState() {
+        try {
+            if (state.currentDate) {
+                sessionStorage.setItem('planner_active_date', fmtDate(state.currentDate));
+                sessionStorage.setItem('planner_active_view', state.view || 'week');
+            }
+        } catch (e) {}
+    }
+
     function updateDateLabel() {
         const label = document.getElementById('current-date-label');
         if (!label) return;
@@ -1329,7 +1339,9 @@ var Scheduler = (() => {
         navigate,
         goToday,
         setView,
-        toggleResourceMode
+        toggleResourceMode,
+        parseAnyDate,
+        fmtDate
     };
 
     console.log("[SCHEDULER] Engine loaded. Methods:", Object.keys(api).join(', '));

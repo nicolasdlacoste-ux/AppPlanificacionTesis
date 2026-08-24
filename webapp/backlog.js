@@ -76,6 +76,7 @@ const Backlog = (() => {
         filtered.forEach(ot => {
             // Detección de agenda (cross-check)
             const eventosAsociados = _eventos.filter(ev => {
+                if (ev.sync_state === 'CANCELLED_IN_GOOGLE' || ev.status === 'cancelled') return false;
                 const searchStr = ((ev.summary || '') + ' ' + (ev.descripcion || '')).toLowerCase();
                 const rawOts = ev.extended_props?.private?.app_ots;
                 let otsInProps = [];
@@ -89,6 +90,7 @@ const Backlog = (() => {
                 }
                 return searchStr.includes(ot.nro.toLowerCase()) || otsInProps.includes(ot.nro);
             });
+
             const esAgendada = eventosAsociados.length > 0;
 
             const card = document.createElement('div');

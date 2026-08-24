@@ -11,7 +11,7 @@ import datetime
 import pandas as pd
 import threading
 import time
-
+import sqlite3
 import uuid
 import re
 import googleapiclient.errors
@@ -990,9 +990,11 @@ async def get_batch_ot_partidas(params: BatchOTParams):
 async def get_eventos():
     try:
         eventos_raw = db.obtener_eventos_dict()
-        return [EventAdapter.normalize_event(ev) for ev in eventos_raw]
+        normalized = [EventAdapter.normalize_event(ev) for ev in eventos_raw]
+        return [ev for ev in normalized if ev.get("sync_state") != "CANCELLED_IN_GOOGLE"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/eventos/cancelled")
 async def get_cancelled_eventos():
@@ -1461,23 +1463,33 @@ async def importar_evento_externo(params: ImportarEventoExternoParams):
             db.delete_evento_externo(master_g_ev.get("id"), organizer_email)
             imported_tarea_ids.append(org_tarea_id)
 
-        elif organizer_tec and org_already_imported and grupo_id and not existing_grupo_id:
-            # El organizador ya fue importado previamente pero no tenía grupo_id; se lo asignamos ahora
+        elif organizer_tec and org_already_imported:
+            # El organizador ya fue importado previamente: desvinculamos a los invitados registrados de su evento en GCal y actualizamos grupo_id
             try:
                 org_tarea_id = org_event_row["id"]
+                remaining_attendees = [
+                    a for a in attendees
+                    if a.get("email") not in email_to_tec or a.get("email") == organizer_email
+                ]
                 org_patch_priv = {
-                    **existing_priv,
-                    "grupo_id": grupo_id
+                    **existing_priv
                 }
+                if grupo_id:
+                    org_patch_priv["grupo_id"] = grupo_id
+
                 svc_cal.events().patch(
                     calendarId=organizer_email,
                     eventId=master_g_ev.get("id"),
-                    body={"extendedProperties": {"private": org_patch_priv}}
+                    body={
+                        "attendees": remaining_attendees,
+                        "extendedProperties": {"private": org_patch_priv}
+                    }
                 ).execute()
 
-                db.actualizar_extended_props_incremental(org_tarea_id, {"private": {"grupo_id": grupo_id}})
+                db.actualizar_extended_props_incremental(org_tarea_id, {"private": org_patch_priv})
             except Exception as e:
-                warnings.append(f"Aviso al asignar grupo_id al organizador: {e}")
+                warnings.append(f"Aviso al desvincular invitados del organizador en GCal: {e}")
+
 
 
         # 6. Procesar cada INVITADO REGISTRADO
@@ -1534,9 +1546,47 @@ async def importar_evento_externo(params: ImportarEventoExternoParams):
             except Exception as ge:
                 warnings.append(f"No se pudo crear evento individual para invitado '{g_tec['nombre']}': {ge}")
 
+        # 7. Registrar/Actualizar el grupo en la tabla 'grupos' de SQLite
+        if grupo_id:
+            try:
+                with db._get_connection() as conn:
+                    conn.row_factory = sqlite3.Row
+                    group_events = conn.execute(
+                        "SELECT * FROM eventos WHERE extended_props LIKE ? OR google_event_id = ?",
+                        (f'%"{grupo_id}"%', master_g_ev.get("id"))
+                    ).fetchall()
+
+                if group_events:
+                    event_ids_list = [g["id"] for g in group_events]
+                    tec_nombres_list = [g["tecnico_nombre"] or g["tecnico"] for g in group_events]
+                    cal_ids_list = [g["calendar_id"] for g in group_events]
+
+                    from utils import extract_ot_numbers
+                    sample_ev = group_events[0]
+                    summary_text = sample_ev.get("summary") or sample_ev.get("evento") or ""
+                    ot_list = extract_ot_numbers(summary_text)
+                    ot_nro = ot_list[0] if ot_list else summary_text
+                    fecha_str = (sample_ev.get("inicio") or "")[:10]
+
+                    db.crear_o_actualizar_grupo({
+                        "grupo_id": grupo_id,
+                        "ot_nro": ot_nro,
+                        "fecha": fecha_str,
+                        "event_ids": event_ids_list,
+                        "tecnico_nombres": tec_nombres_list,
+                        "calendar_ids": cal_ids_list,
+                        "patrones": [],
+                        "vehiculo": None
+                    })
+
+                    await update_group_title(grupo_id)
+            except Exception as grp_err:
+                warnings.append(f"Aviso al registrar grupo en DB: {grp_err}")
+
         # Limpiar también la entrada de eventos_externos para params.calendar_id por si acaso
         db.delete_evento_externo(params.google_event_id, params.calendar_id)
         db.bump_mutation_time()
+
 
         db.log_trace(params.google_event_id, "importar_grupo_externo", {
             "grupo_id":       grupo_id,
