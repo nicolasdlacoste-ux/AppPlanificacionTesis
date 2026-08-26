@@ -740,6 +740,10 @@ class GroupOperationContext:
                 pass
 
         if nueva_f:
-            return nueva_f.isoformat(), (nueva_f + datetime.timedelta(days=1)).isoformat()
+            if hasattr(params, "nueva_fecha_fin") and params.nueva_fecha_fin:
+                nueva_f_fin = datetime.date.fromisoformat(params.nueva_fecha_fin)
+                return nueva_f.isoformat(), (nueva_f_fin + datetime.timedelta(days=1)).isoformat()
+            else:
+                return nueva_f.isoformat(), (nueva_f + datetime.timedelta(days=1)).isoformat()
 
         return start_orig, end_orig

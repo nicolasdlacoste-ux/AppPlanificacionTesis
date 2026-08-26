@@ -902,7 +902,7 @@ const App = (() => {
     // ─────────────────────────────────
     function getVehiculos() { return _vehiculos; }
     
-    function checkVehicleConflicts(vehiculoNombre, dateStr, sh, eh, evId, techNombre, grupoId = null) {
+        function checkVehicleConflicts(vehiculoNombre, dateStr, sh, eh, evId, techNombre, grupoId = null, dateEndStr = null) {
         if (!vehiculoNombre) return null;
         
         const veh = _vehiculos.find(v => v.nombre === vehiculoNombre);
@@ -911,7 +911,6 @@ const App = (() => {
         const techInfo = _tecnicos.find(t => t.nombre === techNombre);
         const techCorreo = techInfo ? techInfo.correo : null;
         
-        // Si no se pasó grupoId explícitamente, intentar obtenerlo del evento actual
         if (!grupoId && evId) {
             const evTarget = _eventos.find(e => e.google_event_id === evId && e.calendar_id === techCorreo);
             if (evTarget && evTarget.extended_props && evTarget.extended_props.private) {
@@ -919,14 +918,29 @@ const App = (() => {
             }
         }
 
-        // Formatear dateStr si es Date
         const getStr = d => {
             if (typeof d === 'string') return d.substring(0, 10);
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         };
         const targetDate = getStr(dateStr);
+        let targetEndDate = dateEndStr ? getStr(dateEndStr) : targetDate;
+        if (targetEndDate < targetDate) targetEndDate = targetDate;
         
-        // Todos los eventos del mismo día (excluyendo el propio)
+        let curr = new Date(targetDate + "T12:00:00");
+        const end = new Date(targetEndDate + "T12:00:00");
+        
+        while (curr <= end) {
+            const currDateStr = getStr(curr);
+            const conflict = _checkVehicleOnDay(vehiculoNombre, currDateStr, sh, eh, evId, techNombre, techCorreo, grupoId, veh);
+            if (conflict) {
+                return (targetDate !== targetEndDate ? `[${currDateStr}] ` : '') + conflict;
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+        return null;
+    }
+
+    function _checkVehicleOnDay(vehiculoNombre, targetDate, sh, eh, evId, techNombre, techCorreo, grupoId, veh) {
         const sameDayEvents = _eventos.filter(ev => {
             if (ev.google_event_id === evId) return false;
             const props = (ev.extended_props && ev.extended_props.private) || {};
@@ -937,10 +951,8 @@ const App = (() => {
             return getStr(evSh) <= targetDate && getStr(evEh) >= targetDate;
         });
 
-        // Regla NUEVA: Verificar si EL TÉCNICO tiene asignado OTRO vehículo este día
         const techEventsToday = _eventos.filter(ev => {
             if (ev.google_event_id === evId) return false;
-            // [CANONICAL_MIGRATION] match by calendar_id (fallback to nombre)
             const matchesTech = (ev.calendar_id && ev.calendar_id === techCorreo) || (!ev.calendar_id && ev.tecnico_nombre === techNombre);
             if (!matchesTech) return false;
             const evSh = ev.inicio || "";
@@ -953,13 +965,10 @@ const App = (() => {
             const eProps = (e.extended_props && e.extended_props.private) || {};
             const eVeh = eProps.app_vehiculo;
             if (eVeh && eVeh !== vehiculoNombre) {
-                return `El técnico ${techNombre} ya tiene asignado el vehículo '${eVeh}' hoy. No puede usar '${vehiculoNombre}'.`;
+                return `El técnico ${techNombre} ya tiene asignado el vehículo '${eVeh}'. No puede usar '${vehiculoNombre}'.`;
             }
         }
         
-        // Regla Capacidad: contar técnicos únicos usando el vehículo ese día.
-        // IMPORTANTE: los miembros del mismo grupo SÍ cuentan como ocupantes del vehículo
-        // (comparten el vehículo yendo al mismo trabajo, pero siguen ocupando asientos).
         const uniqueTechs = new Set();
         uniqueTechs.add(techCorreo || techNombre);
         sameDayEvents.forEach(e => {
@@ -967,13 +976,10 @@ const App = (() => {
         });
         
         if (uniqueTechs.size > veh.asientos) {
-            // No bloqueamos — solo advertimos (badge de conflicto en UI)
             return `Capacidad excedida: '${vehiculoNombre}' tiene ${veh.asientos} asiento(s), pero lo usarían ${uniqueTechs.size} técnicos: ${Array.from(uniqueTechs).join(', ')}`;
         }
         
-        // Regla Solapamiento: mismos horarios, distinto trabajo (excluir mismo grupo)
         for (const ev of sameDayEvents) {
-            // Si pertenecen al mismo grupo → no es conflicto (mismo trabajo, mismo vehículo)
             if (grupoId) {
                 const eProps = (ev.extended_props && ev.extended_props.private) || {};
                 if (eProps.grupo_id === grupoId) continue;
@@ -998,7 +1004,59 @@ const App = (() => {
             }
         }
         
-        return null; // OK
+        return null;
+    }
+
+    const getStr = d => {
+        if (typeof d === 'string') return d.substring(0, 10);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    };
+
+    function checkPatternConflicts(patronesArr, dateStr, dateEndStr, evId, proposedOTs) {
+        if (!patronesArr || patronesArr.length === 0) return null;
+        
+        const targetDate = getStr(dateStr);
+        let targetEndDate = dateEndStr ? getStr(dateEndStr) : targetDate;
+        if (targetEndDate < targetDate) targetEndDate = targetDate;
+        
+        let curr = new Date(targetDate + "T12:00:00");
+        const end = new Date(targetEndDate + "T12:00:00");
+        
+        while (curr <= end) {
+            const currDateStr = getStr(curr);
+            
+            // Buscar todos los eventos de este día
+            const sameDayEvents = _eventos.filter(ev => {
+                if (ev.google_event_id === evId) return false;
+                const evSh = ev.inicio || "";
+                const evEh = ev.fin || "";
+                if (!evSh || !evEh) return false;
+                return getStr(evSh) <= currDateStr && getStr(evEh) >= currDateStr;
+            });
+            
+            for (const pat of patronesArr) {
+                const othersUsingPat = sameDayEvents.filter(e => {
+                    let ep = e.extended_props?.private?.app_patrones || e.app_patrones || [];
+                    if (typeof ep === 'string') { try { ep = JSON.parse(ep); } catch(x){ ep = []; } }
+                    return ep.includes(pat);
+                });
+                
+                if (othersUsingPat.length > 0) {
+                    for (const other of othersUsingPat) {
+                        let otherOts = other.extended_props?.private?.app_ots || other.app_ots || [];
+                        if (typeof otherOts === 'string') { try { otherOts = JSON.parse(otherOts); } catch(x){ otherOts = []; } }
+                        
+                        const common = proposedOTs.filter(ot => otherOts.includes(ot));
+                        if (common.length === 0) {
+                             return (targetDate !== targetEndDate ? `[${currDateStr}] ` : '') + `El patrón '${pat}' está bloqueado por otro técnico que no comparte OT.`;
+                        }
+                    }
+                }
+            }
+            
+            curr.setDate(curr.getDate() + 1);
+        }
+        return null;
     }
 
     // ─────────────────────────────────
@@ -1144,7 +1202,7 @@ const App = (() => {
                 } else {
                     summaryList.innerHTML = '<div style="color:var(--text-muted)">Sin partidas disponibles.</div>';
                 }
-            } catch {
+            } catch(e) {
                 summaryList.innerHTML = '<div style="color:var(--danger)">No se pudo cargar el resumen.</div>';
             }
         } else {
@@ -1163,7 +1221,7 @@ const App = (() => {
         const q = (query || '').toLowerCase();
         
         const filtered = patrones.filter(p => {
-            const matchQuery = !q || p.nombre.toLowerCase().includes(q);
+            const matchQuery = !q || p.nombre.toLowerCase().includes(q) || (p.activo && p.activo.toLowerCase().includes(q));
             
             let matchJob = !jobFilterVal;
             if (jobFilterVal && p.trabajos) {
@@ -1209,6 +1267,7 @@ const App = (() => {
                 <input type="checkbox" ${isSel ? 'checked' : ''}>
                 <div>
                     <div class="patron-item-name">${p.nombre}</div>
+                    ${p.activo ? `<div class="patron-item-activo">${p.activo}</div>` : ''}
                     ${p.rango ? `<div class="patron-item-rango"><i class="fa-solid fa-ruler" style="font-size:9px;margin-right:4px"></i>${p.rango}</div>` : ''}
                 </div>`;
 
@@ -1650,7 +1709,7 @@ const App = (() => {
         init, refresh, selectEvent, openQuickCreate, 
         deleteEvent, moveEvent, splitEvent,
         toast, openPatronModal,
-        getVehiculos, checkVehicleConflicts,
+        getVehiculos, checkVehicleConflicts, checkPatternConflicts,
         refreshSingleEvent, removeSingleEvent, batchRefreshEvents, refreshEvents,
         applyGroupSnapshot,
         renderTarjeta, quitarTecnicoDeGrupo, setGroupSyncing,

@@ -568,7 +568,9 @@ var Scheduler = (() => {
                         if (!ev._isLastDay) block.classList.add('cont-next');
                     }
                     
+                    const masterEvId = ev.google_event_id || ev.id;
                     block.dataset.jobKey = jk;
+                    if (masterEvId) block.dataset.masterEventId = masterEvId;
         if (window.App && App.isBatchMode && App.isBatchMode() && App.isEventSelected(ev.google_event_id)) {
             block.classList.add("batch-selected");
         }
@@ -613,12 +615,22 @@ var Scheduler = (() => {
                             } else {
                                 document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.add('group-active'));
                             }
+                            if (masterEvId) {
+                                document.querySelectorAll('.ev-block').forEach(el => {
+                                    if (el.dataset.masterEventId === masterEvId) el.classList.add('group-active');
+                                });
+                            }
                         });
                         block.addEventListener('mouseleave', () => {
                             if (confirmedGrupoId) {
                                 document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.remove('group-active'));
                             } else {
                                 document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.remove('group-active'));
+                            }
+                            if (masterEvId) {
+                                document.querySelectorAll('.ev-block').forEach(el => {
+                                    if (el.dataset.masterEventId === masterEvId) el.classList.remove('group-active');
+                                });
                             }
                         });
 
@@ -764,7 +776,9 @@ var Scheduler = (() => {
             block.classList.add('cancelled-google');
         }
         
+        const masterEvId = ev.google_event_id || ev.id;
         block.dataset.jobKey = jk;
+        if (masterEvId) block.dataset.masterEventId = masterEvId;
         if (window.App && App.isBatchMode && App.isBatchMode() && App.isEventSelected(ev.google_event_id)) {
             block.classList.add("batch-selected");
         }
@@ -806,12 +820,17 @@ var Scheduler = (() => {
             ${groupIcon}${confirmedIcon}
         `;
 
-        // Hover: highlight por grupo_id confirmado (prioridad) o por jobKey
+        // Hover: highlight por grupo_id confirmado (prioridad), por masterEventId (multidía) o por jobKey
         block.addEventListener('mouseenter', () => {
             if (confirmedGrupoId) {
                 document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.add('group-active'));
             } else {
                 document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.add('group-active'));
+            }
+            if (masterEvId) {
+                document.querySelectorAll('.ev-block').forEach(el => {
+                    if (el.dataset.masterEventId === masterEvId) el.classList.add('group-active');
+                });
             }
         });
         block.addEventListener('mouseleave', () => {
@@ -819,6 +838,11 @@ var Scheduler = (() => {
                 document.querySelectorAll(`.ev-block[data-grupo-id="${confirmedGrupoId}"]`).forEach(el => el.classList.remove('group-active'));
             } else {
                 document.querySelectorAll(`.ev-block[data-job-key="${jk}"]`).forEach(el => el.classList.remove('group-active'));
+            }
+            if (masterEvId) {
+                document.querySelectorAll('.ev-block').forEach(el => {
+                    if (el.dataset.masterEventId === masterEvId) el.classList.remove('group-active');
+                });
             }
         });
 
@@ -1160,7 +1184,7 @@ var Scheduler = (() => {
     function getEventOTs(ev) {
         let ots = ev.app_ots || [];
         if (typeof ots === 'string') {
-            try { ots = JSON.parse(ots); } catch { ots = []; }
+            try { ots = JSON.parse(ots); } catch(e) { ots = []; }
         }
         return Array.isArray(ots) ? ots : [];
     }
@@ -1169,7 +1193,7 @@ var Scheduler = (() => {
         const props = ev.extended_props?.private || {};
         let pats = props.app_patrones || ev.app_patrones || [];
         if (typeof pats === 'string') {
-            try { pats = JSON.parse(pats); } catch { pats = []; }
+            try { pats = JSON.parse(pats); } catch(e) { pats = []; }
         }
         return Array.isArray(pats) ? pats : [];
     }

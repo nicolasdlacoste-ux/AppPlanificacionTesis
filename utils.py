@@ -228,6 +228,7 @@ IDX_SFID = 19      # Columna T
 # --- ÍNDICES DE COLUMNAS DE LA BD DE PATRONES ---
 IDX_PATRON_NOMBRE = 0
 IDX_PATRON_TRABAJOS = 1
+IDX_PATRON_ACTIVO = 2
 IDX_PATRON_CLASE = 10  # Columna K
 IDX_PATRON_RANGO = 13
 
@@ -257,7 +258,8 @@ class TimeNormalizationService:
         # 2. Parsear a datetime aware
         if isinstance(val, str):
             if "T" not in val:
-                # All-day date (YYYY-MM-DD)
+                # All-day date (YYYY-MM-DD) -> PRESERVAR FORMATO!
+                if len(val) == 10: return val
                 try:
                     dt_naive = datetime.datetime.strptime(val, "%Y-%m-%d")
                     dt = ARG_TZ.localize(dt_naive)
@@ -293,10 +295,13 @@ class TimeNormalizationService:
     def prepare_for_google(val) -> dict:
         """
         [TIME_NORMALIZATION] Genera el payload para Google Calendar API.
-        Usa UTC Z y NUNCA envía timeZone redundante (evita HTTP 400).
+        Usa UTC Z y NUNCA envia timeZone redundante (evita HTTP 400).
+        Si es un string All-Day (YYYY-MM-DD), retorna {"date": ...}
         """
         norm = TimeNormalizationService.normalize_to_utc_z(val)
         if not norm: return None
+        if "T" not in norm:
+            return {"date": norm[:10]}
         return {"dateTime": norm}
 
 class ExtendedPropertiesSanitizer:

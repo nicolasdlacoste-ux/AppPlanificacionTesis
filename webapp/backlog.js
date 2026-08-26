@@ -84,7 +84,7 @@ const Backlog = (() => {
                     try {
                         const parsed = JSON.parse(rawOts);
                         otsInProps = Array.isArray(parsed) ? parsed : [String(parsed)];
-                    } catch {
+                    } catch(e) {
                         otsInProps = [String(rawOts)];
                     }
                 }
@@ -149,7 +149,7 @@ const Backlog = (() => {
                 d = new Date(`${year}-${month}-${day}T12:00:00`);
             }
             return isNaN(d) ? str : d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-        } catch { return str; }
+        } catch(e) { return str; }
     }
 
     function _showOTAgenda(ot, eventos) {

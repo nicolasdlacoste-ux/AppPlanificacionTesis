@@ -162,29 +162,11 @@ async def on_startup():
 from utils import generar_descripcion_enriquecida  # noqa: F401 re-export
 
 def _is_complex_event(ev: dict) -> bool:
-    """Determina si un evento es complejo (multidia o tiene invitados)."""
+    """Determina si un evento tiene invitados externos (ya no bloquea multidía)."""
     ext = ev.get('extendedProperties') or {}
     priv = ext.get('private') or {}
     if str(priv.get('has_guests', "false")).lower() == "true":
         return True
-        
-    inicio = ev.get('inicio', '')
-    fin = ev.get('fin', '')
-    
-    if inicio and fin and len(inicio) == 10 and len(fin) == 10:
-        if inicio != fin:
-            return True
-            
-    if inicio and "T" in inicio and fin and "T" in fin:
-        import datetime
-        try:
-            dt_s = datetime.datetime.fromisoformat(inicio.replace('Z', '+00:00'))
-            dt_e = datetime.datetime.fromisoformat(fin.replace('Z', '+00:00'))
-            if (dt_e - dt_s).total_seconds() > 24 * 3600:
-                return True
-        except:
-            pass
-            
     return False
 
 def _limpiar_cache_eventos():
@@ -449,6 +431,28 @@ async def update_group_title(grupo_id: str):
                 "new_title": new_title
             }, calendar_id=cal_id, tag="OUTBOUND_MUTATION")
             db.enqueue_sync(eid, cal_id, tec, "UPDATE", origin="group_update")
+
+
+async def actualizar_titulos_grupo_local(grupo_id: str):
+    import re
+    grupo = db.obtener_grupo(grupo_id)
+    if not grupo: return
+    tecnicos = db.obtener_tecnicos()
+    map_nombre_init = {t['nombre']: t['iniciales'] for t in tecnicos}
+    inits = []
+    for n in grupo['tecnico_nombres']:
+        if n in map_nombre_init: inits.append(map_nombre_init[n])
+    tag = "/".join(sorted(list(set(inits)))) if len(inits) > 1 else ""
+    eventos_dict = db.obtener_eventos_dict()
+    map_id_ev = {e['id']: e for e in eventos_dict}
+    for eid in grupo['event_ids']:
+        ev = map_id_ev.get(eid)
+        if not ev: continue
+        titulo_orig = ev.get('Evento', '')
+        clean_title = re.sub(r'\s*-\s*[A-Z0-9/]+\s*$', '', titulo_orig).strip()
+        new_title = f"{clean_title} - {tag}" if tag else clean_title
+        if new_title != titulo_orig:
+            db.actualizar_titulo_evento(eid, new_title)
 
 async def _auto_agrupar_evento(event_id, cal_id, tec_nombre, fecha, ots, svc_cal=None):
     """
@@ -846,9 +850,21 @@ async def get_patrones():
         
         for row in rows[start_idx:]:
             if row and len(row) > utils.IDX_PATRON_NOMBRE:
+                nombre = str(row[utils.IDX_PATRON_NOMBRE]).strip()
+                trabajos = str(row[utils.IDX_PATRON_TRABAJOS]).strip() if len(row) > utils.IDX_PATRON_TRABAJOS else ""
+                
+                # Filtrar solo aquellos que posean un valor no nulo/vacío en A (ID) y B (Magnitud) en simultáneo
+                if not nombre or not trabajos:
+                    continue
+                if nombre.lower() in ("none", "null", "n/a", "undefined") or trabajos.lower() in ("none", "null", "n/a", "undefined", "[]", "[\"\"]"):
+                    continue
+
+                activo = str(row[utils.IDX_PATRON_ACTIVO]).strip() if len(row) > utils.IDX_PATRON_ACTIVO else ""
+
                 result.append({
-                    "nombre": str(row[utils.IDX_PATRON_NOMBRE]).strip(),
-                    "trabajos": str(row[utils.IDX_PATRON_TRABAJOS]).strip() if len(row) > utils.IDX_PATRON_TRABAJOS else "",
+                    "nombre": nombre,
+                    "trabajos": trabajos,
+                    "activo": activo,
                     "clase": str(row[utils.IDX_PATRON_CLASE]).strip() if len(row) > utils.IDX_PATRON_CLASE else "",
                     "rango": str(row[utils.IDX_PATRON_RANGO]).strip() if len(row) > utils.IDX_PATRON_RANGO else "",
                 })
@@ -1052,6 +1068,13 @@ class BuscarParams(BaseModel):
 def _build_tech_events():
     """Construye el diccionario tech_events que espera engine.py desde la DB."""
     eventos = db.obtener_eventos_dict()
+    # [BUGFIX] Integrar eventos externos invisibles para el motor de disponibilidad
+    try:
+        ext_evs = db.obtener_eventos_externos()
+        eventos.extend(ext_evs)
+    except Exception as e:
+        print(f"Error cargando eventos externos: {e}")
+        
     tech_events = {}
 
     for ev in eventos:
@@ -1656,46 +1679,63 @@ async def crear_evento(params: CrearEventoParams):
         if t_match:
             tec_nombre = t_match["nombre"]
             
-        dias_totales = (fecha_fin_dt - fecha_inicio_dt).days + 1
         eventos_creados = []
         ids_creados = []
+        dias_totales = (fecha_fin_dt - fecha_inicio_dt).days + 1
 
-        for offset in range(dias_totales):
-            fecha_actual = fecha_inicio_dt + datetime.timedelta(days=offset)
-            
-            inicio_str = TimeNormalizationService.normalize_to_utc_z(f"{fecha_actual}T{h_int:02d}:{m_int:02d}:00")
-            fin_str    = TimeNormalizationService.normalize_to_utc_z(f"{fecha_actual}T{h_fin_int:02d}:{m_fin_int:02d}:00")
+        if dias_totales > 1:
+            inicio_str = params.fecha
+            fin_str = (fecha_fin_dt + datetime.timedelta(days=1)).isoformat()
+        else:
+            inicio_str = TimeNormalizationService.normalize_to_utc_z(f"{fecha_inicio_dt}T{h_int:02d}:{m_int:02d}:00")
+            fin_str    = TimeNormalizationService.normalize_to_utc_z(f"{fecha_inicio_dt}T{h_fin_int:02d}:{m_fin_int:02d}:00")
 
-            event_id = f"local_{uuid.uuid4().hex[:12]}"
+        event_id = f"local_{uuid.uuid4().hex[:12]}"
 
-            event_obj = {
-                "id": event_id,
-                "google_event_id": event_id,
-                "calendar_id": params.correo_tecnico,
-                "tecnico": tec_nombre,
-                "tecnico_nombre": tec_nombre,
-                "summary": params.titulo,
-                "evento": params.titulo,
-                "inicio": inicio_str,
-                "fin": fin_str,
-                "descripcion": desc_enriquecida,
-                "ubicacion": params.direccion,
-                "extendedProperties": { "private": metadata.copy() },
-                "sync_status": "PENDING",
-                "pending_sync": 1
-            }
+        event_obj = {
+            "id": event_id,
+            "google_event_id": event_id,
+            "calendar_id": params.correo_tecnico,
+            "tecnico": tec_nombre,
+            "tecnico_nombre": tec_nombre,
+            "summary": params.titulo,
+            "evento": params.titulo,
+            "inicio": inicio_str,
+            "fin": fin_str,
+            "descripcion": desc_enriquecida,
+            "ubicacion": params.direccion,
+            "extendedProperties": { "private": metadata.copy() },
+            "sync_status": "PENDING",
+            "pending_sync": 1,
+            "version": 1
+        }
 
-            db.guardar_evento_individual(event_obj)
-            
-            db.log_trace(event_id, "mutation_created", {
-                "type": "INSERT",
-                "new_tecnico": tec_nombre,
-                "new_calendar": params.correo_tecnico,
-            }, calendar_id=params.correo_tecnico, tag="OUTBOUND_MUTATION")
+        # Primero normalizamos y convertimos el diccionario para que tenga el sync_status y pending_sync correctos
+        from utils import EventAdapter, _now_iso
+        can = EventAdapter.normalize_event(event_obj)
+        params_db = EventAdapter.canonical_to_sqlite_params(can)
+        
+        # Guardar en SQLite (usando el método seguro)
+        with db._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO eventos 
+                (id, google_event_id, calendar_id, tecnico_nombre, summary, inicio, fin, ubicacion, descripcion, extended_props, version, updated_at, source, sync_status, pending_sync)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                params_db["id"], params_db["google_event_id"], params_db["calendar_id"], params_db["tecnico_nombre"],
+                params_db["summary"], params_db["inicio"], params_db["fin"], params_db["ubicacion"], params_db["descripcion"],
+                params_db["extended_props"], params_db["version"], params_db.get("updated_at") or _now_iso(), 
+                params_db.get("source", "internal"), "PENDING", 1
+            ))
+            conn.commit()
 
-            db.enqueue_sync(event_id, params.correo_tecnico, tec_nombre, "INSERT")
-            eventos_creados.append(event_obj)
-            ids_creados.append(event_id)
+        db.enqueue_sync(event_id, params.correo_tecnico, tec_nombre, "CREATE")
+        db.update_last_sync()
+
+        db.log_trace(event_id, "mutation_created", {"title": params.titulo}, params.correo_tecnico, "EVENT_CREATE")
+        eventos_creados.append(event_obj)
+        ids_creados.append(event_id)
 
         if params.ots and len(params.ots) > 0:
             for ev_id in ids_creados:
@@ -1776,6 +1816,7 @@ class MoverEventoParams(BaseModel):
     calendar_id_origen: str
     correo_destino: str
     nueva_fecha: str  # YYYY-MM-DD
+    nueva_fecha_fin: Optional[str] = None
     h_start: Optional[float] = None
     h_dur: Optional[float] = None
     # Nuevos campos para edición completa
@@ -1835,7 +1876,7 @@ async def mover_evento(event_id: str, params: MoverEventoParams):
         nueva_f = datetime.date.fromisoformat(params.nueva_fecha)
         tz_suffix = "-03:00"
 
-        if params.h_start is not None:
+        if params.h_start is not None and "T" in start_orig:
             dur = params.h_dur
             if dur is None:
                 try:
@@ -1860,8 +1901,17 @@ async def mover_evento(event_id: str, params: MoverEventoParams):
             nuevo_s = TimeNormalizationService.normalize_to_utc_z(new_s_dt)
             nuevo_e = TimeNormalizationService.normalize_to_utc_z(new_e_dt)
         else:
-            nuevo_s = TimeNormalizationService.normalize_to_utc_z(nueva_f)
-            nuevo_e = TimeNormalizationService.normalize_to_utc_z(nueva_f + datetime.timedelta(days=1))
+            if hasattr(params, "nueva_fecha_fin") and params.nueva_fecha_fin:
+                nueva_f_fin = datetime.date.fromisoformat(params.nueva_fecha_fin)
+                nuevo_s = nueva_f.isoformat()
+                nuevo_e = (nueva_f_fin + datetime.timedelta(days=1)).isoformat()
+            else:
+                d_start = datetime.date.fromisoformat(start_orig[:10])
+                d_end = datetime.date.fromisoformat(end_orig[:10])
+                delta_days = (d_end - d_start).days
+                if delta_days == 0: delta_days = 1
+                nuevo_s = nueva_f.isoformat()
+                nuevo_e = (nueva_f + datetime.timedelta(days=delta_days)).isoformat()
 
         metadata = ev_actual.get('extendedProperties', {}).get('private', {})
         if params.ots is not None:
@@ -1926,7 +1976,7 @@ async def mover_evento(event_id: str, params: MoverEventoParams):
         
         # VALIDACIÓN ETAPA 5
         h_start_val = params.h_start
-        h_end_val = params.h_start + dur if params.h_start is not None else None
+        h_end_val = params.h_start + (params.h_dur if params.h_dur is not None else 1.0) if params.h_start is not None else None
         if h_start_val is None:
             try:
                 dt_s_val = datetime.datetime.fromisoformat(nuevo_s.replace('Z', '+00:00'))
@@ -2715,7 +2765,8 @@ async def agregar_tecnico_a_grupo(event_id: str, tecnico_correo: str = Query(...
             "extended_props": new_ext_props,
             "version": 1,
             "sync_status": "PENDING",
-            "pending_sync": 1
+            "pending_sync": 1,
+            "version": 1
         })
         db.log_trace(new_ev_id, "mutation_created", {
             "type": "CREATE", "tecnico": nuevo_nombre, "calendar_id": tecnico_correo

@@ -729,6 +729,7 @@ button { cursor: pointer; }
 .patron-item.selected { border-color: var(--accent); background: var(--accent-glow); }
 .patron-item input[type="checkbox"] { accent-color: var(--accent); flex-shrink: 0; }
 .patron-item-name { font-weight: 700; font-size: 12px; }
+.patron-item-activo { font-size: 10px; color: var(--text-muted); font-style: italic; line-height: 1.2; }
 .patron-item-rango { font-size: 10px; color: var(--text-muted); }
 .modal-footer {
     padding: 12px 18px; border-top: 1px solid var(--border);

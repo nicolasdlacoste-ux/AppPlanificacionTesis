@@ -87,7 +87,7 @@ const RightPanel = (() => {
             } else if (typeof rawPats === 'string') {
                 try {
                     pats = JSON.parse(rawPats);
-                } catch { pats = []; }
+                } catch(e) { pats = []; }
             }
 
             if (patronDiv) {
@@ -115,13 +115,13 @@ const RightPanel = (() => {
                     vehDiv.innerHTML = '<span style="color:var(--text-muted);font-size:11px">Sin vehículo</span>';
                 }
             }
-        } catch { if (vehDiv) vehDiv.innerHTML = '—'; }
+        } catch(e) { if (vehDiv) vehDiv.innerHTML = '—'; }
 
         // OTs vinculadas — usar campo canónico
         const otsDiv = document.getElementById('ev-ots');
         let ots = ev.app_ots || [];
         if (typeof ots === 'string') {
-            try { ots = JSON.parse(ots); } catch { ots = []; }
+            try { ots = JSON.parse(ots); } catch(e) { ots = []; }
         }
         if (!Array.isArray(ots)) ots = [];
 
@@ -177,7 +177,7 @@ const RightPanel = (() => {
         }
         
         const hasGuests = ev.extended_props?.private?.has_guests === "true";
-        const isComplex = isMulti || hasGuests;
+        const isComplex = hasGuests;
         
         const elWarning = document.getElementById('ev-multi-warning');
         if (elWarning) {
@@ -212,10 +212,10 @@ const RightPanel = (() => {
             };
         }
 
-        // Edit event - Solo bloquear edición (no eliminar) para eventos multi-día
+        // Edit event - Eventos multidía ahora se pueden editar
         const btnEditEv = document.getElementById('btn-edit-event');
         if (btnEditEv) {
-            btnEditEv.classList.toggle('hidden', isMulti);
+            btnEditEv.classList.remove('hidden');
         }
 
         // --- GESTIÓN DE GRUPOS: AGREGAR TÉCNICO ---
@@ -338,11 +338,21 @@ const RightPanel = (() => {
 
         // Fecha
         document.getElementById('edit-fecha').value = (ev.inicio || '').substring(0, 10);
+        let endVal = (ev.fin || '').substring(0, 10);
+        
+        // Google Calendar exclusive end dates adjustment
+        if (ev._isMultiDay && ev.fin && !ev.fin.includes("T")) {
+            const d = new Date(endVal + "T00:00:00");
+            d.setDate(d.getDate() - 1); // For display, show the actual last day of the event
+            endVal = d.toISOString().substring(0, 10);
+        }
+        const editFechaFinEl = document.getElementById('edit-fecha-fin');
+        if (editFechaFinEl) editFechaFinEl.value = endVal;
 
         // OTs
         let otsList = ev.app_ots || [];
         if (typeof otsList === 'string') {
-            try { otsList = JSON.parse(otsList); } catch { otsList = []; }
+            try { otsList = JSON.parse(otsList); } catch(e) { otsList = []; }
         }
         window._editOts = Array.isArray(otsList) ? [...otsList] : [];
         if (typeof renderEditOts === 'function') renderEditOts();
@@ -364,7 +374,7 @@ const RightPanel = (() => {
                 try { rawPats = JSON.parse(rawPats); } catch(e) { rawPats = []; }
             }
             editPatrones = Array.isArray(rawPats) ? rawPats : [];
-        } catch { editPatrones = []; }
+        } catch(e) { editPatrones = []; }
         updateEditPatronBadge();
 
         // Vehiculos
@@ -378,7 +388,7 @@ const RightPanel = (() => {
                 selVeh.value = privateProps.app_vehiculo || props.app_vehiculo || '';
                 const elReq = document.getElementById('edit-req-vehiculo');
                 if (elReq) elReq.checked = (privateProps.app_requiere_vehiculo || props.app_requiere_vehiculo) === true;
-            } catch {}
+            } catch(e) {}
         }
     }
 
@@ -416,7 +426,7 @@ const RightPanel = (() => {
             } else {
                 container.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:11px">Sin partidas registradas</div>';
             }
-        } catch {
+        } catch(e) {
             container.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:11px">No hay datos de partidas</div>';
         }
     }
@@ -498,9 +508,10 @@ const RightPanel = (() => {
     async function saveEventEdit() {
         if (!currentEvent) return;
         
-        const isComplex = currentEvent?.extended_props?.private?.has_guests === "true" || currentEvent._isMultiDay;
+        const priv = currentEvent.extended_props ? currentEvent.extended_props.private : {};
+        const isComplex = priv && priv.has_guests === "true";
         if (isComplex) {
-            App.toast('No se puede editar eventos complejos (multidía/invitados). Individualícelo primero.', 'warning');
+            App.toast("No se puede editar eventos con invitados externos. Individualice primero.", "warning");
             return;
         }
         
@@ -530,6 +541,8 @@ const RightPanel = (() => {
             const oldCalId = currentEvent.calendar_id || correoDest;
             const selVehiculo = document.getElementById('edit-vehiculo')?.value;
             const reqVehiculo = document.getElementById('edit-req-vehiculo')?.checked || false;
+            const editFechaFinEl = document.getElementById('edit-fecha-fin');
+            const newDateEnd = editFechaFinEl ? editFechaFinEl.value : '';
 
             // Validar vehículo
             const gid = currentEvent.extended_props?.private?.grupo_id || null;
@@ -554,7 +567,14 @@ const RightPanel = (() => {
             const correoDestL = correoDest ? correoDest.toLowerCase() : '';
             const oldCalIdL = oldCalId ? oldCalId.toLowerCase() : '';
             const cambioTecnico = correoDestL && correoDestL !== oldCalIdL;
-            const cambioFechaHora = (newDate !== origDate) ||
+            let origDateEnd = (currentEvent.fin || '').substring(0, 10);
+            if (currentEvent._isMultiDay && currentEvent.fin && !currentEvent.fin.includes('T')) {
+                const d = new Date(origDateEnd + 'T00:00:00');
+                d.setDate(d.getDate() - 1);
+                origDateEnd = d.toISOString().substring(0, 10);
+            }
+
+            const cambioFechaHora = (newDate !== origDate) || (newDateEnd !== origDateEnd) ||
                 Math.abs(hStartF - origStart) > 0.01 ||
                 Math.abs(hEndF   - origEnd)   > 0.01;
 
@@ -566,6 +586,7 @@ const RightPanel = (() => {
                 calendar_id_origen: oldCalId,
                 correo_destino: correoDest,
                 nueva_fecha: newDate,
+                nueva_fecha_fin: newDateEnd || null,
                 h_start: hStartF,
                 h_dur: hEndF - hStartF,
                 titulo: newTitulo,
@@ -648,13 +669,23 @@ const RightPanel = (() => {
                         if (newId !== currentEvent.id) {
                             App.removeSingleEvent(currentEvent.id);
                         }
+                        let finalInicio = `${newDate}T${_ph(hStartF)}-03:00`;
+                        let finalFin = `${newDate}T${_ph(hEndF)}-03:00`;
+                        if (!currentEvent.inicio.includes("T")) {
+                            finalInicio = newDate;
+                            let endD = newDateEnd || newDate;
+                            let d = new Date(endD + "T00:00:00");
+                            d.setDate(d.getDate() + 1);
+                            finalFin = d.toISOString().substring(0, 10);
+                        }
+
                         App.refreshSingleEvent({
                             ...currentEvent,
                             summary: newTitulo,
                             calendar_id: correoDest,
                             tecnico_nombre: techName,
-                            inicio: `${newDate}T${_ph(hStartF)}-03:00`,
-                            fin:   `${newDate}T${_ph(hEndF)}-03:00`,
+                            inicio: finalInicio,
+                            fin: finalFin,
                             descripcion: _formatDescriptionLocal(newDesc, editPatrones, selVehiculo),
                             ubicacion: newDireccion,
                             extended_props: { ...(currentEvent.extended_props || {}), private: newPrivate },
@@ -865,7 +896,7 @@ const RightPanel = (() => {
                 container.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:11px">Sin partidas</div>';
             }
             return data;
-        } catch {
+        } catch(e) {
             container.innerHTML = '<div style="padding:8px;color:var(--danger);font-size:11px">Error al cargar</div>';
             return null;
         }
@@ -1039,7 +1070,22 @@ const RightPanel = (() => {
                 : null;
             const finalTitle = groupInits ? `${titulo} - ${groupInits}` : titulo;
 
-            for (const fdata of op.fechas) {
+            const pCons = document.getElementById('p-cons');
+            const pViaje = document.getElementById('p-viaje');
+            const isConsecutivo = (pCons && pCons.checked) || (pViaje && pViaje.checked);
+            let groupedFechas = op.fechas;
+            if (isConsecutivo && op.fechas.length > 1) {
+                const first = op.fechas[0];
+                const last = op.fechas[op.fechas.length - 1];
+                groupedFechas = [{
+                    date: first.date,
+                    fecha_fin: last.date,
+                    h_start: first.h_start,
+                    h_dur: first.h_dur
+                }];
+            }
+
+            for (const fdata of groupedFechas) {
                 if (!resultsByDate[fdata.date]) resultsByDate[fdata.date] = { ids: [], names: [] };
 
                 for (const tec of op.tecnicos) {
@@ -1055,6 +1101,7 @@ const RightPanel = (() => {
                             descripcion: desc,
                             direccion: direccion,
                             fecha: fdata.date,
+                            fecha_fin: fdata.fecha_fin || null,
                             h_start: fdata.h_start,
                             h_dur: fdata.h_dur,
                             patrones: selectedPatrones,
@@ -1538,10 +1585,25 @@ const RightPanel = (() => {
         const selTec = document.getElementById('edit-tecnico');
         const tecNombre = selTec.options[selTec.selectedIndex]?.text || '';
         const gid = currentEvent.extended_props?.private?.grupo_id || null;
+        
+        let newDateEnd = null;
+        const editFechaFinEl = document.getElementById('edit-fecha-fin');
+        if (editFechaFinEl && editFechaFinEl.parentElement && !editFechaFinEl.parentElement.classList.contains('hidden')) {
+            newDateEnd = editFechaFinEl.value;
+        }
 
-        const conflict = App.checkVehicleConflicts(selVehiculo, newDate, hStartF, hEndF, currentEvent.google_event_id, tecNombre, gid);
+        const conflict = App.checkVehicleConflicts(selVehiculo, newDate, hStartF, hEndF, currentEvent.google_event_id, tecNombre, gid, newDateEnd);
         if (conflict) {
-            App.toast(conflict, 'warning');
+            App.toast("Vehículo: " + conflict, 'warning');
+        }
+        
+        // Check patterns too!
+        if (App.checkPatternConflicts) {
+            const ots = window._editOts || [];
+            const patConflict = App.checkPatternConflicts(editPatrones, newDate, newDateEnd, currentEvent.google_event_id, ots);
+            if (patConflict) {
+                App.toast("Patrones: " + patConflict, 'warning');
+            }
         }
     }
 

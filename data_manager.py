@@ -414,7 +414,7 @@ class DataManager:
 
             cols = [d[0] for d in cursor.description]
             current_data       = dict(zip(cols, row))
-            current_version    = current_data.get('version', 1)
+            current_version    = current_data.get('version') or 1
             actual_calendar_id = current_data.get('calendar_id', calendar_id)
             actual_event_id    = current_data.get('id', event_id)
 
@@ -535,7 +535,7 @@ class DataManager:
             cursor.execute("SELECT version FROM eventos WHERE id = ? AND tecnico_nombre = ?", 
                            (event_data.get('id'), event_data.get('tecnico_nombre')))
             row = cursor.fetchone()
-            current_v = row[0] if row else 1
+            current_v = row[0] if (row and row[0] is not None) else 1
             from utils import EventAdapter
             can = EventAdapter.normalize_event(event_data)
             params = EventAdapter.canonical_to_sqlite_params(can)
@@ -1662,13 +1662,20 @@ class DataManager:
                     f"Verificar calendar_id mismatch o event_id obsoleto."
                 )
 
-        # 3. Marcar review como ACCEPTED
+        # 3. Marcar review como ACCEPTED (y auto-resolver hermanos si es de grupo)
         with self._lock:
             with self._get_connection() as conn:
                 conn.execute(
                     "UPDATE poll_review_queue SET status='ACCEPTED', resolved_at=? WHERE review_id=?",
                     (now, review_id)
                 )
+                if grupo and grupo.get("grupo_id"):
+                    gid_str = f"%{grupo['grupo_id']}%"
+                    conn.execute("""
+                        UPDATE poll_review_queue 
+                        SET status='ACCEPTED', resolved_at=? 
+                        WHERE status='PENDING' AND (local_snapshot LIKE ? OR diff_json LIKE ?)
+                    """, (now, gid_str, gid_str))
                 conn.commit()
 
         # 4. [OBSERVABILITY] Registrar la decisión humana
@@ -1700,7 +1707,8 @@ class DataManager:
 
         # [GROUP_OPERATION_TRACKING] Finalizar si pertenecía a grupo
         if op_id and grupo:
-            self.finalize_group_operation(op_id, grupo['grupo_id'], 1, snapshot_before, allow_deleted=True)
+            num_members = len(grupo.get('event_ids', []))
+            self.finalize_group_operation(op_id, grupo['grupo_id'], num_members, snapshot_before, allow_deleted=True)
 
         return {
             "status":        "ACCEPTED",
