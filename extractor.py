@@ -92,8 +92,22 @@ def get_google_services():
         except Exception as e:
             print(f"Error cargando token desde Env Var: {e}")
     
-    if not creds and os.path.exists(TOKEN_PATH_DEFAULT):
-        creds = Credentials.from_authorized_user_file(TOKEN_PATH_DEFAULT, SCOPES)
+    token_candidates = [
+        TOKEN_PATH_DEFAULT,
+        os.path.join(BASE_DIR, 'token.json'),
+        os.path.join(os.getcwd(), 'token.json')
+    ]
+    
+    if not creds:
+        for t_path in token_candidates:
+            if os.path.exists(t_path):
+                try:
+                    creds = Credentials.from_authorized_user_file(t_path, SCOPES)
+                    if creds:
+                        print(f"[Auth] Token cargado exitosamente desde: {t_path}")
+                        break
+                except Exception as t_err:
+                    print(f"[Auth] Error al leer token desde {t_path}: {t_err}")
         
     # Si no hay credenciales válidas, le pide al usuario que inicie sesión.
     if not creds or not creds.valid:
