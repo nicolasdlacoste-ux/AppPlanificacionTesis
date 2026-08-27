@@ -126,6 +126,11 @@ _last_heartbeat = time.time() + 60.0  # Margen de 1 min al arrancar
 
 def _watchdog_shutdown():
     global _last_heartbeat
+    # En modo servidor de la nube (24/7), el apagado automático se deshabilita para evitar cierres cuando no hay navegadores abiertos.
+    if os.environ.get("DISABLE_WATCHDOG", "false").lower() == "true" or os.environ.get("SERVER_MODE", "false").lower() == "true":
+        print("[Watchdog] Modo servidor detectado. Apagado automático deshabilitado (Servicio 24/7 activo).")
+        return
+
     while True:
         time.sleep(10)
         # Si han pasado más de 300s (5 min) sin pulso, cerramos el proceso completo
