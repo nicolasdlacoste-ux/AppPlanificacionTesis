@@ -1,9 +1,9 @@
 # AppPlanificacion — Documentación Arquitectónica y Funcional Completa
 
 ## Executive Summary
-AppPlanificacion es un sistema de planificación de técnicos y órdenes de trabajo (OTs) altamente asincrónico y sincronizado bidireccionalmente con Google Calendar. Su núcleo reside en una arquitectura de "Single Source of Truth Flexible" basada en SQLite, donde los cambios locales tienen prioridad, pero los cambios remotos (Google Calendar) son detectados mediante un motor de Polling constante y arbitrados mediante un Inbox de revisiones (Review Queue), el cual soporta ahora auto-resolución (Auto-Apply) mediante reglas de enrutamiento configurables.
+AppPlanificacion es un sistema de planificación de técnicos y órdenes de trabajo (OTs) altamente asincrónico y sincronizado bidireccionalmente con Google Calendar. Su núcleo reside en una arquitectura de "Single Source of Truth Flexible" basada en SQLite, donde los cambios locales tienen prioridad, pero los cambios remotos (Google Calendar) son detectados mediante un motor de Polling constante y arbitrados mediante un Inbox de revisiones (Review Queue). Este Inbox soporta auto-resolución (Auto-Apply) mediante reglas de enrutamiento configurables y resolución en cascada para eventos de cuadrilla (Sibling Reviews).
 
-El sistema cuenta con motores robustos para mantener la integridad de Grupos (múltiples técnicos en la misma OT/Fecha, con formación implícita al vuelo), sanación automática de desvíos (Drift Manager) y una estricta política de pertenencia de campos (Field Ownership).
+El sistema cuenta con motores robustos para mantener la integridad de Grupos (formación implícita e importación desde el exterior), normalización avanzada de zonas horarias para eventos complejos (`TimeNormalizationService`), sanación automática de desvíos (Drift Manager) y una estricta política de pertenencia de campos (Field Ownership).
 
 ---
 
@@ -49,238 +49,126 @@ graph TD
 ```
 
 **Evidencia:** 
-- `api_server.py`: Define los endpoints HTTP, incluyendo dashboards e indicadores (ej. `/api/indicadores/ocupacion`).
+- `api_server.py`: Define endpoints HTTP, cálculo de disponibilidad integrado (considerando eventos externos), y opera un *Watchdog* que permite la ejecución ininterrumpida en **Modo Servidor 24/7**.
 - `sync_manager.py`: Módulo `SyncWorker` que envía hacia GCal.
-- `poll_manager.py`: Módulo `PollingManager` que lee desde GCal y aplica reglas de enrutamiento (`poll_routing_config`).
-- `drift_manager.py`: Auditoría periódica.
+- `poll_manager.py`: Motor inbound que aplica reglas (`poll_routing_config`) y gestiona caídas de red (fallback ante `HTTP 410 Gone`).
+- `TimeNormalizationService`: Transforma y estandariza cálculos de fechas para eventos multidía entre el frontend y GCal.
 
 ### 0.2 Container Diagram
+La arquitectura soporta lectura de identidad (`token.json` y perfiles de usuario) desde la raíz para autenticar sesiones del operador.
 
-```mermaid
-graph LR
-    subgraph Local Environment
-        SPA[Web Frontend]
-        API[FastAPI Server]
-        Worker[Background Threads]
-        DB[(SQLite database.db)]
-    end
-    
-    subgraph Google Cloud
-        GCAL[Google Calendar API]
-    end
-    
-    SPA -- HTTP/JSON --> API
-    API -- SQL --> DB
-    Worker -- SQL --> DB
-    Worker -- HTTPS/REST --> GCAL
-    GCAL -- HTTPS/REST --> Worker
-```
-
-**Evidencia:** `launcher.py` instancia `api_server` y los hilos en background (`run_sync_worker`, `run_poll_worker`).
-
-### 0.3 High Level Data Flow
-
-**Modificar Evento (Local a Remoto)**
-```mermaid
-sequenceDiagram
-    participant UI as Frontend
-    participant API as api_server.py
-    participant DB as data_manager.py
-    participant Q as sync_queue
-    participant Sync as sync_manager.py
-    participant G as Google Calendar
-
-    UI->>API: POST /api/eventos/{id}
-    API->>DB: actualizar_evento()
-    DB->>Q: insert (operation=UPDATE)
-    API-->>UI: 200 OK
-    loop Background
-        Sync->>Q: pull pending
-        Sync->>G: PATCH /events/{id}
-        Sync->>Q: mark SUCCESS
-    end
-```
-
-**Detectar Cambio Externo (Remoto a Local)**
-```mermaid
-sequenceDiagram
-    participant G as Google Calendar
-    participant Poll as poll_manager.py
-    participant Route as Routing Rules
-    participant Q as poll_review_queue
-    participant UI as Frontend
-
-    loop Background (5 min)
-        Poll->>G: GET /events (updatedMin)
-        G-->>Poll: Eventos modificados
-        Poll->>Poll: Filtra CRITICAL vs SAFE fields
-        Poll->>Route: Evalúa 'poll_routing_config'
-        alt Es AUTO_APPLY
-            Route->>Poll: auto_accept_review()
-        else Es INBOX
-            Route->>Q: enqueue_review()
-        end
-    end
-```
-
-### 0.4 Source Of Truth Analysis
+### 0.3 Source Of Truth Analysis
 - **Eventos:** SQLite es la fuente primaria. Sin embargo, su estado final depende del Arbitraje si Google reporta un cambio concurrente.
-- **Grupos:** SQLite (`grupos` table). Los grupos son un concepto puramente local. Google Calendar no tiene idea de qué es un "Grupo", solo ve eventos individuales. Si Google crea un evento (REMOTE_CREATE) con el mismo `google_event_id` de otro evento existente, `data_manager.py` auto-forma un "Grupo Implícito" en SQLite para mantener la cohesión temporal.
-- **Técnicos/OTs/Vehículos:** SQLite (`tecnicos`, `cache_ots`, `cache_vehiculos`). Incluye `servicio` por técnico.
-- **Metadata (App_OTs, Grupo_ID):** Propiedad estricta de la aplicación local (`_PROTECTED_METADATA_KEYS` en `data_manager.py`).
+- **Grupos:** SQLite (`grupos` table). Los grupos son un concepto puramente local. Si Google crea un evento (REMOTE_CREATE) con el mismo `google_event_id` de otro evento, se auto-forma un "Grupo Implícito". Adicionalmente, el sistema permite la **Importación de Eventos Externos**, desvinculando a los invitados de un organizador de Google y transformándolos en un Grupo nativo en SQLite.
+- **Técnicos/OTs/Vehículos:** SQLite (`tecnicos`, `cache_ots`, `cache_vehiculos`).
+- **Metadata:** Propiedad estricta de la aplicación local (`_PROTECTED_METADATA_KEYS`).
 
 **Conflictos Posibles:**
-Race conditions entre el planificador modificando un evento y el técnico moviéndolo en GCal. Se resuelven mediante **OCC (Optimistic Concurrency Control)**.
+Race conditions resueltas mediante **OCC (Optimistic Concurrency Control)**.
 
 ---
 
 ## Nivel 1 — Domain Specification
 
 ### Entidades Funcionales
-*   **Evento:** Unidad mínima de trabajo de un técnico.
-*   **Grupo:** Agrupación lógica de eventos asociados a la misma OT y Fecha, asignados a múltiples técnicos. (Puede ser creado desde la UI o de forma implícita por el sistema inbound).
+*   **Evento (Simple o Multi-día):** Unidad de trabajo. Los eventos multi-día son procesados por el `TimeNormalizationService` para evitar discrepancias de huso horario o superposiciones.
+*   **Grupo:** Agrupación lógica de eventos asociados a la misma OT y Fecha, asignados a múltiples técnicos. (Puede ser formal, implícito, o resultado de una importación externa).
 *   **Técnico:** Persona con un calendario de Google asignado (`calendar_id`) y una especialidad/`servicio`.
 *   **Review:** Propuesta de cambio originada en Google Calendar que requiere arbitraje.
 *   **Drift:** Inconsistencia detectada entre la base de datos local y Google Calendar.
-*   **Sync Job:** Tarea encolada para replicar una mutación local hacia Google Calendar.
 
 ---
 
 ## Nivel 2 — Data Model
 
 ### Database Schema Diagram (SQLite)
-
 **Tablas Principales:**
-*   `eventos`: Almacena el estado de los eventos. (Source of Truth principal).
-*   `grupos`: Estado de las agrupaciones formales e implícitas.
-*   `tecnicos`: Catálogo de técnicos, correos y sus `servicios` (categoría operativa).
+*   `eventos`: Almacena el estado de los eventos (Fuente de verdad).
+*   `grupos`: Estado de las agrupaciones formales, implícitas y externas importadas.
+*   `tecnicos`: Catálogo de técnicos y sus `servicios`.
 *   `sync_queue`: Cola de tareas outbound.
 *   `poll_review_queue`: Cola de resolución inbound con soporte de deduplicación.
-*   `drift_events`: Hallazgos del motor de auditoría.
-*   `group_operation_journal`: Registro de mutaciones transaccionales en grupos.
-
-**Evidencia:** `data_manager.py` (método `inicializar_db()`).
 
 ---
 
 ## Nivel 3 — Lifecycle Documentation
 
-### 1. Crear Evento
-**Trigger:** POST `/api/eventos`
-**Call Stack:** `api_server.py` -> `db.crear_evento()` -> `insert eventos` -> `insert sync_queue (CREATE)`
-
-### 4. Crear Grupo
-**Trigger:** POST `/api/grupos`
-**Call Stack:** `api_server.py` -> `group_operations.create_group()` -> Crea evento "Madre" -> Clona a los técnicos -> Escribe `group_operation_journal` -> Encola SYNC.
-
 ### 10. Polling Detect & Inbound Routing
 **Trigger:** Hilo `run_poll_worker` en `launcher.py`.
 **Call Stack:** `poll_manager.py::_poll_calendar()` -> HTTP GET a GCal -> `_process_incoming_event()`.
-**Mutaciones:** Dependiendo de `poll_routing_config` (ej. "FIELD_CHANGE" = "AUTO_APPLY"), el sistema encolará el cambio para arbitraje manual o invocará automáticamente a `accept_review()`.
+**Mutaciones:** Dependiendo de `poll_routing_config`, el sistema encolará el cambio (INBOX) o aplicará la mutación automáticamente (AUTO_APPLY). El sistema es tolerante a borrados asincrónicos, ejecutando *fallbacks* ante errores `410 Gone`.
 
-### 11. Accept Review (Arbitraje Automático o Manual)
-**Trigger:** POST `/api/review/{review_id}/accept` o auto-apply desde el routing.
-**Call Stack:** `api_server.py` -> `data_manager.py::accept_review()`.
+### 11. Accept Review & Auto-Resolución de Cuadrillas
+**Trigger:** POST `/api/review/{review_id}/accept`
 **Mutaciones:** 
-1. OCC Check: Valida que el evento no haya sido modificado desde la detección.
-2. Metadata Shield: Rescata `grupo_id` y `app_ots` locales si Google los pisó.
+1. Valida OCC (Control Optimista).
+2. Rescata metadatos protegidos (Metadata Shield).
 3. Actualiza `eventos` y marca review como `RESOLVED`.
-4. Si es `REMOTE_CREATE` y detecta un `google_event_id` compartido, dispara **Implicit Group Creation**.
+4. **Sibling Review Auto-Resolution:** Si el evento es parte de un grupo, el sistema automáticamente rastrea y resuelve (acepta) de forma silente cualquier review idéntico pendiente en los demás integrantes de la cuadrilla, garantizando cohesión sin fatigar al operador.
 
 ---
 
 ## Nivel 4 — Operations Catalog
 
-| Operación | Endpoint | Motor | Entidades Afectadas |
+| Operación | Endpoint | Motor | Detalles Afectados |
 | :--- | :--- | :--- | :--- |
-| **Aceptar Review** | `POST /api/review/{id}/accept` | Arbitration | Mutación local forzada con Metadata Shield y OCC. |
-| **Implicit Group Creation** | N/A (Automático al crear) | Arbitration | Si entra un REMOTE_CREATE con un GID existente, se auto-crea un Grupo uniendo al nuevo técnico con el original. |
-| **Crear/Editar Grupo** | `POST/PUT /api/grupos` | Group Engine | Propagación a todos los miembros y a `sync_queue`. |
-| **Drift Auto-Heal**| N/A (Background) | Drift / Group | Limpieza de orphans, regeneración de sync jobs perdidos. |
-| **Métricas de Ocupación** | `GET /api/indicadores/ocupacion` | API Server | Devuelve la ocupación consolidada por Servicio (disciplina técnica). |
+| **Aceptar Review** | `POST /api/review/{id}/accept` | Arbitration | Mutación local forzada. **Auto-resuelve** conflictos de cuadrilla (Sibling Reviews). |
+| **Importar Externo** | UI Popover -> Import | Data Manager | Clona evento remoto a SQLite, desvincula al creador y crea grupo nativo. |
+| **Integrar Disponibilidad**| Búsqueda de Slots | API Server | Integra bloqueos de eventos *externos* para evitar conflictos de OT o Vehículo al sugerir huecos. |
+| **Métricas de Ocupación** | `GET /api/indicadores/ocupacion` | API Server | Devuelve la ocupación consolidada por Servicio. |
 
 ---
 
 ## Nivel 5 — Engine Documentation
 
-### 5.1 Group Engine (`group_operations.py`, `group_repair.py`, `group_integrity.py`)
-- **Responsabilidad:** Asegurar que los eventos que pertenecen a un grupo se muevan juntos y mantengan coherencia de metadatos.
-- **Riesgos:** Fallos parciales donde un evento se actualiza y otro no (mitigado por el Journal y `auto_heal_partial_operations`).
+### 5.1 Group Engine (`group_operations.py`)
+Asegura que los eventos que pertenecen a un grupo se muevan juntos. Incorpora ahora la lógica de importación, permitiendo capturar un evento creado fuera de AppPlanificacion, cortar el lazo con el organizador original de Google (invitees unlink) y gestionarlo internamente como cuadrilla.
 
 ### 5.2 Arbitration & Routing Engine (`poll_manager.py`, `data_manager.py`)
-- **Responsabilidad:** Resolver conflictos Last-Write-Wins entre Google y Planner.
-- **Inbound Routing (`poll_routing_config`):** Define si un evento se va al Inbox (`INBOX`), se aplica automáticamente saltándose la cola de revisión humana (`AUTO_APPLY`) o se descarta (`IGNORE`).
-- **Implicit Groups:** Capacidad del motor de arbitraje para detectar técnicos adicionales siendo invitados por GCal y agruparlos lógicamente bajo la misma OT.
+- **Auto-Resolución de Sibling Reviews:** Al arbitrar manualmente un evento de cuadrilla, el sistema deduce y acepta el mismo cambio para el resto del equipo simultáneamente.
+- **Resiliencia 410:** El polling manager intercepta eventos eliminados crónicamente en GCal para evitar un loop de errores HTTP.
 
-### 5.3 Sync Engine (`sync_manager.py`)
-- **Responsabilidad:** Propagar cambios de SQLite a Google.
-- **ETag Guard:** Lee la fecha `updated` de Google. Si Google es más nuevo, aborta el push con `OUTBOUND_SKIPPED_STALE` para evitar pisar cambios.
-
----
-
-## Nivel 6 — Drift Specification
-
-**Taxonomía Oficial de Drifts:**
-1. **LOCAL_ORPHAN:** Existe en SQLite (`sync_status=SUCCESS`), pero Google lo eliminó o reporta 404.
-2. **REMOTE_ORPHAN:** Existe en Google con origen Planner, pero no existe en SQLite.
-3. **CALENDAR_MISMATCH:** El `tecnico_nombre` del evento en SQLite no concuerda con el `calendar_id` de Google.
-4. **PROPERTY_MISMATCH:** Discrepancia en títulos, horas u otros campos.
-5. **GROUP_OWNERSHIP_DRIFT:** Un grupo tiene más de un evento asignado al mismo técnico.
+### 5.3 Time Normalization Service
+- **Responsabilidad:** Asegurar la coherencia de fechas en eventos Multi-día. Calcula el rango de días efectivos e inyecta la normalización de fechas hacia la API de Google, previniendo bugs de renderizado de bloques visuales continuos en el *Frontend Scheduler*.
 
 ---
 
 ## Nivel 7 — Architecture Decision Records (ADRs)
 
-### ADR-001: Evento como Source of Truth (con esteroides)
-**Contexto:** Los eventos mutan localmente y en Google concurrente.
-**Decisión:** SQLite es la fuente de verdad. Todo cambio remoto es auditado por el Inbox de Arbitraje.
+### ADR-003: Inbound Routing & Sibling Auto-Resolve
+**Decisión:** El arbitraje delega en el "Inbound Routing Engine" para auto-aplicar cambios seguros. A su vez, para mitigar la fatiga de decisión del usuario ante movimientos de un grupo entero desde el celular, la interfaz de Inbox consolida las aprobaciones mediante la auto-resolución de revisiones hermanas (Sibling Reviews).
 
-### ADR-002: Metadatos "Blindados" (Metadata Shield)
-**Decisión:** El backend fuerza la reinserción de claves como `grupo_id` y `app_ots` durante el Arbitraje (`accept_review`) para evitar que GCal destruya el modelo de datos relacional de la app.
-
-### ADR-003: Inbound Routing & Deprecación de Move Correlation [UPDATED]
-**Contexto:** Originalmente, el Polling usaba un búfer de 60s en memoria (`Move Correlation`) para interceptar la eliminación y creación simultánea de eventos movidos entre calendarios. Esto era propenso a errores y race-conditions.
-**Decisión:** Se eliminó el `_move_buffer`. En su lugar, el arbitraje ahora delega en el "Inbound Routing Engine" (`poll_routing_config`) que permite auto-aplicar cancelaciones (`REMOTE_DELETE`) o creaciones (`REMOTE_CREATE`), y al crear, agrupa automáticamente mediante "Implicit Groups" si un técnico fue movido de un calendario a otro compartiendo el mismo EventID.
+### ADR-004: Importación Externa Activa
+**Contexto:** Los usuarios solían agendar OTs directamente en Google Calendar. AppPlanificacion sufría bloqueos lógicos al intentar lidiar con organizadores externos.
+**Decisión:** Se implementó una lógica de importación (External Event Import). El sistema copia el evento, elimina al organizador foráneo de la lista de invitados y lo trata como una creación local.
 
 ---
 
 ## Nivel 8 — Runbook Operacional
 
 **Caso: Evento Trabado en "PROCESSING" o "REASSIGN_FAILED"**
-- **Diagnóstico:** El worker falló en la etapa de reasignación y dejó campos de staging.
 - **Reparación:** Ejecutar el reconciliation manual (`scratch/_reconcile_check.py`) o forzar estado a `CANCELLED_IN_GOOGLE`.
 
-**Caso: Conflicto "STALE_REVIEW"**
-- **Síntoma:** El operador acepta un cambio del Inbox, pero la UI arroja HTTP 409 Conflict.
-- **Diagnóstico:** El evento fue modificado localmente *después* de que el Polling leyó Google.
-- **Reparación:** El operador debe rechazar el review (Ignorar) o refrescar la página, ya que la versión local pisó el conflicto original.
-
----
-
-## Nivel 9 — Observability & Diagnostics
-
-- **`poll_log` (BD):** Tabla central para traces del inbound. Registra `POLL_TRACE`, `DELETE_DETECTED`, `AUTO_APPLIED_DELETE`, `MANUAL_RECONCILIATION`.
-- **`sync_log` (BD):** Tabla de auditoría para outbound (PATCH/INSERT a Google).
-- **`group_operation_journal` (BD):** Bitácora transaccional para auditar grupos parcialmente sincronizados.
+**Caso: Falla de Sincronización HTTP 410**
+- **Diagnóstico:** Un técnico borró un evento muy viejo de la papelera de Google Calendar y el Poll Manager intenta leerlo.
+- **Reparación:** El sistema automáticamente descarta el marcador y genera un fallback de sync (implementado nativamente, no requiere acción manual).
 
 ---
 
 ## Nivel 10 — Technical Debt Report
 
-| Componente | Nivel de Deuda | Descripción | Riesgo |
-| :--- | :--- | :--- | :--- |
-| **Conexiones SQLite** | **HIGH** | Múltiples conexiones por hilo (`with db._get_connection()`). Dependencia excesiva del WAL mode. | Database Locks si aumenta el tráfico asincrónico. |
-| **Polling Engine** | **MEDIUM** | Realiza `events().list()` iterativamente en 40+ calendarios. Operación bloqueante y muy intensiva en cuota de API. | Exceder cuota de GCal API si crecen los técnicos. (Mitigable usando Webhooks). |
-| **Group Integrity** | **LOW** | `group_integrity.py` implementa invariantes, pero la reparación auto-heal es asincrónica. | Eventos temporalmente inconsistentes si se corta la conexión al sincronizar. |
+| Componente | Nivel de Deuda | Descripción |
+| :--- | :--- | :--- |
+| **Conexiones SQLite** | **HIGH** | Múltiples conexiones por hilo (`with db._get_connection()`). Dependencia excesiva del WAL mode. |
+| **Polling Engine** | **MEDIUM** | Realiza `events().list()` iterativamente en 40+ calendarios. Operación bloqueante (mitigable usando Webhooks). |
+| **Group Integrity** | **LOW** | Reparación auto-heal asincrónica. Posible inconsistencia de milisegundos. |
 
 ---
 
 ## Appendix — Referencias al Código
 
-- **Arbitraje y Metadata Shield:** `data_manager.py`, líneas 1200+ (`accept_review`).
-- **Implicit Group Creation:** `data_manager.py` (dentro de `_handle_remote_create` vía lógica `google_event_id`).
-- **ETag Guard Outbound:** `sync_manager.py`, líneas 370+ (`_do_update`).
-- **Inbound Auto-Routing:** `poll_manager.py`, líneas 540+ y 760+ (`poll_routing_config` evaluate).
-- **Métricas por Servicio:** `api_server.py`, endpoint `get_indicador_ocupacion`.
-- **Auto-Sanación de Grupos:** `group_repair.py`, líneas 385+ (`auto_heal_partial_operations`).
-- **Reporte de Drift:** `drift_manager.py`, líneas 200+ (`_run_drift_analysis_sync`).
+- **TimeNormalizationService:** Lógica de abstracción temporal para frontend y API.
+- **Importación y Availability Integration:** `api_server.py` (`_build_tech_events`).
+- **Arbitraje, Sibling Reviews y Metadata Shield:** `data_manager.py` (`accept_review`).
+- **Implicit Group Creation:** `data_manager.py` (vía `google_event_id`).
+- **Resiliencia HTTP 410:** `poll_manager.py`.
